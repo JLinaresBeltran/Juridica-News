@@ -8,6 +8,10 @@
 > Transform your development workflow with AI-powered Product Manager, UX Designer, and Claude Code working in perfect harmony. Build production-ready multi-agent systems in hours, not months.
 
 <p align="center">
+  <img src="docs/images/ai-amigos-diagram.png" alt="3 AI Amigos: The Future of Product Development" width="90%" />
+</p>
+
+<p align="center">
   <img src="https://img.shields.io/badge/🎯_Product_Manager-Requirements_&_Architecture-blue?style=for-the-badge" />
   <img src="https://img.shields.io/badge/🎨_UX_Designer-UI_&_Experience-purple?style=for-the-badge" />
   <img src="https://img.shields.io/badge/💻_Claude_Code-Implementation-green?style=for-the-badge" />
@@ -47,34 +51,17 @@ This pattern is based on Anthropic's research showing **90.2% performance improv
 
 ## 🏗️ The Pattern
 
-```mermaid
-graph TB
-    subgraph "The 3 AI Amigos Pattern"
-        PO[Product Owner 👤]
-        PM[PM Agent 🎯]
-        UX[UX Agent 🎨]
-        CC[Claude Code 💻]
-        
-        PO -->|Requirements & Domain Knowledge| PM
-        PM -->|PRD, User Stories, Architecture| UX
-        UX -->|Designs, Prototypes, Specs| CC
-        CC -->|Working System| PO
-    end
-    
-    subgraph "Outputs"
-        PM -.-> PRD[Product Requirements]
-        PM -.-> US[User Stories]
-        PM -.-> ARCH[Architecture]
-        
-        UX -.-> DS[Design System]
-        UX -.-> PROTO[Prototypes]
-        UX -.-> SPEC[Component Specs]
-        
-        CC -.-> BE[Backend Code]
-        CC -.-> FE[Frontend Code]
-        CC -.-> SYS[Complete System]
-    end
-```
+<p align="center">
+  <img src="docs/images/ai-amigos-diagram.png" alt="3 AI Amigos Pattern Diagram" width="100%" />
+</p>
+
+The 3 AI Amigos pattern orchestrates three specialized AI agents in a continuous development cycle:
+
+1. **Define & Plan** - Product Owner collaborates with PM Agent to create requirements and architecture
+2. **Design & Iterate** - Requirements flow to UX Designer Agent for mockups and prototypes  
+3. **Build & Test** - UX artifacts guide Claude Code to implement the complete system
+
+This creates a seamless flow where human vision is amplified by AI expertise at every stage.
 
 ## 📁 Repository Structure
 
@@ -106,7 +93,9 @@ graph TB
 ├── 📖 docs/                      # Setup guides
 │   ├── demo-setup-guide.md
 │   ├── po-document-checklist.md
-│   └── requirements-directory-structure.md
+│   ├── requirements-directory-structure.md
+│   └── images/
+│       └── ai-amigos-diagram.png
 │
 └── README.md                     # You are here!
 ```
