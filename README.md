@@ -1,26 +1,10 @@
-# 🤖 3 AI Amigos: Multi-Agent Development Pattern
-
-[![Anthropic Claude](https://img.shields.io/badge/Powered%20by-Anthropic%20Claude-orange)](https://anthropic.com)
-[![Multi-Agent](https://img.shields.io/badge/Architecture-Multi--Agent-blue)](https://www.anthropic.com/engineering/built-multi-agent-research-system)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
+# 🤖 3 AI Amigos: Multi-Agent Product Development Team
 
 > Transform your development workflow with AI-powered Product Manager, UX Designer, and Claude Code working in perfect harmony. Build production-ready multi-agent systems in hours, not months.
-
-<p align="center">
-  <img src="docs/images/ai-amigos-diagram.png" alt="3 AI Amigos: The Future of Product Development" width="90%" />
-</p>
-
-<p align="center">
-  <img src="https://img.shields.io/badge/🎯_Product_Manager-Requirements_&_Architecture-blue?style=for-the-badge" />
-  <img src="https://img.shields.io/badge/🎨_UX_Designer-UI_&_Experience-purple?style=for-the-badge" />
-  <img src="https://img.shields.io/badge/💻_Claude_Code-Implementation-green?style=for-the-badge" />
-</p>
 
 ## 📖 Table of Contents
 
 - [Overview](#-overview)
-- [The Pattern](#-the-pattern)
 - [Repository Structure](#-repository-structure)
 - [Quick Start](#-quick-start)
 - [Complete Setup Guide](#-complete-setup-guide)
@@ -33,13 +17,25 @@
 
 ## 🌟 Overview
 
-The **3 AI Amigos** pattern revolutionizes how we build multi-agent systems by orchestrating three specialized AI agents that mirror traditional software development roles:
+The **3 AI Amigos** revolutionizes how we build multi-agent systems by orchestrating three specialized AI agents that mirror traditional software development roles:
 
 1. **Product Manager Agent** - Creates PRDs, user stories, and technical architecture
 2. **UX Designer Agent** - Designs interfaces, creates prototypes, and defines experiences
 3. **Claude Code Agent** - Implements the complete system following specifications
 
 This pattern is based on Anthropic's research showing **90.2% performance improvement** with multi-agent systems over single agents.
+
+<p align="center">
+  <img src="docs/images/ai-amigos-diagram.png" alt="3 AI Amigos Team Diagram" width="100%" />
+</p>
+
+The 3 AI Amigos orchestrates these specialized AI agents in a continuous development cycle:
+
+1. **Define & Plan** - Product Owner collaborates with PM Agent to create requirements and architecture
+2. **Design & Iterate** - Requirements flow to UX Designer Agent for mockups and prototypes  
+3. **Build & Test** - UX artifacts guide Claude Code to implement the complete system
+
+This creates a seamless flow where human vision is amplified by AI expertise at every stage.
 
 ### 🎯 Key Benefits
 
@@ -48,20 +44,6 @@ This pattern is based on Anthropic's research showing **90.2% performance improv
 - 🎨 **Professional UX** - AI-designed interfaces that users love
 - 🏗️ **Production Ready** - Following Anthropic's best practices
 - 🔧 **Domain Agnostic** - Works for health, finance, legal, education, etc.
-
-## 🏗️ The Pattern
-
-<p align="center">
-  <img src="docs/images/ai-amigos-diagram.png" alt="3 AI Amigos Pattern Diagram" width="100%" />
-</p>
-
-The 3 AI Amigos pattern orchestrates three specialized AI agents in a continuous development cycle:
-
-1. **Define & Plan** - Product Owner collaborates with PM Agent to create requirements and architecture
-2. **Design & Iterate** - Requirements flow to UX Designer Agent for mockups and prototypes  
-3. **Build & Test** - UX artifacts guide Claude Code to implement the complete system
-
-This creates a seamless flow where human vision is amplified by AI expertise at every stage.
 
 ## 📁 Repository Structure
 
@@ -382,7 +364,7 @@ Orchestrator (CMO/CIO/Senior Counsel)
 <details>
 <summary><b>Can I use this for non-health domains?</b></summary>
 
-Absolutely! The pattern is domain-agnostic. Just create your own domain documents and follow the same process. We've included examples for finance, legal, and education systems.
+Absolutely! The 3 AI Amigos is domain-agnostic. Just create your own domain documents and follow the same process. We've included examples for finance, legal, and education systems.
 </details>
 
 <details>
@@ -448,9 +430,9 @@ We welcome contributions! See our [Contributing Guide](CONTRIBUTING.md) for deta
 </p>
 
 <p align="center">
-  Made with ❤️ by [Your Name] using the 3 AI Amigos Pattern
+  Made with ❤️ by [Your Name] using the 3 AI Amigos
 </p>
 
 <p align="center">
-  <a href="#-3-ai-amigos-multi-agent-development-pattern">⬆ Back to Top</a>
+  <a href="#-3-ai-amigos-multi-agent-product-development-team">⬆ Back to Top</a>
 </p>
