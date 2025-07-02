@@ -25,7 +25,7 @@ The system uses pre-built tools that abstract data storage and querying. All age
 
 The target users are health-conscious individuals who want to understand their health data through natural language queries, getting insights that would typically require consulting multiple medical specialists.
 
-**Note**: This is for a demo/proof of concept, so authentication and enterprise features are optional.
+**Technology Requirements**: Use FastAPI for backend and React with Vite for frontend. The pre-built data access tools will be provided - do not design database schemas or data persistence.
 
 Please create:
 1. A comprehensive Product Requirements Document (PRD.md)
@@ -37,6 +37,13 @@ Please create:
 7. Feature prioritization matrix (feature-priority.md)
 
 Focus on making this system extensible so the pattern can be applied to other multi-agent use cases beyond healthcare.
+
+**Architecture Guidelines**:
+- Backend: FastAPI with direct SSE streaming
+- Frontend: React with Vite (not Next.js)
+- No external services (Redis, databases, message queues)
+- Pre-built tools handle all data access
+- Simple, direct implementation patterns
 
 ## I have attached the following documents:
 

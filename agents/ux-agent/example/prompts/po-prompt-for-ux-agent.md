@@ -52,7 +52,7 @@ Please create:
 
 Focus on creating a design that builds user trust while handling complex medical information in an approachable way.
 
-**Note**: This is for a demo, so authentication screens are not needed unless specified in the PRD.
+**Technology Context**: The implementation will use React with Vite for the frontend, so design components that work well with React's component model. No authentication screens are needed.
 
 ## I have attached the following documents:
 

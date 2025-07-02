@@ -2,7 +2,7 @@
 
 ## Overview
 
-You are implementing a production-grade Multi-Agent System following Anthropic's orchestrator-worker pattern as described in ["How we built our multi-agent research system"](https://www.anthropic.com/engineering/built-multi-agent-research-system). This guide provides technical best practices and implementation patterns that apply to any multi-agent system.
+You are implementing a Multi-Agent System following Anthropic's orchestrator-worker pattern as described in ["How we built our multi-agent research system"](https://www.anthropic.com/engineering/built-multi-agent-research-system). This guide provides the exact implementation approach using FastAPI and React with direct tool integration.
 
 ## Project Structure
 
@@ -42,16 +42,34 @@ Before writing any code:
 ```
 backend/
 ├── main.py                     # FastAPI application
+├── requirements.txt            # Dependencies
+├── api/                       # API endpoints  
+│   └── chat.py               # SSE streaming endpoint
 ├── models/                     # Pydantic models
 ├── services/                   # Business logic
-└── api/                       # API endpoints
+│   ├── agents/               # Agent implementations
+│   └── streaming/            # SSE utilities
+└── tools/                     # Pre-built tools (DO NOT MODIFY)
 ```
 
-Create foundational files:
-- FastAPI application with CORS
-- Health check endpoints
-- Logging configuration
-- Error handling middleware
+Create main.py with FastAPI:
+```python
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from api import chat
+
+app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],  # Vite default
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(chat.router)
+```
 
 #### Step 2: Multi-Agent Architecture
 
@@ -90,17 +108,68 @@ class OrchestratorAgent:
 
 #### Step 3: Specialist Implementation
 
-Create specialists based on your domain (defined in requirements):
+Create simple specialists that use Anthropic directly:
 ```python
-class SpecialistAgent(BaseAgent):
-    def __init__(self, specialty: str, tools: List[Any]):
+from anthropic import Anthropic
+from tools.tool_registry import ToolRegistry
+
+class SpecialistAgent:
+    def __init__(self, name: str, specialty: str):
+        self.name = name
         self.specialty = specialty
-        self.tools = tools
+        self.client = Anthropic()
+        self.tools = ToolRegistry()
+        # Load prompts from files
+        self.system_prompt = self._load_prompt("system.txt")
     
-    async def analyze(self, task: Task) -> SpecialistResult:
-        # Domain-specific analysis
-        pass
+    async def analyze(self, task: str) -> dict:
+        # Direct Anthropic call with tools
+        response = await self.client.messages.create(
+            model="claude-3-sonnet-20240229",
+            system=self.system_prompt,
+            messages=[{"role": "user", "content": task}],
+            tools=self.tools.get_tool_definitions(),
+            max_tokens=4000
+        )
+        return self._process_response(response)
 ```
+
+#### Step 4: Visualization Agent Implementation
+
+**CRITICAL**: For data analysis systems, implement a Visualization Agent:
+
+```python
+class VisualizationAgent:
+    def __init__(self, anthropic_client):
+        self.client = anthropic_client
+        self.prompts = self._load_prompts()
+    
+    async def stream_visualization(self, query: str, results: list, synthesis: str):
+        # Extract key data points from synthesis
+        key_data = self._extract_data_points(results, synthesis)
+        
+        # Generate prompt with embedded data
+        prompt = f'''
+        Create a self-contained React component for this query: {query}
+        
+        Key data from analysis: {key_data}
+        
+        CRITICAL: 
+        - Start with: const HealthVisualization = () => {{
+        - Embed data as const rawData = [...]
+        - Use Recharts components
+        - DO NOT include imports
+        '''
+        
+        # Stream the code artifact
+        async for chunk in self._stream_code(prompt):
+            yield {
+                "type": "text",
+                "content": chunk
+            }
+```
+
+The visualization agent creates self-contained React components that are streamed as code artifacts and rendered in the frontend.
 
 ### Phase 3: API Implementation
 
@@ -112,25 +181,79 @@ Implement endpoints defined in `requirements/pm-outputs/architecture/api-specifi
 
 ### Phase 4: Frontend Implementation
 
+#### Setup with Vite
+```bash
+npm create vite@latest frontend -- --template react-ts
+cd frontend
+npm install
+npm install -D tailwindcss postcss autoprefixer
+npx tailwindcss init -p
+```
+
 #### Core Components Structure
 ```
-frontend/src/
-├── components/
-│   ├── layout/              # Layout components
-│   ├── chat/               # If conversational UI
-│   ├── visualization/      # Data visualizations
-│   └── domain/            # Domain-specific components
-├── services/              # API integration
-├── types/                # TypeScript definitions
-└── utils/               # Utilities
+frontend/
+├── package.json         # React, Vite, Tailwind
+├── vite.config.ts      # Vite configuration
+├── index.html          # Entry point
+├── src/
+│   ├── App.tsx         # Main component
+│   ├── main.tsx        # React DOM render
+│   ├── index.css       # Tailwind imports
+│   ├── components/
+│   │   ├── ChatInterface.tsx    # Main chat UI
+│   │   ├── MessageList.tsx      # Message display
+│   │   ├── SpecialistPanel.tsx  # Agent status
+│   │   └── Visualization.tsx    # Charts
+│   ├── services/
+│   │   └── api.ts              # SSE client
+│   └── types/
+│       └── index.ts            # TypeScript types
 ```
 
-#### Key Patterns
+#### Key Implementation Points
 
-1. **State Management**: Use React Context or component state
-2. **Real-time Updates**: SSE integration for streaming
-3. **Error Boundaries**: Graceful error handling
-4. **Responsive Design**: Mobile-first approach
+1. **Simple State**: Use React useState/useEffect
+2. **SSE Integration**: Native EventSource API
+3. **No Complex Libraries**: No Redux, Zustand, etc.
+4. **Direct API Calls**: Simple fetch/SSE to backend
+
+#### CodeArtifact Component for Visualizations
+
+```typescript
+// components/CodeArtifact.tsx
+const CodeArtifact = ({ code, isStreaming }) => {
+  const [viewMode, setViewMode] = useState('code');
+  
+  // Execute code to render component
+  const renderedComponent = useMemo(() => {
+    if (isStreaming) return null;
+    
+    try {
+      // Transform JSX with Babel
+      const transformed = Babel.transform(code, {
+        presets: ['react']
+      });
+      
+      // Make Recharts available
+      window.Recharts = Recharts;
+      
+      // Execute and render
+      const Component = eval(transformed.code);
+      return <Component />;
+    } catch (error) {
+      return <div>Error: {error.message}</div>;
+    }
+  }, [code, isStreaming]);
+  
+  return (
+    <div>
+      {viewMode === 'code' && <pre>{code}</pre>}
+      {viewMode === 'preview' && renderedComponent}
+    </div>
+  );
+};
+```
 
 ### Phase 5: Integration
 
@@ -162,20 +285,37 @@ frontend/src/
 
 ### 2. Streaming & Real-time Updates
 
-**SSE Pattern**:
+**FastAPI SSE Endpoint**:
 ```python
-async def stream_updates():
-    yield {"type": "status", "message": "Processing..."}
-    yield {"type": "specialist_update", "specialist": "name", "progress": 50}
-    yield {"type": "result", "data": {...}}
+from fastapi import APIRouter
+from fastapi.responses import StreamingResponse
+
+router = APIRouter()
+
+@router.post("/api/chat/message")
+async def chat_message(request: ChatRequest):
+    async def generate():
+        # Format SSE messages
+        yield f"data: {json.dumps({'type': 'status', 'message': 'Processing...'})}\n\n"
+        
+        # Stream from orchestrator
+        async for update in orchestrator.process(request.message):
+            yield f"data: {json.dumps(update)}\n\n"
+    
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache"}
+    )
 ```
 
-**Frontend Handling**:
+**Frontend SSE Client**:
 ```typescript
-const eventSource = new EventSource('/api/stream');
+const eventSource = new EventSource('/api/chat/message');
 eventSource.onmessage = (event) => {
     const data = JSON.parse(event.data);
-    updateUI(data);
+    // Update React state
+    setMessages(prev => [...prev, data]);
 };
 ```
 
@@ -216,14 +356,13 @@ Before completion:
 - [ ] Error scenarios handled gracefully
 - [ ] Performance meets requirements
 
-## Authentication & Security (Optional)
+## Simplified Architecture
 
-**For Demos**: Skip authentication unless explicitly required in the PRD.
-**For Production**: Implement JWT-based authentication with:
-- User registration/login
-- Protected API endpoints
-- Session management
-- Audit logging
+The system uses a straightforward architecture:
+- **No Authentication**: Focus on core functionality
+- **No External Services**: No Redis, databases, or message queues
+- **Direct Tool Usage**: Import pre-built tools from `backend/tools/`
+- **Simple Streaming**: Direct SSE without queuing infrastructure
 
 ## Working with Pre-built Tools
 
@@ -241,12 +380,12 @@ When `backend/tools/` contains pre-built tools:
 
 ## Common Pitfalls to Avoid
 
-1. **Don't hardcode domain logic** - Use configuration and prompts
-2. **Don't skip streaming updates** - Users need feedback
-3. **Don't ignore error cases** - Every external call can fail
-4. **Don't recreate provided tools** - Use what's given
-5. **Don't deviate from specifications** - Follow requirements exactly
-6. **Don't add auth for demos** - Unless specifically requested
+1. **Don't use Next.js** - Use FastAPI + React/Vite as specified
+2. **Don't add Redis or databases** - Tools handle all data access
+3. **Don't recreate provided tools** - Import from `backend/tools/`
+4. **Don't over-engineer agents** - Keep them simple with externalized prompts
+5. **Don't add authentication** - Focus on core functionality
+6. **Don't use complex state management** - React state is sufficient
 
 ## Demo Setup & Running Instructions
 
@@ -342,6 +481,13 @@ Your implementation succeeds when:
 2. Review `requirements/pm-outputs/architecture/system-architecture.md`
 3. Examine `requirements/ux-outputs/prototypes/`
 4. Check for any provided tools in `backend/tools/`
-5. Begin with Phase 1 and progress systematically
+5. Review `visualization-agent-pattern.md` for visualization requirements
+6. Begin with Phase 1 and progress systematically
 
 Remember: The domain-specific details are in the requirements directory. This guide provides the technical patterns that work across all domains.
+
+## Related Patterns
+
+- [Visualization Agent Pattern](visualization-agent-pattern.md) - REQUIRED for data analysis systems
+- [Multi-Agent Patterns](multi-agent-patterns.md) - Orchestrator-worker architecture
+- [Streaming Patterns](streaming-patterns.md) - SSE implementation details

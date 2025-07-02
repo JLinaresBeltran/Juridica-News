@@ -214,3 +214,33 @@ While these tools are pre-built, the system is designed for extensibility:
 - Additional data categories can be supported
 - Query capabilities can be enhanced with new patterns
 - Visualization hints can be expanded for new chart types
+
+## CRITICAL REMINDERS FOR IMPLEMENTATION
+
+1. **These tools are PROVIDED** - They will exist in `backend/tools/` when you start
+2. **DO NOT reimplement** - Simply import: `from tools.tool_registry import ToolRegistry`
+3. **DO NOT create database connections** - Tools handle all data access
+4. **DO NOT modify tool files** - They are pre-built and tested
+5. **DO use them directly** - Pass tool definitions to Anthropic API calls
+
+### Example Agent Implementation
+```python
+# This is how EVERY agent should use tools
+from anthropic import Anthropic
+from tools.tool_registry import ToolRegistry
+
+class AnySpecialistAgent:
+    def __init__(self):
+        self.client = Anthropic()
+        self.tools = ToolRegistry()  # Just instantiate
+    
+    async def analyze(self, query):
+        response = await self.client.messages.create(
+            model="claude-3-sonnet-20240229",
+            messages=[{"role": "user", "content": query}],
+            tools=self.tools.get_tool_definitions(),  # Pass definitions
+            max_tokens=4000
+        )
+        # Handle tool calls in response
+        return response
+```
