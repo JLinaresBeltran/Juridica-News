@@ -52,10 +52,10 @@ This creates a seamless flow where human vision is amplified by AI expertise at 
 │
 ├── 🤖 agents/                    # Reusable agent configurations
 │   ├── pm-agent/                 # Product Manager Agent
-│   │   ├── config/               # Agent instructions
+│   │   ├── config/               # Agent instructions & description
 │   │   └── example-prompts/      # What to submit to PM
 │   ├── ux-agent/                 # UX Designer Agent
-│   │   ├── config/               # Agent instructions
+│   │   ├── config/               # Agent instructions & description
 │   │   └── example-prompts/      # What to submit to UX
 │   └── code-agent/               # Claude Code configuration
 │       └── config/               # CLAUDE.md template
@@ -108,18 +108,20 @@ This creates a seamless flow where human vision is amplified by AI expertise at 
 **In Claude Desktop:**
 1. Click "Create New Project"
 2. Name: "Product Manager Agent"
-3. Copy instructions from: `agents/pm-agent/config/pm-agent-instructions.md`
-4. Paste into project instructions
-5. Save project
+3. Description: Copy from `agents/pm-agent/config/pm-agent-description.md`
+4. Copy instructions from: `agents/pm-agent/config/pm-agent-instructions.md`
+5. Paste into project instructions
+6. Save project
 
 #### 1.2 Create UX Designer Agent
 
 **In Claude Desktop:**
 1. Click "Create New Project"
 2. Name: "UX Designer Agent"
-3. Copy instructions from: `agents/ux-agent/config/ux-designer-agent-instructions.md`
-4. Paste into project instructions
-5. Save project
+3. Description: Copy from `agents/ux-agent/config/ux-agent-description.md`
+4. Copy instructions from: `agents/ux-agent/config/ux-designer-agent-instructions.md`
+5. Paste into project instructions
+6. Save project
 
 ### Phase 2: Prepare Your Documents
 
