@@ -204,7 +204,7 @@ Before starting, ensure you have:
 
 During implementation:
 - [ ] Follow the phased approach
-- [ ] Test each component thoroughly
+- [ ] Manually verify each component works
 - [ ] Implement proper error handling
 - [ ] Add comprehensive logging
 - [ ] Ensure type safety
@@ -216,6 +216,29 @@ Before completion:
 - [ ] Error scenarios handled gracefully
 - [ ] Performance meets requirements
 
+## Authentication & Security (Optional)
+
+**For Demos**: Skip authentication unless explicitly required in the PRD.
+**For Production**: Implement JWT-based authentication with:
+- User registration/login
+- Protected API endpoints
+- Session management
+- Audit logging
+
+## Working with Pre-built Tools
+
+When `backend/tools/` contains pre-built tools:
+1. **Import them** in your services, don't recreate functionality
+2. **Use their interfaces** as documented in tool-interface.md
+3. **Example**:
+   ```python
+   from tools.health_query_tool import execute_health_query_v2
+   from tools.snowflake_tool import snowflake_import_analyze_health_records_v2
+   
+   # In your specialist agent:
+   result = await execute_health_query_v2(query_params)
+   ```
+
 ## Common Pitfalls to Avoid
 
 1. **Don't hardcode domain logic** - Use configuration and prompts
@@ -223,6 +246,85 @@ Before completion:
 3. **Don't ignore error cases** - Every external call can fail
 4. **Don't recreate provided tools** - Use what's given
 5. **Don't deviate from specifications** - Follow requirements exactly
+6. **Don't add auth for demos** - Unless specifically requested
+
+## Demo Setup & Running Instructions
+
+### Backend Setup
+
+1. **Install Dependencies**:
+   ```bash
+   cd backend
+   pip install -r requirements.txt
+   ```
+
+2. **Environment Configuration** (if needed):
+   ```bash
+   cp .env.example .env
+   # Edit .env with any required API keys
+   ```
+
+3. **Start Backend Server**:
+   ```bash
+   python main.py
+   # Or if using uvicorn directly:
+   uvicorn main:app --reload --port 8000
+   ```
+   
+   Backend will be available at: `http://localhost:8000`
+   
+   API documentation available at: `http://localhost:8000/docs`
+
+### Frontend Setup
+
+1. **Install Dependencies**:
+   ```bash
+   cd frontend
+   npm install
+   # or: yarn install
+   ```
+
+2. **Start Frontend Development Server**:
+   ```bash
+   npm run dev
+   # or: yarn dev
+   ```
+   
+   Frontend will be available at: `http://localhost:5173` (Vite default)
+   
+   Or if using Create React App: `http://localhost:3000`
+
+### Verifying the Demo
+
+1. **Check Backend Health**:
+   ```bash
+   curl http://localhost:8000/health
+   ```
+
+2. **Open Frontend**:
+   - Navigate to `http://localhost:5173` in your browser
+   - You should see the welcome screen as designed in UX prototypes
+
+3. **Test Core Functionality**:
+   - Try the example queries provided on the welcome screen
+   - Verify real-time updates are streaming
+   - Check that visualizations render correctly
+
+### Common Demo Issues
+
+- **CORS Errors**: Ensure backend has proper CORS configuration for frontend URL
+- **Port Conflicts**: Change ports in startup commands if defaults are in use
+- **Missing Environment Variables**: Check console for any missing API keys
+- **Connection Refused**: Verify both backend and frontend are running
+
+### Manual Testing Checklist
+
+- [ ] Backend starts without errors
+- [ ] Frontend connects to backend successfully
+- [ ] Main user flow works end-to-end
+- [ ] Real-time updates display properly
+- [ ] Error states show user-friendly messages
+- [ ] UI matches the UX prototypes
 
 ## Success Criteria
 

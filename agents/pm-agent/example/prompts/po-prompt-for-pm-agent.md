@@ -25,6 +25,8 @@ The system uses pre-built tools that abstract data storage and querying. All age
 
 The target users are health-conscious individuals who want to understand their health data through natural language queries, getting insights that would typically require consulting multiple medical specialists.
 
+**Note**: This is for a demo/proof of concept, so authentication and enterprise features are optional.
+
 Please create:
 1. A comprehensive Product Requirements Document (PRD.md)
 2. Detailed user stories with acceptance criteria (user-stories.md)

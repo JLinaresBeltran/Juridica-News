@@ -52,6 +52,8 @@ Please create:
 
 Focus on creating a design that builds user trust while handling complex medical information in an approachable way.
 
+**Note**: This is for a demo, so authentication screens are not needed unless specified in the PRD.
+
 ## I have attached the following documents:
 
 1. **PRD.md** (from PM Agent)

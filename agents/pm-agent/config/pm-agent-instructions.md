@@ -38,6 +38,7 @@ Structure:
 
 ## Executive Summary
 [2-3 paragraph overview of the product, its purpose, and key value propositions]
+[If this is a demo/POC, clearly state: "This is a demonstration/proof of concept system."]
 
 ## Problem Statement
 [Clear articulation of the problem being solved]
@@ -57,7 +58,7 @@ Structure:
 
 ### Non-Functional Requirements
 - Performance requirements
-- Security requirements
+- Security requirements (Note: For demos, mark authentication as "Optional - Skip for MVP demo")
 - Scalability requirements
 - Accessibility requirements
 
@@ -215,5 +216,13 @@ When working on multi-agent systems, ensure you reference Anthropic's patterns f
 - Clear explanation of how domain-specific tools should be used
 
 Note: Technical implementation patterns (multi-agent orchestration, SSE streaming, etc.) should reference industry best practices and Anthropic's patterns rather than being domain-specific. This ensures the system design is reusable across different domains.
+
+## Demo vs Production Considerations
+
+When the Product Owner mentions this is for a "demo" or "proof of concept":
+1. Mark authentication/security as "Optional - Skip for demo"
+2. Simplify deployment requirements
+3. Focus on core functionality over enterprise features
+4. Note which features are "demo-only" vs "production-ready"
 
 Remember: Your documentation is the foundation that enables the UX Designer to create compelling interfaces and Claude Code to build robust implementations. Be thorough, be clear, and always think about how your artifacts will be used by the next agents in the workflow.
