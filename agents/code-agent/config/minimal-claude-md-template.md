@@ -44,6 +44,7 @@ Before starting, ensure you understand:
    - Review domain-specific requirements
    - Check brand guidelines if provided
    - Study any mockups or wireframes
+   - **CRITICAL**: Review multi-agent-implementation-architecture.md for backend structure
 
 4. **Technical Patterns** (`requirements/technical-patterns/`)
    - **MASTER GUIDE**: `implementation-guide.md` - Follow this exactly

@@ -77,13 +77,21 @@ Follow this pattern for ANY domain:
 
 ```
 services/
-├── orchestration/
-│   └── orchestrator_agent.py   # Main coordinator
+├── health_analyst_service.py    # Main orchestration service
 ├── agents/
-│   ├── base_agent.py          # Base class for all agents
-│   └── specialists/           # Domain-specific agents
+│   ├── cmo/                    # Orchestrator agent
+│   │   ├── cmo_agent.py
+│   │   └── prompts/           # Externalized prompts
+│   ├── specialist/            # Single specialist implementation
+│   │   ├── specialist_agent.py
+│   │   └── prompts/           # All specialist system prompts
+│   └── visualization/         # Visualization generator
+│       ├── visualization_agent.py
+│       └── prompts/           # Visualization examples
 └── streaming/
     └── sse_handler.py         # Real-time updates
+
+**IMPORTANT**: See `requirements/po-inputs/multi-agent-implementation-architecture.md` for detailed backend structure.
 ```
 
 **Generic Orchestrator Pattern**:
@@ -108,31 +116,33 @@ class OrchestratorAgent:
 
 #### Step 3: Specialist Implementation
 
-Create simple specialists that use Anthropic directly:
+**CRITICAL**: Create ONE SpecialistAgent class that handles ALL specialties:
 ```python
 from anthropic import Anthropic
 from tools.tool_registry import ToolRegistry
 
 class SpecialistAgent:
-    def __init__(self, name: str, specialty: str):
-        self.name = name
-        self.specialty = specialty
-        self.client = Anthropic()
-        self.tools = ToolRegistry()
-        # Load prompts from files
-        self.system_prompt = self._load_prompt("system.txt")
+    def __init__(self, anthropic_client, tool_registry, model):
+        self.client = anthropic_client
+        self.tool_registry = tool_registry
+        self.prompts = SpecialistPrompts()
     
-    async def analyze(self, task: str) -> dict:
-        # Direct Anthropic call with tools
+    async def execute_task_with_tools(self, task: SpecialistTask) -> SpecialistResult:
+        # Get specialty-specific system prompt
+        system_prompt = self._get_specialist_system_prompt(task.specialist)
+        
+        # Execute with Anthropic + tools
         response = await self.client.messages.create(
-            model="claude-3-sonnet-20240229",
-            system=self.system_prompt,
-            messages=[{"role": "user", "content": task}],
+            model=self.model,
+            system=system_prompt,
+            messages=[{"role": "user", "content": task_prompt}],
             tools=self.tools.get_tool_definitions(),
             max_tokens=4000
         )
         return self._process_response(response)
 ```
+
+Specialties are defined as an enum, NOT separate classes. See the implementation architecture document for details.
 
 #### Step 4: Visualization Agent Implementation
 

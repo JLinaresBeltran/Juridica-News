@@ -2,50 +2,66 @@
 
 ## Documents You Need to Prepare
 
-### For PM Agent Message (5 documents)
-✅ **1. multi-agent-architecture-brief.md**
-- Explains orchestrator-worker pattern
+### For PM Agent Message (7 documents)
+✅ **1. simplified-architecture-brief.md**
+- Technology stack (FastAPI + React/Vite)
+- What NOT to use (no Redis, no Next.js)
+- Simple, direct implementation approach
+
+✅ **2. multi-agent-implementation-architecture.md**
+- Exact backend service structure
+- Single SpecialistAgent class pattern
+- Prompt organization details
+- Code initialization examples
+
+✅ **3. multi-agent-architecture-brief.md**
+- Explains orchestrator-worker pattern conceptually
 - Core requirements for multi-agent system
 - Why multi-agent vs single agent
 
-✅ **2. health-domain-requirements.md**  
+✅ **4. health-domain-requirements.md**  
 - Health data types (labs, vitals, medications)
 - Medical specialties needed
 - Example health queries
 
-✅ **3. tool-interface-document.md**
+✅ **5. tool-interface-document.md**
 - Documents the two pre-built tools
 - `execute_health_query_v2` specifications
 - `snowflake_import_analyze_health_records_v2` specifications
 
-✅ **4. User Stories User Flows Mocks.pdf**
+✅ **6. User Stories User Flows Mocks.pdf**
 - Screenshots of the working system
 - Shows exact UI/UX to achieve
 - Medical team visualization examples
 - Real-time progress indicators
 
-✅ **5. Anthropic Blog Link/Text**
+✅ **7. Anthropic Blog Link/Text**
 - https://www.anthropic.com/engineering/built-multi-agent-research-system
 - Can be a link or downloaded text
 
-### For Claude Code Workspace (3 additional documents)
+### For Claude Code Workspace (5 additional documents)
 
-✅ **6. implementation-guide.md** → Goes in `requirements/technical-patterns/`
+✅ **8. implementation-guide.md** → Goes in `requirements/technical-patterns/`
 - Generic multi-agent implementation patterns
 - 500+ lines of technical guidance
-- NO health-specific content
+- References the single SpecialistAgent pattern
 
-✅ **7. multi-agent-patterns.md** → Goes in `requirements/technical-patterns/`
+✅ **9. multi-agent-patterns.md** → Goes in `requirements/technical-patterns/`
 - Orchestrator-worker pattern details
 - Based on Anthropic's approach
-- Domain-agnostic patterns
+- Clarifies single specialist class approach
 
-✅ **8. streaming-patterns.md** → Goes in `requirements/technical-patterns/`
+✅ **10. streaming-patterns.md** → Goes in `requirements/technical-patterns/`
 - SSE implementation guide
 - Real-time update patterns
 - Frontend/backend streaming code
 
-✅ **9. CLAUDE.md** → Goes in workspace root
+✅ **11. visualization-agent-pattern.md** → Goes in `requirements/technical-patterns/`
+- How to implement visualization agent
+- Code artifact streaming pattern
+- React component generation
+
+✅ **12. CLAUDE.md** → Goes in workspace root
 - The minimal 10-line file
 - Points to requirements folder
 - First thing Claude Code sees
@@ -54,6 +70,8 @@
 
 ```
 Step 1: Attach to PM Agent message
+├── simplified-architecture-brief.md
+├── multi-agent-implementation-architecture.md
 ├── multi-agent-architecture-brief.md
 ├── health-domain-requirements.md
 ├── tool-interface-document.md

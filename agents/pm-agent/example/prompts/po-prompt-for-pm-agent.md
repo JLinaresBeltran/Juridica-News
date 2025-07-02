@@ -47,24 +47,36 @@ Focus on making this system extensible so the pattern can be applied to other mu
 
 ## I have attached the following documents:
 
-### 1. **Multi-Agent Architecture Brief** (multi-agent-architecture-brief.md)
-- Explains the orchestrator-worker pattern and why we're using multi-agent architecture
+### 1. **Simplified Architecture Brief** (simplified-architecture-brief.md)
+- Defines the exact technology stack: FastAPI + React/Vite
+- Explains the simple, direct implementation approach
+- Shows what NOT to use (no Redis, no databases, no Next.js)
+- Provides clear code patterns to follow
+
+### 2. **Multi-Agent Implementation Architecture** (multi-agent-implementation-architecture.md)
+- Shows the exact backend service structure needed
+- Explains single SpecialistAgent class with multiple specialties
+- Details prompt organization and externalization
+- Provides concrete code patterns for initialization
+
+### 3. **Multi-Agent Architecture Brief** (multi-agent-architecture-brief.md)
+- Explains the orchestrator-worker pattern conceptually
 - Shows expected 90.2% performance improvement over single agents
 - Defines the CMO + specialist pattern we want to implement
 
-### 2. **Health Domain Requirements** (health-domain-requirements.md)
+### 4. **Health Domain Requirements** (health-domain-requirements.md)
 - Details all health data types (lab results, medications, vitals)
 - Lists the 8 medical specialties needed (Cardiology, Endocrinology, etc.)
 - Provides example health queries from simple to complex
 - Defines visualization requirements for health data
 
-### 3. **Tool Interface Documentation** (tool-interface.md)
+### 5. **Tool Interface Documentation** (tool-interface.md)
 - Documents the two pre-built data access tools
 - Shows input/output schemas for each tool
 - Provides usage examples for health data queries
 - Explains how agents should integrate with these tools
 
-### 4. **User Stories, User Flows, and Mockups** (User Stories User Flows Mocks.pdf)
+### 6. **User Stories, User Flows, and Mockups** (User Stories User Flows Mocks.pdf)
 - Screenshots of the actual working system showing:
   - 3-panel layout with chat interface
   - Medical team visualization with real-time status
@@ -72,7 +84,7 @@ Focus on making this system extensible so the pattern can be applied to other mu
   - User flow from welcome screen through analysis
 - These mockups show the exact UI/UX we want to achieve
 
-### 5. **Anthropic's Multi-Agent Blog Post** 
+### 7. **Anthropic's Multi-Agent Blog Post** 
 - Link: https://www.anthropic.com/engineering/built-multi-agent-research-system
 - Or provide as PDF/text file
 - This is the reference architecture pattern we're following

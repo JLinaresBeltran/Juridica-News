@@ -45,8 +45,17 @@ class Orchestrator:
 
 **Purpose**: Create agents with deep, focused expertise in specific areas.
 
-**Characteristics**:
+**IMPORTANT**: Use ONE SpecialistAgent class with different prompts, NOT multiple classes.
+
+**Implementation**:
 ```python
+# Define specialties as enum
+class Specialty(Enum):
+    CARDIOLOGY = "cardiology"
+    DATA_ANALYSIS = "data_analysis"
+    # ... other specialties
+
+# Single agent class handles all specialties
 class SpecialistAgent:
     def __init__(self, specialty, tools, system_prompt):
         self.specialty = specialty
