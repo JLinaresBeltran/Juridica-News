@@ -2,459 +2,584 @@
 
 ## Navigation Components
 
-### Component: App Header
-**Purpose**: Primary navigation and branding container
+### Component: Header Bar
 
-**Anatomy**:
-- Logo + Product name (left)
-- User avatar + name (right)
-- Settings icon
-- Notification indicator
+#### Purpose
+Global navigation and user account access across all pages.
 
-**States**:
-- Default: White background, subtle shadow
-- Scrolled: Enhanced shadow, possible blur effect
+#### Anatomy
+```
+[Logo + Title] ........................... [Notifications] [User Avatar] [Settings]
+```
 
-**Props/Configuration**:
-- userName: string
-- userAvatar: string/URL
-- notificationCount: number
-- onSettingsClick: function
+#### States
+- Default: White background with subtle shadow
+- Scrolled: Glassmorphism effect activated
+- Mobile: Condensed with hamburger menu
 
-**Interaction Behavior**:
-- Logo click returns to home
-- Avatar reveals user menu on click
-- Settings opens preferences panel
+#### Props/Configuration
+- `showNotifications`: boolean (default: true)
+- `userName`: string
+- `unreadCount`: number
 
-**Accessibility**:
-- Role: banner
-- Aria-label: "Main navigation"
-- Keyboard: Tab through interactive elements
+#### Interaction Behavior
+- Logo click → Home/Welcome page
+- Notifications → Dropdown panel
+- Avatar → User menu dropdown
+- Settings → Settings panel
 
-## Panel Components
+#### Accessibility
+- ARIA label: "Main navigation"
+- Keyboard: Tab navigation
+- Focus indicators on all interactive elements
 
-### Component: Conversation Sidebar (Left Panel)
-**Purpose**: Manage and navigate between health conversations
+#### Implementation Notes
+- Sticky positioning
+- Z-index: 1000
+- Height: 64px desktop, 56px mobile
 
-**Anatomy**:
-- New Conversation button (top)
-- Search input
-- Conversation list
-- Each item: Title, timestamp, preview
+---
 
-**States**:
-- Default: Light background
-- Active conversation: Blue highlight
-- Hover: Subtle background change
+### Component: Conversation Sidebar
 
-**Variants**:
-- Collapsed (mobile): Hidden or overlay
-- Expanded: Full 280px width
+#### Purpose
+Manage and navigate between health conversation threads.
 
-**Props/Configuration**:
-- conversations: Array<Conversation>
-- activeConversationId: string
-- onNewConversation: function
-- onSelectConversation: function
+#### Anatomy
+```
+[+ New Health Conversation]
+[Search conversations...]
+---
+Lab Results
+  └─ [Icon] Cholesterol Analysis
+      "What's my cholesterol trend..."
+      02:58 PM
+```
 
-**Interaction Behavior**:
-- Click conversation to switch
-- Search filters in real-time
-- Swipe to delete (mobile)
-
-**Accessibility**:
-- Role: navigation
-- Aria-label: "Conversation history"
-- Keyboard: Arrow keys to navigate
-
-### Component: Chat Interface (Center Panel)
-**Purpose**: Primary interaction area for health queries
-
-**Anatomy**:
-- Message history area
-- User messages (right-aligned)
-- System messages (left-aligned)
-- Input area with send button
-- "Medical Team Status" indicator
-
-**States**:
-- Idle: Ready for input
-- Processing: Show typing indicator
-- Streaming: Progressive text display
-
-**Props/Configuration**:
-- messages: Array<Message>
-- onSendMessage: function
-- isProcessing: boolean
-- streamingText: string
-
-**Interaction Behavior**:
-- Auto-scroll to newest message
-- Preserve scroll position when reviewing
-- Enter key sends message
-- Shift+Enter for new line
-
-**Accessibility**:
-- Live region for new messages
-- Aria-label for input: "Type your health question"
-- Screen reader announces status changes
-
-### Component: Medical Team Panel (Right Panel)
-**Purpose**: Visualize AI agent orchestration and results
-
-**Anatomy**:
-- Tab navigation (Medical Team, Visualization)
-- Query selector dropdown
-- Team Hierarchy section
-- Analysis Results section
-
-**States**:
+#### States
+- Default: Collapsed on mobile, expanded on desktop
+- Active conversation: Blue background
+- Hover: Light gray background
 - Loading: Skeleton state
-- Active: Real-time updates
-- Complete: All agents finished
 
-**Variants**:
-- Collapsed: Hidden on mobile
-- Overlay: Slide-over on tablet
+#### Variants
+- Full width (mobile)
+- Fixed 280px (desktop)
+- Collapsed icon-only mode
 
-**Props/Configuration**:
-- activeQuery: Query
-- specialists: Array<Specialist>
-- results: Array<AnalysisResult>
-- onQuerySelect: function
+#### Props/Configuration
+- `conversations`: Array<Conversation>
+- `activeConversationId`: string
+- `onNewConversation`: function
+- `searchEnabled`: boolean
 
-**Interaction Behavior**:
-- Tab switching animates content
-- Query selector updates all panels
-- Specialist cards show live progress
-- Results appear as completed
+#### Interaction Behavior
+- Click conversation → Load in center panel
+- New conversation → Clear chat, show welcome
+- Search → Filter conversations in real-time
+- Long press (mobile) → Show options menu
 
-**Accessibility**:
-- Tabpanel structure
-- Live region for status updates
-- Keyboard navigation between tabs
+#### Accessibility
+- Role: "navigation"
+- Current conversation: aria-current="page"
+- Keyboard: Arrow keys for navigation
 
-## Agent Status Components
+---
 
-### Component: CMO Status Card
-**Purpose**: Show Chief Medical Officer orchestration status
+## Medical Team Components
 
-**Anatomy**:
-- Blue stethoscope icon (48px)
-- "Dr. Vitality" name
-- Status indicator
-- Progress percentage
-- Current task description
+### Component: Medical Team Status Panel
 
-**States**:
-- Idle: Gray, waiting
-- Active: Blue, pulsing
-- Complete: Green check
+#### Purpose
+Display real-time status of AI medical team members analyzing the query.
 
-**Props/Configuration**:
-- status: 'idle' | 'active' | 'complete'
-- progress: number (0-100)
-- currentTask: string
+#### Anatomy
+```
+TEAM HIERARCHY & STATUS                    [Query Selector ▼]
 
-**Interaction Behavior**:
-- No direct interaction
-- Updates in real-time
-- Smooth progress transitions
+    [Dr. Vitality (CMO)]
+         100%
+           |
+    ┌------┴------┐
+[Dr. Heart]  [Dr. Hormone]  [Dr. Analytics]
+   85%           10%            Waiting
 
-**Accessibility**:
-- Aria-live: polite
+[Status Legend: ● Waiting ● Active ● Complete]
+
+ANALYSIS RESULTS
+[Results appear here as specialists complete]
+```
+
+#### States
+- Waiting: Gray badge, no progress
+- Active: Animated progress bar, percentage
+- Complete: Green check, confidence score
+- Failed: Red X, error state
+
+#### Props/Configuration
+- `specialists`: Array<Specialist>
+- `queryComplexity`: 'simple' | 'standard' | 'complex'
+- `showProgress`: boolean
+- `animated`: boolean
+
+#### Interaction Behavior
+- Hover specialist → Show task details
+- Click specialist → Expand findings
+- Progress updates → Smooth animation
+- Query selector → Switch between queries
+
+#### Accessibility
+- Live region for progress updates
 - Status announced to screen readers
+- Descriptive labels for each state
+
+---
 
 ### Component: Specialist Card
-**Purpose**: Display individual specialist agent status
 
-**Anatomy**:
-- Colored icon (specialty-specific)
-- Specialist name (e.g., "Dr. Heart")
-- Specialty label
-- Progress bar
-- Status text
-- Confidence percentage (when complete)
+#### Purpose
+Represent individual medical specialist with status and progress.
 
-**States**:
-- Waiting: Grayed out, queued
-- Active: Colored, animated progress
-- Complete: Check mark, confidence shown
-- Failed: Error state with retry
+#### Anatomy
+```
+[●] [Icon] Dr. Heart - Cardiology          [85%]
+    Current task: Analyzing cardiovascular data...
+    [████████████░░░░░░░░] 85%
+```
 
-**Props/Configuration**:
-- specialist: SpecialistType
-- status: AgentStatus
-- progress: number
-- confidence: number
-- task: string
+#### States
+- Waiting: Grayed out, no activity
+- Active: Pulsing icon, progress bar animating
+- Complete: Confidence score displayed
+- Expanded: Show detailed findings
 
-**Interaction Behavior**:
-- Hover shows detailed task
-- Click expands full findings (complete)
-- Progress animates smoothly
+#### Props/Configuration
+- `specialist`: SpecialistData
+- `showTask`: boolean
+- `expandable`: boolean
+- `animateProgress`: boolean
 
-**Accessibility**:
-- Role: status
-- Aria-label includes specialist and status
-- Color not sole indicator
+#### Interaction Behavior
+- Status dot pulses when active
+- Progress bar fills smoothly
+- Click to expand findings
+- Hover for task tooltip
 
-### Component: Analysis Result Card
-**Purpose**: Display completed specialist findings
+#### Accessibility
+- Progress percentage in aria-valuenow
+- Status changes announced
+- Expandable state indicated
 
-**Anatomy**:
-- Specialist icon and name
-- Confidence badge (colored by level)
-- Summary text (1-2 sentences)
-- "X queries executed" metadata
-- Timestamp
+---
 
-**States**:
-- Default: White background
-- Expanded: Show full analysis
-- High confidence: Green accent
-- Low confidence: Yellow accent
+## Chat Interface Components
 
-**Props/Configuration**:
-- specialist: Specialist
-- confidence: number
-- summary: string
-- queryCount: number
-- fullAnalysis: string
+### Component: Chat Message
 
-**Interaction Behavior**:
-- Click to expand/collapse
-- Copy button for sharing
-- Hover shows timestamp
+#### Purpose
+Display health queries and AI responses in conversation format.
 
-**Accessibility**:
-- Expandable region pattern
-- Confidence announced
-- Semantic heading structure
+#### Anatomy
+```
+[Avatar] [Name] · [Timestamp]
+[Message content with rich formatting]
+[Tool Call indicator if applicable]
+```
 
-## Data Input Components
+#### Variants
+- User message: Right-aligned, blue background
+- CMO message: Left-aligned, white background
+- Tool call: Collapsible code view
+- Status update: Centered, subtle styling
 
-### Component: Health Query Input
-**Purpose**: Primary input for health questions
+#### Props/Configuration
+- `message`: MessageData
+- `showAvatar`: boolean
+- `showTimestamp`: boolean
+- `collapsible`: boolean (for tool calls)
 
-**Anatomy**:
-- Large text input area
-- Placeholder with examples
-- Send button (arrow icon)
-- Character count (optional)
-- Voice input button (future)
+#### Interaction Behavior
+- Tool calls collapse/expand
+- Copy message on long press
+- Hover shows full timestamp
+- Links open in new tab
 
-**States**:
-- Empty: Show placeholder
-- Typing: Active border
-- Sending: Disabled, loading
-- Error: Red border, message
+#### Accessibility
+- Semantic HTML structure
+- Screen reader friendly timestamps
+- Clear message attribution
 
-**Props/Configuration**:
-- value: string
-- placeholder: string
-- onSubmit: function
-- maxLength: number
-- isLoading: boolean
+---
 
-**Interaction Behavior**:
-- Auto-resize up to 3 lines
-- Enter sends (Shift+Enter for line break)
-- Maintain focus after send
-- Clear after successful send
+### Component: Query Input
 
-**Accessibility**:
-- Label: "Ask about your health"
-- Error messages announced
-- Submit on Enter configurable
+#### Purpose
+Primary interface for users to ask health questions.
 
-### Component: Query Selector Dropdown
-**Purpose**: Navigate between queries in a conversation
+#### Anatomy
+```
+[Text input area... (placeholder: "Ask about labs, medications, correlations, or health")]
+[Mic] [Attachment] [Send →]
+```
 
-**Anatomy**:
-- Dropdown trigger with current query
-- Query count indicator
-- Dropdown menu with all queries
-- Each item: truncated query + timestamp
+#### States
+- Empty: Placeholder visible, send disabled
+- Typing: Character count, send enabled
+- Submitting: Loading state, input disabled
+- Error: Red border, error message
 
-**States**:
-- Closed: Show current selection
-- Open: Display all options
-- Hover: Highlight option
+#### Props/Configuration
+- `placeholder`: string
+- `maxLength`: number (default: 1000)
+- `showVoiceInput`: boolean
+- `showAttachments`: boolean
 
-**Props/Configuration**:
-- queries: Array<Query>
-- currentQueryId: string
-- onChange: function
+#### Interaction Behavior
+- Auto-resize up to 4 lines
+- Enter to send (Shift+Enter for newline)
+- Voice input → Speech to text
+- Paste → Handle rich text
 
-**Interaction Behavior**:
-- Click to open menu
-- Select changes all related panels
-- Escape closes menu
-- Auto-scrolls chat to query
+#### Accessibility
+- Label: "Health question input"
+- Announce character limit
+- Error messages in live region
 
-**Accessibility**:
-- Role: combobox
-- Aria-expanded state
-- Keyboard navigation
+---
 
 ## Visualization Components
 
 ### Component: Interactive Chart Container
-**Purpose**: Display dynamic health data visualizations
 
-**Anatomy**:
-- Chart title and metrics
-- Legend (interactive)
-- Chart area (responsive)
-- Axis labels
-- Tooltip on hover
-- Export button
+#### Purpose
+Display health data visualizations with interactive features.
 
-**States**:
-- Loading: Skeleton chart
-- Rendered: Full interactivity
-- Error: Fallback message
-- Empty: No data message
+#### Anatomy
+```
+[Chart Title]                    [⋮] [↗] [⊡]
+[Chart Area with data visualization]
+[Legend] [Time range selector]
+```
 
-**Variants**:
-- Time series line chart
-- Comparison bar chart
-- Correlation scatter plot
-- Distribution histogram
+#### Variants
+- Line chart: Trends over time
+- Bar chart: Comparisons
+- Scatter plot: Correlations
+- Combined: Multiple visualizations
 
-**Props/Configuration**:
-- type: ChartType
-- data: ChartData
-- config: ChartConfig
-- onDataPointClick: function
+#### Props/Configuration
+- `data`: ChartData
+- `type`: ChartType
+- `interactive`: boolean
+- `showLegend`: boolean
+- `timeRange`: DateRange
 
-**Interaction Behavior**:
-- Hover shows detailed tooltip
-- Click legend to toggle series
-- Drag to zoom (desktop)
-- Pinch to zoom (mobile)
-- Double-click to reset
+#### Interaction Behavior
+- Hover → Detailed tooltip
+- Click and drag → Zoom
+- Double click → Reset zoom
+- Legend items → Toggle series
+- Fullscreen → Expand view
 
-**Accessibility**:
-- Alternative text description
-- Keyboard navigation to data points
-- Screen reader data table option
+#### Accessibility
+- Keyboard navigation for data points
+- Screen reader descriptions
 - High contrast mode support
+- Data table alternative view
+
+---
+
+### Component: Health Metric Card
+
+#### Purpose
+Display individual health metrics with visual indicators.
+
+#### Anatomy
+```
+HDL Cholesterol          Triglycerides
+[33] mg/dL              [153] mg/dL
+Target: ≥40 (men)       Target: <150
+[● Good Cholesterol]    [● Extreme Volatility]
+```
+
+#### States
+- Normal: Green indicator
+- Warning: Yellow indicator
+- Critical: Red indicator
+- Improving: Up arrow
+- Declining: Down arrow
+
+#### Props/Configuration
+- `metric`: HealthMetric
+- `showTarget`: boolean
+- `showTrend`: boolean
+- `compact`: boolean
+
+#### Interaction Behavior
+- Click → Detailed history
+- Hover → Tooltip with context
+- Tap (mobile) → Expand details
+
+#### Accessibility
+- Status clearly labeled
+- Color not sole indicator
+- Trend direction announced
+
+---
+
+## Welcome Page Components
+
+### Component: Example Query Card
+
+#### Purpose
+Provide one-click access to common health queries.
+
+#### Anatomy
+```
+[Icon] Query Title
+       "Full query text that will be submitted..."
+       [Complexity: Standard]
+```
+
+#### States
+- Default: White background
+- Hover: Raised shadow, blue border
+- Active: Pressed appearance
+- Selected: Blue background
+
+#### Props/Configuration
+- `icon`: IconType
+- `title`: string
+- `query`: string
+- `complexity`: QueryComplexity
+
+#### Interaction Behavior
+- Click → Submit query immediately
+- Hover → Show full query
+- Focus → Keyboard accessible
+
+#### Accessibility
+- Role: button
+- Full query in aria-label
+- Keyboard activatable
+
+---
+
+### Component: Medical Team Architecture Diagram
+
+#### Purpose
+Visualize the AI medical team hierarchy and specialties.
+
+#### Anatomy
+```
+        [Dr. Vitality (CMO)]
+        Chief Medical Officer
+               |
+    ┌----------┼----------┐
+[Heart]   [Lab]   [Hormone]
+Ready    Ready     Ready
+
+[Legend showing specialist colors and roles]
+```
+
+#### States
+- Static: Welcome page display
+- Interactive: Hover for details
+- Animated: Gentle floating animation
+
+#### Props/Configuration
+- `showLabels`: boolean
+- `animated`: boolean
+- `interactive`: boolean
+
+#### Interaction Behavior
+- Hover specialist → Tooltip with role
+- Click → Learn more (if enabled)
+- Smooth entrance animation
+
+#### Accessibility
+- Alt text describing hierarchy
+- Focusable elements if interactive
+- Motion respects preferences
+
+---
 
 ## Feedback Components
 
-### Component: Welcome Screen Hero
-**Purpose**: First-time user orientation
+### Component: Progress Indicator
 
-**Anatomy**:
-- Medical team status indicator
-- Welcome message
-- 3-point value proposition
-- Example queries section
-- CTA button
+#### Purpose
+Show real-time progress of analysis or operations.
 
-**States**:
-- Initial: Fade in animation
-- Loaded: Ready state
-- Dismissed: Transition to chat
-
-**Props/Configuration**:
-- userName: string
-- onGetStarted: function
-- exampleQueries: Array<string>
-
-**Interaction Behavior**:
-- Example queries are clickable
-- CTA prominent and centered
-- Smooth transition to chat view
-
-**Accessibility**:
-- Focus management on load
-- Clear heading hierarchy
-- Descriptive button text
-
-### Component: Loading Skeleton
-**Purpose**: Placeholder during data fetching
-
-**Anatomy**:
-- Animated gradient bars
-- Layout matches final content
-- Subtle pulse animation
-
-**States**:
-- Active: Pulsing animation
-- Transitioning: Fade to content
-
-**Variants**:
-- Text lines (messages)
-- Cards (specialists)
-- Charts (visualizations)
-
-**Props/Configuration**:
-- variant: SkeletonType
-- count: number (for lists)
-- animate: boolean
-
-**Interaction Behavior**:
-- No interaction
-- Smooth transition to real content
-
-**Accessibility**:
-- Aria-busy: true
-- Hidden from screen readers
-- Appropriate loading message
-
-## Animation Specifications
-
-### Specialist Activation Sequence
+#### Anatomy
 ```
-1. CMO card highlights (0ms)
-2. Specialist cards appear staggered (100ms each)
-3. Progress bars animate (300ms ease-out)
-4. Status text updates (immediate)
-5. Completion celebration (scale + fade)
+[█████████░░░░░░░] 75%
+Analyzing cardiovascular data...
 ```
 
-### Panel Transitions
+#### Variants
+- Linear: Standard progress bar
+- Circular: For compact spaces
+- Indeterminate: Unknown duration
+- Segmented: Multi-step process
+
+#### Props/Configuration
+- `value`: number (0-100)
+- `showPercentage`: boolean
+- `showLabel`: boolean
+- `variant`: 'linear' | 'circular'
+
+#### Interaction Behavior
+- Smooth value transitions
+- Pause on hover (if applicable)
+- Click for details (optional)
+
+#### Accessibility
+- role="progressbar"
+- aria-valuenow updates
+- Status announced at intervals
+
+---
+
+### Component: Confidence Badge
+
+#### Purpose
+Display confidence scores for AI analysis results.
+
+#### Anatomy
 ```
-- Tab switch: 300ms slide + fade
-- Query change: 200ms fade
-- Sidebar toggle: 250ms slide
-- Modal open: 200ms scale + fade
+[85% confidence]
 ```
 
-### Micro-interactions
+#### States
+- High (>80%): Green
+- Medium (60-80%): Yellow
+- Low (<60%): Orange
+- Calculating: Animated dots
+
+#### Props/Configuration
+- `value`: number
+- `showLabel`: boolean
+- `size`: 'sm' | 'md' | 'lg'
+
+#### Interaction Behavior
+- Hover → Explanation tooltip
+- Click → Confidence details
+- Smooth number animation
+
+#### Accessibility
+- Confidence level announced
+- Color not sole indicator
+- Descriptive tooltips
+
+---
+
+## Form Components
+
+### Component: Query Selector Dropdown
+
+#### Purpose
+Switch between different queries in a conversation.
+
+#### Anatomy
 ```
-- Button hover: 150ms color/shadow
-- Card hover: 200ms elevation
-- Progress update: 300ms width
-- Confidence badge: 400ms scale in
+[▼ Query 2 of 2: Analyze cholesterol relevant medication...]
 ```
 
-## Implementation Notes
+#### States
+- Closed: Shows current selection
+- Open: Dropdown with all options
+- Loading: Disabled during switch
+- Empty: No queries message
 
-### Performance Considerations
-- Virtualize long conversation lists
-- Lazy load visualization libraries
-- Debounce search inputs (300ms)
-- Memoize expensive chart renders
-- Progressive message rendering
+#### Props/Configuration
+- `queries`: Array<Query>
+- `currentQueryId`: string
+- `onChange`: function
 
-### State Management
-- Global: User session, conversations
-- Local: UI state, form inputs
-- Real-time: WebSocket for agent updates
-- Cached: Query results, visualizations
+#### Interaction Behavior
+- Click → Open dropdown
+- Select → Load query results
+- Keyboard → Arrow navigation
+- Escape → Close dropdown
 
-### Responsive Behavior
-- Mobile: Stack panels, bottom sheet pattern
-- Tablet: Hide sidebar, overlay right panel
-- Desktop: Full 3-panel layout
-- Large: Increase center panel max-width
+#### Accessibility
+- role="combobox"
+- Current selection announced
+- Keyboard navigable
 
-### Error Handling
-- Network errors: Retry with exponential backoff
-- Agent failures: Show partial results
-- Invalid input: Inline validation messages
-- Session timeout: Graceful re-authentication
+---
+
+## Layout Components
+
+### Component: Three-Panel Layout
+
+#### Purpose
+Primary application layout with sidebar, main content, and context panel.
+
+#### Anatomy
+```
+[Sidebar | Main Content | Context Panel]
+[280px  | Flexible     | 400px       ]
+```
+
+#### States
+- Desktop: All panels visible
+- Tablet: Sidebar collapsed
+- Mobile: Stack panels
+- Focus mode: Hide side panels
+
+#### Props/Configuration
+- `leftPanel`: ReactNode
+- `centerPanel`: ReactNode
+- `rightPanel`: ReactNode
+- `collapsible`: boolean
+
+#### Interaction Behavior
+- Drag to resize (desktop)
+- Swipe to show/hide (mobile)
+- Keyboard shortcuts for panels
+- Remember user preferences
+
+#### Accessibility
+- Landmark regions
+- Skip links
+- Focus management
+- Announce panel changes
+
+---
+
+## Status Components
+
+### Component: Real-time Status Message
+
+#### Purpose
+Show live updates during analysis.
+
+#### Anatomy
+```
+[●] CMO is analyzing your query...
+[●] Dr. Heart is analyzing cardiovascular data... [45%]
+```
+
+#### States
+- Analyzing: Pulsing dot
+- Complete: Static dot
+- Error: Red dot
+- Queued: Gray dot
+
+#### Props/Configuration
+- `status`: Status
+- `message`: string
+- `progress`: number
+- `showDot`: boolean
+
+#### Interaction Behavior
+- Auto-dismiss when complete
+- Click to dismiss (if error)
+- Stack multiple messages
+
+#### Accessibility
+- Live region updates
+- Status announced
+- Polite or assertive based on type

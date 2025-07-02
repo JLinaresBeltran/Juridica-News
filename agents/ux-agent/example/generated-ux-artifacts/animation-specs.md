@@ -1,500 +1,70 @@
-# Animation and Transition Specifications: Health Insight Assistant
+# Animation & Transition Specifications: Health Insight Assistant
 
-## Animation Philosophy
+## Animation Principles
 
+### Core Philosophy
 Animations in the Health Insight Assistant serve to:
-- **Guide attention** to important status changes
-- **Provide feedback** that the system is working
-- **Create hierarchy** through orchestrated sequences
-- **Build trust** through smooth, professional motion
-- **Reduce cognitive load** by showing relationships
+1. **Guide Attention**: Direct users to important changes
+2. **Show Relationships**: Connect UI elements and actions
+3. **Provide Feedback**: Confirm user interactions
+4. **Enhance Personality**: Make the medical team feel alive
+5. **Reduce Cognitive Load**: Smooth transitions between states
 
-## Core Animation Principles
+### Performance Guidelines
+- **60 FPS Target**: All animations must maintain smooth framerates
+- **GPU Acceleration**: Use transform and opacity when possible
+- **Will-Change**: Declare animated properties in advance
+- **Reduced Motion**: Respect user preferences
 
-### Timing & Easing
+## Timing & Easing
 
+### Duration Scale
 ```css
 :root {
-  /* Duration Scale */
-  --duration-instant: 100ms;   /* Micro feedback */
-  --duration-fast: 200ms;      /* Quick state changes */
-  --duration-normal: 300ms;    /* Standard transitions */
-  --duration-slow: 500ms;      /* Complex animations */
-  --duration-slower: 700ms;    /* Orchestrated sequences */
-  
-  /* Easing Functions */
+  --duration-instant: 100ms;   /* Micro-interactions */
+  --duration-fast: 150ms;      /* Hover states */
+  --duration-normal: 300ms;    /* Most transitions */
+  --duration-moderate: 500ms;  /* Panel slides */
+  --duration-slow: 700ms;      /* Complex animations */
+  --duration-slower: 1000ms;   /* Page transitions */
+}
+```
+
+### Easing Functions
+```css
+:root {
+  /* Standard easings */
   --ease-in: cubic-bezier(0.4, 0, 1, 1);
   --ease-out: cubic-bezier(0, 0, 0.2, 1);
   --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  
+  /* Special easings */
+  --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
   --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
   --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
 }
 ```
 
-### Motion Tokens
-
-```javascript
-const motionTokens = {
-  // Micro-interactions
-  hover: {
-    duration: 150,
-    easing: 'ease-out',
-    properties: ['background-color', 'border-color', 'box-shadow']
-  },
-  
-  // State changes
-  active: {
-    duration: 200,
-    easing: 'ease-out',
-    properties: ['transform', 'background-color']
-  },
-  
-  // Layout shifts
-  layout: {
-    duration: 300,
-    easing: 'ease-in-out',
-    properties: ['width', 'height', 'margin', 'padding']
-  },
-  
-  // Entrances
-  enter: {
-    duration: 400,
-    easing: 'ease-out',
-    properties: ['opacity', 'transform']
-  },
-  
-  // Exits
-  exit: {
-    duration: 200,
-    easing: 'ease-in',
-    properties: ['opacity', 'transform']
-  }
-};
-```
-
-## Specialist Animation Sequences
-
-### Medical Team Assembly
-
-The most important animation sequence showing the AI orchestration:
-
-```css
-/* CMO Activation */
-@keyframes cmo-activate {
-  0% {
-    opacity: 0;
-    transform: scale(0.8);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.05);
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-
-/* Specialist Card Entrance */
-@keyframes specialist-enter {
-  0% {
-    opacity: 0;
-    transform: translateY(20px) scale(0.95);
-  }
-  60% {
-    opacity: 1;
-    transform: translateY(-5px) scale(1.02);
-  }
-  100% {
-    transform: translateY(0) scale(1);
-  }
-}
-
-/* Stagger Timing */
-.specialist-card:nth-child(1) { animation-delay: 100ms; }
-.specialist-card:nth-child(2) { animation-delay: 200ms; }
-.specialist-card:nth-child(3) { animation-delay: 300ms; }
-.specialist-card:nth-child(4) { animation-delay: 400ms; }
-.specialist-card:nth-child(5) { animation-delay: 500ms; }
-```
-
-### Specialist Status Transitions
-
-```javascript
-// State machine for specialist animations
-const specialistStates = {
-  waiting: {
-    enter: {
-      opacity: [0, 0.6],
-      scale: [0.95, 1],
-      duration: 300
-    },
-    idle: {
-      opacity: 0.6,
-      animation: 'pulse 3s infinite'
-    }
-  },
-  
-  active: {
-    enter: {
-      opacity: [0.6, 1],
-      scale: [1, 1.05, 1],
-      borderColor: ['#E5E7EB', 'var(--specialist-color)'],
-      duration: 400,
-      easing: 'ease-out'
-    },
-    idle: {
-      animation: 'specialist-working 2s infinite'
-    }
-  },
-  
-  complete: {
-    enter: {
-      scale: [1, 1.1, 1],
-      duration: 600,
-      easing: 'ease-bounce'
-    },
-    idle: {
-      opacity: 1,
-      borderColor: '#10B981'
-    }
-  }
-};
-```
-
-### Progress Animations
-
-```css
-/* Progress Bar Fill */
-@keyframes progress-fill {
-  from {
-    width: var(--progress-start, 0%);
-    opacity: 0.8;
-  }
-  to {
-    width: var(--progress-end, 100%);
-    opacity: 1;
-  }
-}
-
-/* Shimmer Effect */
-@keyframes progress-shimmer {
-  0% {
-    background-position: -200% center;
-  }
-  100% {
-    background-position: 200% center;
-  }
-}
-
-.progress-bar {
-  position: relative;
-  overflow: hidden;
-}
-
-.progress-fill {
-  animation: progress-fill 300ms ease-out forwards;
-  background: linear-gradient(
-    90deg,
-    var(--primary) 0%,
-    var(--primary-light) 50%,
-    var(--primary) 100%
-  );
-  background-size: 200% 100%;
-  animation: 
-    progress-fill 300ms ease-out forwards,
-    progress-shimmer 1.5s linear infinite;
-}
-```
-
-## Message & Chat Animations
-
-### Message Appearance
-
-```css
-/* New message entrance */
-@keyframes message-enter {
-  0% {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Typing indicator */
-@keyframes typing-dot {
-  0%, 60%, 100% {
-    opacity: 0.3;
-    transform: translateY(0);
-  }
-  30% {
-    opacity: 1;
-    transform: translateY(-10px);
-  }
-}
-
-.typing-indicator .dot {
-  animation: typing-dot 1.4s infinite;
-}
-
-.typing-indicator .dot:nth-child(2) {
-  animation-delay: 0.2s;
-}
-
-.typing-indicator .dot:nth-child(3) {
-  animation-delay: 0.4s;
-}
-```
-
-### Streaming Text Effect
-
-```javascript
-// Simulate streaming response
-class StreamingText {
-  constructor(element, text, speed = 30) {
-    this.element = element;
-    this.text = text;
-    this.speed = speed;
-    this.currentIndex = 0;
-  }
-  
-  start() {
-    // Add cursor
-    this.cursor = document.createElement('span');
-    this.cursor.className = 'streaming-cursor';
-    this.cursor.textContent = '▋';
-    
-    const animate = () => {
-      if (this.currentIndex < this.text.length) {
-        // Add next character
-        const char = this.text[this.currentIndex];
-        const charSpan = document.createElement('span');
-        charSpan.textContent = char;
-        charSpan.style.animationDelay = `${this.currentIndex * 20}ms`;
-        charSpan.className = 'char-enter';
-        
-        this.element.insertBefore(charSpan, this.cursor);
-        this.currentIndex++;
-        
-        setTimeout(animate, this.speed);
-      } else {
-        // Remove cursor
-        this.cursor.remove();
-      }
-    };
-    
-    this.element.appendChild(this.cursor);
-    animate();
-  }
-}
-```
-
-## Panel Transitions
-
-### Tab Switching
-
-```css
-/* Tab content transitions */
-.tab-content {
-  position: relative;
-  overflow: hidden;
-}
-
-.tab-panel {
-  position: absolute;
-  width: 100%;
-  opacity: 0;
-  transform: translateX(100%);
-  transition: all 300ms var(--ease-out);
-}
-
-.tab-panel.active {
-  position: relative;
-  opacity: 1;
-  transform: translateX(0);
-}
-
-.tab-panel.exit-left {
-  transform: translateX(-100%);
-}
-
-.tab-panel.enter-left {
-  transform: translateX(-100%);
-}
-```
-
-### Panel Sliding (Mobile)
-
-```javascript
-// Swipeable panels
-class SwipeablePanel {
-  constructor(element) {
-    this.element = element;
-    this.startX = 0;
-    this.currentX = 0;
-    this.threshold = 50;
-    
-    this.bindEvents();
-  }
-  
-  bindEvents() {
-    this.element.addEventListener('touchstart', this.onStart.bind(this));
-    this.element.addEventListener('touchmove', this.onMove.bind(this));
-    this.element.addEventListener('touchend', this.onEnd.bind(this));
-  }
-  
-  onMove(e) {
-    const deltaX = e.touches[0].clientX - this.startX;
-    this.currentX = deltaX;
-    
-    // Apply transform with resistance
-    const resistance = Math.abs(deltaX) / window.innerWidth;
-    const transform = deltaX * (1 - resistance * 0.3);
-    
-    this.element.style.transform = `translateX(${transform}px)`;
-    this.element.style.transition = 'none';
-  }
-  
-  onEnd() {
-    const threshold = window.innerWidth * 0.3;
-    
-    if (Math.abs(this.currentX) > threshold) {
-      // Complete swipe
-      this.element.style.transform = 
-        `translateX(${this.currentX > 0 ? '100%' : '-100%'})`;
-      this.element.style.opacity = '0';
-    } else {
-      // Snap back
-      this.element.style.transform = 'translateX(0)';
-    }
-    
-    this.element.style.transition = 'all 300ms ease-out';
-  }
-}
-```
-
-## Loading & Skeleton Animations
-
-### Skeleton Screens
-
-```css
-/* Base skeleton */
-.skeleton {
-  background: linear-gradient(
-    90deg,
-    #F3F4F6 25%,
-    #E5E7EB 50%,
-    #F3F4F6 75%
-  );
-  background-size: 200% 100%;
-  animation: skeleton-shimmer 1.5s infinite;
-}
-
-@keyframes skeleton-shimmer {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
-  }
-}
-
-/* Skeleton variants */
-.skeleton-text {
-  height: 16px;
-  border-radius: 4px;
-  margin-bottom: 8px;
-}
-
-.skeleton-text:last-child {
-  width: 60%;
-}
-
-.skeleton-avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-}
-
-.skeleton-card {
-  height: 120px;
-  border-radius: 12px;
-}
-```
-
-### Loading States
-
-```css
-/* Spinner */
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.loading-spinner {
-  width: 24px;
-  height: 24px;
-  border: 3px solid var(--gray-200);
-  border-top-color: var(--primary);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-/* Pulse loading */
-@keyframes pulse-ring {
-  0% {
-    transform: scale(0.8);
-    opacity: 1;
-  }
-  80%, 100% {
-    transform: scale(2);
-    opacity: 0;
-  }
-}
-
-.pulse-loader {
-  position: relative;
-}
-
-.pulse-loader::before {
-  content: '';
-  position: absolute;
-  inset: -10px;
-  border: 3px solid var(--primary);
-  border-radius: 50%;
-  animation: pulse-ring 1.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
-}
-```
-
-## Micro-interactions
+## Component Animations
 
 ### Button Interactions
-
 ```css
-/* Button press effect */
 .button {
-  transition: all 150ms var(--ease-out);
+  transition: all var(--duration-fast) var(--ease-out);
   transform: translateY(0);
 }
 
 .button:hover {
-  transform: translateY(-2px);
+  transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .button:active {
   transform: translateY(0);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  transition: all 50ms var(--ease-out);
+  transition-duration: var(--duration-instant);
 }
 
-/* Ripple effect */
+/* Ripple effect on click */
 @keyframes ripple {
   0% {
     transform: scale(0);
@@ -506,269 +76,599 @@ class SwipeablePanel {
   }
 }
 
-.button.ripple::after {
+.button::after {
   content: '';
   position: absolute;
   border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
   width: 100px;
   height: 100px;
-  background: rgba(255, 255, 255, 0.5);
+  margin-left: -50px;
+  margin-top: -50px;
   animation: ripple 600ms ease-out;
 }
 ```
 
-### Input Focus
-
+### Card Hover Effects
 ```css
-/* Input focus animation */
+.card {
+  transition: all var(--duration-normal) var(--ease-out);
+  transform: translateY(0);
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+}
+
+/* Stagger animation for card lists */
+.card-list .card {
+  animation: fadeInUp var(--duration-normal) var(--ease-out) both;
+}
+
+.card-list .card:nth-child(1) { animation-delay: 0ms; }
+.card-list .card:nth-child(2) { animation-delay: 50ms; }
+.card-list .card:nth-child(3) { animation-delay: 100ms; }
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+```
+
+### Input Focus Transitions
+```css
 .input-field {
-  position: relative;
-  transition: all 200ms var(--ease-out);
+  border: 1px solid var(--gray-300);
+  transition: border-color var(--duration-fast) var(--ease-out);
 }
 
-.input-field::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  width: 0;
-  height: 2px;
-  background: var(--primary);
-  transition: all 300ms var(--ease-out);
-  transform: translateX(-50%);
+.input-field:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
-.input-field:focus-within::after {
-  width: 100%;
+/* Floating label animation */
+.input-group label {
+  transition: all var(--duration-normal) var(--ease-out);
+  transform-origin: left center;
 }
 
-/* Label animation */
-.floating-label {
-  position: absolute;
-  top: 50%;
-  left: 16px;
-  transform: translateY(-50%);
-  transition: all 200ms var(--ease-out);
-  pointer-events: none;
-}
-
-.input-field:focus-within .floating-label,
-.input-field.has-value .floating-label {
-  top: -8px;
-  left: 12px;
-  font-size: 12px;
-  background: white;
-  padding: 0 4px;
+.input-group.focused label,
+.input-group.filled label {
+  transform: translateY(-20px) scale(0.8);
   color: var(--primary);
 }
 ```
 
-## Notification Animations
+## Medical Team Animations
 
-### Toast Notifications
-
+### Specialist Status Indicators
 ```css
-/* Toast entrance */
-@keyframes toast-enter {
+/* Waiting state - subtle pulse */
+.specialist-status.waiting {
+  animation: pulse-subtle 3s ease-in-out infinite;
+}
+
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.7; }
+}
+
+/* Active state - energetic pulse */
+.specialist-status.active {
+  animation: pulse-active 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-active {
   0% {
-    opacity: 0;
-    transform: translateY(100%) scale(0.9);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
+    transform: scale(1.1);
   }
   100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+    transform: scale(1);
+  }
+}
+
+/* Complete state - check animation */
+.specialist-status.complete {
+  animation: complete-bounce var(--duration-normal) var(--ease-bounce);
+}
+
+@keyframes complete-bounce {
+  0% { transform: scale(0); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+```
+
+### Progress Bar Animations
+```css
+.progress-bar {
+  background: var(--gray-200);
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-fill {
+  background: var(--primary);
+  height: 100%;
+  transition: width var(--duration-normal) var(--ease-out);
+}
+
+/* Animated stripes for active progress */
+.progress-fill.active::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.15) 25%,
+    transparent 25%,
+    transparent 50%,
+    rgba(255, 255, 255, 0.15) 50%,
+    rgba(255, 255, 255, 0.15) 75%,
+    transparent 75%,
+    transparent
+  );
+  background-size: 20px 20px;
+  animation: progress-stripes 1s linear infinite;
+}
+
+@keyframes progress-stripes {
+  0% { background-position: 0 0; }
+  100% { background-position: 20px 0; }
+}
+```
+
+### CMO Avatar Animation
+```css
+.cmo-avatar {
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+/* Thinking animation */
+.cmo-avatar.thinking {
+  animation: thinking 2s ease-in-out infinite;
+}
+
+@keyframes thinking {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  25% { transform: scale(1.05) rotate(-5deg); }
+  75% { transform: scale(1.05) rotate(5deg); }
+}
+```
+
+## Panel Transitions
+
+### Sliding Panels
+```css
+/* Left panel slide */
+.left-panel {
+  transform: translateX(0);
+  transition: transform var(--duration-moderate) var(--ease-out);
+}
+
+.left-panel.collapsed {
+  transform: translateX(-100%);
+}
+
+/* Right panel overlay on mobile */
+@media (max-width: 1023px) {
+  .right-panel {
+    position: fixed;
+    right: 0;
+    transform: translateX(100%);
+    transition: transform var(--duration-moderate) var(--ease-out);
+  }
+  
+  .right-panel.open {
+    transform: translateX(0);
+    box-shadow: -4px 0 24px rgba(0, 0, 0, 0.1);
+  }
+}
+
+/* Panel resize animation */
+.panel-resizable {
+  transition: width var(--duration-fast) ease-out;
+}
+```
+
+### Tab Switching
+```css
+.tab-content {
+  animation: fadeIn var(--duration-normal) var(--ease-out);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Slide and fade for tab content */
+.tab-content.slide-in {
+  animation: slideIn var(--duration-normal) var(--ease-out);
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Tab indicator animation */
+.tab-indicator {
+  position: absolute;
+  bottom: 0;
+  height: 2px;
+  background: var(--primary);
+  transition: all var(--duration-normal) var(--ease-out);
+}
+```
+
+## Chat Animations
+
+### Message Appearance
+```css
+.message {
+  animation: messageIn var(--duration-normal) var(--ease-out);
+  transform-origin: bottom;
+}
+
+@keyframes messageIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.9);
+  }
+  to {
     opacity: 1;
     transform: translateY(0) scale(1);
   }
 }
 
-/* Toast exit */
-@keyframes toast-exit {
-  0% {
+/* Typing indicator */
+.typing-indicator {
+  display: flex;
+  gap: 4px;
+}
+
+.typing-dot {
+  width: 8px;
+  height: 8px;
+  background: var(--gray-400);
+  border-radius: 50%;
+  animation: typing 1.4s ease-in-out infinite;
+}
+
+.typing-dot:nth-child(1) { animation-delay: 0s; }
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes typing {
+  0%, 80%, 100% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1.3);
     opacity: 1;
-    transform: translateX(0);
   }
-  100% {
-    opacity: 0;
-    transform: translateX(100%);
-  }
-}
-
-.toast {
-  animation: toast-enter 300ms var(--ease-bounce) forwards;
-}
-
-.toast.exiting {
-  animation: toast-exit 200ms var(--ease-in) forwards;
 }
 ```
 
-### Alert Banners
-
+### Tool Call Animations
 ```css
-/* Alert slide down */
-@keyframes alert-slide-down {
-  0% {
-    transform: translateY(-100%);
-    opacity: 0;
-  }
-  100% {
-    transform: translateY(0);
-    opacity: 1;
-  }
+.tool-call {
+  overflow: hidden;
+  max-height: 60px;
+  transition: max-height var(--duration-normal) var(--ease-out);
 }
 
-.alert-banner {
-  animation: alert-slide-down 400ms var(--ease-out) forwards;
+.tool-call.expanded {
+  max-height: 500px;
 }
 
-/* Attention pulse */
-@keyframes attention-pulse {
-  0%, 100% {
-    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
-  }
-  50% {
-    box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
-  }
+/* Code streaming effect */
+.code-stream {
+  animation: stream-in var(--duration-slow) ease-out;
 }
 
-.alert-critical {
-  animation: attention-pulse 2s infinite;
+@keyframes stream-in {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
 }
 ```
 
-## Chart Animations
+## Loading States
 
-### Data Point Animations
-
-```javascript
-// Staggered data point entrance
-const animateDataPoints = (points, delay = 50) => {
-  points.forEach((point, index) => {
-    point.style.opacity = '0';
-    point.style.transform = 'scale(0) translateY(10px)';
-    
-    setTimeout(() => {
-      point.style.transition = 'all 400ms cubic-bezier(0.68, -0.55, 0.265, 1.55)';
-      point.style.opacity = '1';
-      point.style.transform = 'scale(1) translateY(0)';
-    }, index * delay);
-  });
-};
-
-// Line drawing animation
-const animateLine = (path) => {
-  const length = path.getTotalLength();
-  
-  path.style.strokeDasharray = length;
-  path.style.strokeDashoffset = length;
-  
-  path.animate([
-    { strokeDashoffset: length },
-    { strokeDashoffset: 0 }
-  ], {
-    duration: 1500,
-    easing: 'ease-out',
-    fill: 'forwards'
-  });
-};
-```
-
-### Chart Transitions
-
+### Skeleton Screens
 ```css
-/* Bar chart growth */
-@keyframes bar-grow {
-  0% {
-    transform: scaleY(0);
-    opacity: 0;
-  }
-  50% {
-    opacity: 1;
-  }
-  100% {
-    transform: scaleY(1);
-  }
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--gray-200) 25%,
+    var(--gray-100) 50%,
+    var(--gray-200) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s ease-in-out infinite;
 }
 
+@keyframes skeleton-loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+```
+
+### Spinner Animations
+```css
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--gray-200);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Medical cross spinner */
+.medical-spinner {
+  position: relative;
+  width: 40px;
+  height: 40px;
+}
+
+.medical-spinner::before,
+.medical-spinner::after {
+  content: '';
+  position: absolute;
+  background: var(--primary);
+  animation: medical-spin 2s ease-in-out infinite;
+}
+
+.medical-spinner::before {
+  width: 100%;
+  height: 4px;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+}
+
+.medical-spinner::after {
+  width: 4px;
+  height: 100%;
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+}
+
+@keyframes medical-spin {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  50% { transform: scale(1.2) rotate(180deg); }
+}
+```
+
+## Visualization Animations
+
+### Chart Entry Animations
+```css
+/* Line chart draw-in effect */
+.chart-line {
+  stroke-dasharray: 1000;
+  stroke-dashoffset: 1000;
+  animation: draw-line 2s ease-out forwards;
+}
+
+@keyframes draw-line {
+  to { stroke-dashoffset: 0; }
+}
+
+/* Bar chart grow effect */
 .chart-bar {
   transform-origin: bottom;
-  animation: bar-grow 800ms var(--ease-bounce) forwards;
-  animation-delay: calc(var(--index) * 100ms);
+  animation: grow-bar 1s var(--ease-out) both;
 }
 
-/* Pie chart reveal */
-@keyframes pie-reveal {
+@keyframes grow-bar {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+
+/* Stagger bars */
+.chart-bar:nth-child(1) { animation-delay: 0ms; }
+.chart-bar:nth-child(2) { animation-delay: 100ms; }
+.chart-bar:nth-child(3) { animation-delay: 200ms; }
+```
+
+### Data Point Interactions
+```css
+.data-point {
+  transition: all var(--duration-fast) var(--ease-out);
+  transform: scale(1);
+}
+
+.data-point:hover {
+  transform: scale(1.5);
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+/* Tooltip animation */
+.tooltip {
+  opacity: 0;
+  transform: translateY(5px);
+  transition: all var(--duration-fast) var(--ease-out);
+  pointer-events: none;
+}
+
+.data-point:hover .tooltip {
+  opacity: 1;
+  transform: translateY(0);
+}
+```
+
+## Page Transitions
+
+### Route Transitions
+```css
+.page-enter {
+  opacity: 0;
+  transform: translateX(20px);
+}
+
+.page-enter-active {
+  opacity: 1;
+  transform: translateX(0);
+  transition: all var(--duration-normal) var(--ease-out);
+}
+
+.page-exit {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.page-exit-active {
+  opacity: 0;
+  transform: translateX(-20px);
+  transition: all var(--duration-normal) var(--ease-out);
+}
+```
+
+### Modal Animations
+```css
+/* Backdrop fade */
+.modal-backdrop {
+  animation: fadeIn var(--duration-normal) var(--ease-out);
+}
+
+/* Modal scale and fade */
+.modal-content {
+  animation: modalIn var(--duration-normal) var(--ease-spring);
+}
+
+@keyframes modalIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.modal-content.closing {
+  animation: modalOut var(--duration-fast) var(--ease-in);
+}
+
+@keyframes modalOut {
+  to {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+}
+```
+
+## Micro-interactions
+
+### Success Animations
+```css
+.success-checkmark {
+  width: 56px;
+  height: 56px;
+  animation: checkmark-circle 0.6s ease-in-out;
+}
+
+@keyframes checkmark-circle {
   0% {
-    stroke-dasharray: 0 100;
+    transform: scale(0) rotate(45deg);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2) rotate(45deg);
+    opacity: 1;
   }
   100% {
-    stroke-dasharray: var(--value) 100;
+    transform: scale(1) rotate(45deg);
+    opacity: 1;
   }
 }
 
-.pie-segment {
-  animation: pie-reveal 1000ms var(--ease-out) forwards;
-  animation-delay: calc(var(--index) * 200ms);
+.success-checkmark path {
+  stroke-dasharray: 48;
+  stroke-dashoffset: 48;
+  animation: checkmark-stroke 0.3s 0.3s ease-out forwards;
+}
+
+@keyframes checkmark-stroke {
+  to { stroke-dashoffset: 0; }
+}
+```
+
+### Error Shake
+```css
+.error-shake {
+  animation: shake 0.5s ease-in-out;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
+  20%, 40%, 60%, 80% { transform: translateX(4px); }
 }
 ```
 
 ## Performance Optimization
 
-### Animation Performance
-
-```javascript
-// Use transform instead of position
-// Bad
-element.style.left = x + 'px';
-element.style.top = y + 'px';
-
-// Good
-element.style.transform = `translate(${x}px, ${y}px)`;
-
-// Use will-change sparingly
-.will-animate {
-  will-change: transform, opacity;
-}
-
-// Remove after animation
-element.addEventListener('animationend', () => {
-  element.style.willChange = 'auto';
-});
-
-// Batch DOM updates
-const fragment = document.createDocumentFragment();
-items.forEach(item => {
-  const element = createelement(item);
-  fragment.appendChild(element);
-});
-container.appendChild(fragment);
-```
-
 ### GPU Acceleration
-
 ```css
-/* Force GPU acceleration */
-.gpu-accelerated {
-  transform: translateZ(0);
-  /* or */
-  will-change: transform;
-  /* or */
-  transform: translate3d(0, 0, 0);
+/* Force GPU acceleration for smooth animations */
+.animated-element {
+  will-change: transform, opacity;
+  transform: translateZ(0); /* Create new layer */
+  backface-visibility: hidden; /* Prevent flicker */
 }
 
-/* Optimize animations */
-.smooth-animation {
-  /* Only animate GPU-accelerated properties */
-  transition: transform 300ms, opacity 300ms;
-  /* Avoid: width, height, padding, margin */
+/* Remove after animation */
+.animated-element.animation-done {
+  will-change: auto;
 }
 ```
 
-## Accessibility Considerations
-
-### Motion Preferences
-
+### Reduced Motion Support
 ```css
-/* Respect user preferences */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -778,78 +678,59 @@ container.appendChild(fragment);
     transition-duration: 0.01ms !important;
   }
   
-  /* Maintain essential feedback */
-  .progress-fill {
-    transition: width 300ms ease-out !important;
+  /* Keep essential feedback */
+  .loading-spinner {
+    animation-duration: 2s !important;
   }
   
   /* Replace motion with opacity */
-  .message-enter {
-    animation: none;
-    opacity: 0;
-    transition: opacity 200ms ease-out;
-  }
-  
-  .message-enter.visible {
-    opacity: 1;
+  .message {
+    animation: fadeIn 0.01ms;
   }
 }
 ```
 
-### Animation Controls
+## Implementation Guidelines
 
-```html
-<!-- Pause control -->
-<button 
-  id="pause-animations"
-  aria-label="Pause all animations"
-  aria-pressed="false">
-  ⏸️ Pause Animations
-</button>
+### Animation Debugging
+```css
+/* Debug mode to slow down animations */
+.debug-animations * {
+  animation-duration: 3s !important;
+  transition-duration: 3s !important;
+}
+```
 
-<script>
-const pauseBtn = document.getElementById('pause-animations');
-pauseBtn.addEventListener('click', () => {
-  const isPaused = document.body.classList.toggle('animations-paused');
-  pauseBtn.setAttribute('aria-pressed', isPaused);
+### JavaScript Animation Hooks
+```javascript
+// Animation end detection
+element.addEventListener('animationend', () => {
+  element.classList.add('animation-done');
+  element.style.willChange = 'auto';
 });
-</script>
 
-<style>
-.animations-paused * {
-  animation-play-state: paused !important;
+// Stagger animations programmatically
+items.forEach((item, index) => {
+  item.style.animationDelay = `${index * 50}ms`;
+});
+
+// Respect reduced motion in JS
+const prefersReducedMotion = window.matchMedia(
+  '(prefers-reduced-motion: reduce)'
+).matches;
+
+if (!prefersReducedMotion) {
+  enableAnimations();
 }
-</style>
 ```
 
-## Implementation Checklist
-
-### Core Animations
-- [ ] Specialist card entrance sequence
-- [ ] Status transitions (waiting → active → complete)
-- [ ] Progress bar animations
-- [ ] Message streaming effect
-- [ ] Panel transitions
-- [ ] Loading states
-
-### Micro-interactions
-- [ ] Button hover/press effects
-- [ ] Input focus animations
-- [ ] Tooltip appearances
-- [ ] Dropdown animations
-- [ ] Toggle switches
-- [ ] Checkbox/radio animations
-
-### Performance
-- [ ] GPU-accelerated transforms
-- [ ] Debounced scroll handlers
-- [ ] RequestAnimationFrame usage
-- [ ] Will-change optimization
-- [ ] Reduced motion support
-
-### Polish
-- [ ] Consistent timing functions
-- [ ] Smooth state transitions
-- [ ] No jarring movements
-- [ ] Natural physics
-- [ ] Delightful details
+### Animation Utilities
+```css
+/* Utility classes */
+.animate-fade-in { animation: fadeIn var(--duration-normal) var(--ease-out); }
+.animate-slide-up { animation: slideUp var(--duration-normal) var(--ease-out); }
+.animate-scale-in { animation: scaleIn var(--duration-normal) var(--ease-spring); }
+.animate-delay-1 { animation-delay: 100ms; }
+.animate-delay-2 { animation-delay: 200ms; }
+.animate-delay-3 { animation-delay: 300ms; }
+```

@@ -32,7 +32,7 @@ This pattern is based on Anthropic's research showing **90.2% performance improv
 The 3 AI Amigos orchestrates these specialized AI agents in a continuous development cycle:
 
 1. **Define & Plan** - Product Owner collaborates with PM Agent to create requirements and architecture
-2. **Design & Iterate** - Requirements flow to UX Designer Agent for mockups and prototypes  
+2. **Design & Iterate** - Requirements flow to UX Designer Agent for design specs and prototypes  
 3. **Build & Test** - UX artifacts guide Claude Code to implement the complete system
 
 This creates a seamless flow where human vision is amplified by AI expertise at every stage.
@@ -53,17 +53,21 @@ This creates a seamless flow where human vision is amplified by AI expertise at 
 ├── 🤖 agents/                    # Reusable agent configurations
 │   ├── pm-agent/                 # Product Manager Agent
 │   │   ├── config/               # Agent instructions
-│   │   └── example-prompts/      # What to submit to PM
+│   │   ├── example/              # Example outputs and prompts
+│   │   │   ├── prompts/          # What to submit to PM
+│   │   │   └── generated-pm-artifacts/ # Example PM outputs
 │   ├── ux-agent/                 # UX Designer Agent
 │   │   ├── config/               # Agent instructions
-│   │   └── example-prompts/      # What to submit to UX
+│   │   ├── example/              # Example outputs and prompts
+│   │   │   ├── prompts/          # What to submit to UX
+│   │   │   └── generated-ux-artifacts/ # Example UX outputs
 │   └── code-agent/               # Claude Code configuration
 │       └── config/               # CLAUDE.md template
 │
 ├── 📚 technical-guides/          # Domain-agnostic patterns
 │   ├── implementation-guide.md   # Multi-agent implementation
-│   ├── multi-agent-patterns.md   # Orchestrator-worker patterns
-│   └── streaming-patterns.md     # Real-time SSE updates
+│   ├── multi-agent-patterns-doc.md   # Orchestrator-worker patterns
+│   └── streaming-patterns-doc.md     # Real-time SSE updates
 │
 ├── 🏥 use-cases/                 # Domain-specific examples
 │   └── multi-agent-health-insight-system/
@@ -110,18 +114,20 @@ This creates a seamless flow where human vision is amplified by AI expertise at 
 **In Claude Desktop:**
 1. Click "Create New Project"
 2. Name: "Product Manager Agent"
-3. Copy instructions from: `agents/pm-agent/config/pm-agent-instructions.md`
-4. Paste into project instructions
-5. Save project
+3. Description: Copy from `agents/pm-agent/config/pm-agent-description.md`
+4. Copy instructions from: `agents/pm-agent/config/pm-agent-instructions.md`
+5. Paste into project instructions
+6. Save project
 
 #### 1.2 Create UX Designer Agent
 
 **In Claude Desktop:**
 1. Click "Create New Project"
 2. Name: "UX Designer Agent"
-3. Copy instructions from: `agents/ux-agent/config/ux-designer-agent-instructions.md`
-4. Paste into project instructions
-5. Save project
+3. Description: Copy from `agents/ux-agent/config/ux-agent-description.md`
+4. Copy instructions from: `agents/ux-agent/config/ux-designer-agent-instructions.md`
+5. Paste into project instructions
+6. Save project
 
 ### Phase 2: Prepare Your Documents
 
@@ -136,8 +142,8 @@ Create these documents (use health examples as templates):
 1. **[domain]-requirements.md** - Your domain expertise
 2. **multi-agent-architecture-brief.md** - Why multi-agent
 3. **tool-interface-document.md** - If you have pre-built tools
-4. **Visual mockups/screenshots** - Show desired UI/UX (optional but recommended)
-5. **[domain]-brand-guidelines.md** - Visual identity based on mockups
+4. **Visual references** - Screenshots/PDF showing desired UI/UX (optional but recommended)
+5. **[domain]-brand-guidelines.md** - Visual identity based on visual references
 6. **Anthropic blog** - [Link](https://www.anthropic.com/engineering/built-multi-agent-research-system)
 
 ### Phase 3: Run the AI Amigos
@@ -146,9 +152,9 @@ Create these documents (use health examples as templates):
 
 1. Open PM Agent project in Claude Desktop
 2. Start new conversation
-3. Copy prompt from: `agents/pm-agent/example-prompts/po-prompt-for-pm-agent.md`
+3. Copy prompt from: `agents/pm-agent/example/prompts/po-prompt-for-pm-agent.md`
 4. Customize for your domain
-5. Attach your 5 documents to the message
+5. Attach your documents (4-6 files) to the message
 6. Submit and wait for outputs
 
 **PM Agent will create:**
@@ -157,20 +163,26 @@ Create these documents (use health examples as templates):
 - 🏗️ system-architecture.md
 - 🔌 api-specification.md
 - 📊 data-models.md
+- 🛠️ tool-interface.md
+- 📋 feature-priority.md
 
 #### 3.2 UX Designer Agent
 
 1. Open UX Agent project
 2. Start new conversation  
-3. Copy prompt from: `agents/ux-agent/example-prompts/po-prompt-for-ux-agent.md`
-4. Attach all PM outputs + mockups to the message
+3. Copy prompt from: `agents/ux-agent/example/prompts/po-prompt-for-ux-agent.md`
+4. Attach all PM outputs + visual references (PDF/screenshots) to the message
 5. Submit and wait for designs
 
 **UX Agent will create:**
 - 🎨 design-system.md
 - 🧩 component-specs.md
-- 📱 prototypes/
-- 🖼️ mockups/
+- 📱 welcome-prototype.html
+- 📱 main-app-prototype.html
+- 📐 layout-guidelines.md
+- 📊 visualization-specs.md
+- ♿ accessibility-guidelines.md
+- 🎬 animation-specs.md
 
 ### Phase 4: Prepare Claude Code Workspace
 
@@ -183,7 +195,7 @@ cd my-awesome-system
 # Create directory structure
 mkdir -p backend/tools
 mkdir -p frontend
-mkdir -p requirements/{technical,product,architecture,ux,reference}
+mkdir -p requirements/{technical,product,architecture,ux/prototypes,reference}
 ```
 
 #### 4.2 Copy Technical Guides (Reusable)
@@ -203,8 +215,7 @@ Place in `requirements/`:
 
 Place in `requirements/ux/`:
 - All design documents
-- prototypes/ folder
-- mockups/ folder
+- prototypes/ folder (containing HTML prototypes)
 
 #### 4.5 Add Reference Documents
 
@@ -316,11 +327,11 @@ A sophisticated multi-agent health analysis system featuring:
    - Analysis types: risk, performance, allocation
    - User queries: "Optimize my portfolio", "Tax implications"
    ```
-   Plus: Dashboard mockups showing portfolio views
+   Plus: Dashboard screenshots showing portfolio views
 
 2. **Run Through AI Amigos**
    - PM creates: Chief Investment Officer + specialists
-   - UX creates: Financial dashboards matching your mockups
+   - UX creates: Financial dashboards matching your visual references
    - Claude Code: Implements complete system
 
 ### Example: Legal Document Analyzer
@@ -371,7 +382,7 @@ Orchestrator (CMO/CIO/Senior Counsel)
 <details>
 <summary><b>Do I need to create brand guidelines?</b></summary>
 
-It's highly recommended! If you have mockups or screenshots of your desired UI, create a brand guidelines document (see health example). This ensures the UX Designer Agent creates consistent, on-brand designs that match your vision.
+It's highly recommended! If you have screenshots or visual references of your desired UI, create a brand guidelines document (see health example). This ensures the UX Designer Agent creates consistent, on-brand designs that match your vision.
 </details>
 
 <details>

@@ -2,592 +2,676 @@
 
 ## Overview
 
-Health data visualizations must balance clinical accuracy with user comprehension. Each chart type is optimized for specific health insights while maintaining consistency with the overall design system.
+Visualizations in the Health Insight Assistant transform complex medical data into intuitive, actionable insights. Each visualization type is carefully designed to communicate specific health patterns while maintaining medical accuracy and accessibility.
 
-## Core Visualization Types
+## Design Principles
 
-### 1. Time Series Charts
+### Medical Context First
+- **Clinical Accuracy**: Always show reference ranges and units
+- **Temporal Context**: Emphasize time-based changes
+- **Multi-Parameter**: Enable correlation discovery
+- **Confidence Display**: Show data quality/completeness
+
+### Visual Hierarchy
+1. **Primary Insight**: The main health trend or value
+2. **Context**: Reference ranges, targets, historical comparison
+3. **Details**: Specific values, dates, annotations
+4. **Actions**: Zoom, filter, export options
+
+### Accessibility
+- **Color Independence**: Use shapes, patterns, and labels
+- **High Contrast**: Ensure 3:1 minimum contrast ratios
+- **Alternative Views**: Provide data tables for all charts
+- **Keyboard Navigation**: Full chart interaction via keyboard
+
+## Chart Types
+
+### 1. Time Series Line Chart
 
 **Purpose**: Display health metrics over time, showing trends and patterns.
 
-#### Visual Design
+**Visual Specifications**:
 ```css
-/* Line properties */
---line-weight: 2.5px;
---line-tension: 0.4; /* Smooth curves */
---point-radius: 4px;
---point-hover-radius: 6px;
---point-border-width: 2px;
-
-/* Grid and axes */
---grid-color: rgba(229, 231, 235, 0.5);
---axis-color: #6B7280;
---axis-font-size: 12px;
-```
-
-#### Color Usage
-```javascript
-const metricColors = {
-  totalCholesterol: '#EF4444',    // Red
-  ldl: '#F59E0B',                 // Amber  
-  hdl: '#10B981',                 // Green
-  triglycerides: '#3B82F6',       // Blue
-  bloodPressureSystolic: '#8B5CF6', // Purple
-  bloodPressureDiastolic: '#EC4899', // Pink
-  glucose: '#F97316',             // Orange
-  hba1c: '#06B6D4'               // Cyan
-};
-```
-
-#### Reference Ranges
-```css
-/* Normal range band */
-.reference-range {
-  fill: rgba(16, 185, 129, 0.1);
-  stroke: #10B981;
-  stroke-width: 1px;
-  stroke-dasharray: 4, 4;
-}
-
-/* Critical thresholds */
-.threshold-line {
-  stroke: #EF4444;
-  stroke-width: 1.5px;
-  stroke-dasharray: 8, 4;
+.time-series-chart {
+  /* Grid */
+  --grid-color: #E5E7EB;
+  --grid-opacity: 0.5;
+  --grid-stroke-width: 1px;
+  
+  /* Lines */
+  --line-stroke-width: 2px;
+  --line-hover-width: 3px;
+  
+  /* Points */
+  --point-radius: 4px;
+  --point-hover-radius: 6px;
+  --point-stroke-width: 2px;
+  
+  /* Reference ranges */
+  --range-fill-opacity: 0.1;
+  --range-stroke-opacity: 0.3;
 }
 ```
 
-#### Interactions
-- **Hover**: Show tooltip with exact value, date, and reference range
-- **Click**: Toggle metric visibility in multi-line charts
-- **Drag**: Create zoom selection (desktop)
-- **Pinch**: Zoom on mobile
-- **Double-click**: Reset zoom
-
-#### Implementation Example
-```javascript
-const timeSeriesConfig = {
-  chart: {
-    type: 'line',
-    height: 400,
-    animations: {
-      enabled: true,
-      duration: 750,
-      easing: 'easeOutQuart'
-    }
-  },
-  stroke: {
-    curve: 'smooth',
-    width: 2.5
-  },
-  markers: {
-    size: 4,
-    strokeWidth: 2,
-    hover: {
-      size: 6,
-      sizeOffset: 2
-    }
-  },
-  grid: {
-    borderColor: '#E5E7EB',
-    strokeDashArray: 0,
-    xaxis: {
-      lines: { show: false }
-    },
-    yaxis: {
-      lines: { show: true }
-    }
-  },
-  tooltip: {
-    shared: true,
-    intersect: false,
-    theme: 'light',
-    y: {
-      formatter: (value, { seriesIndex, dataPointIndex, w }) => {
-        const unit = w.config.series[seriesIndex].unit;
-        return `${value} ${unit}`;
-      }
-    }
-  }
-};
+**Data Structure**:
+```typescript
+interface TimeSeriesData {
+  series: Array<{
+    name: string;
+    color: string;
+    data: Array<{
+      date: Date;
+      value: number;
+      status?: 'normal' | 'warning' | 'critical';
+      confidence?: number;
+    }>;
+  }>;
+  referenceRanges?: Array<{
+    name: string;
+    min: number;
+    max: number;
+    fill: string;
+  }>;
+  annotations?: Array<{
+    date: Date;
+    label: string;
+    type: 'medication' | 'event' | 'note';
+  }>;
+}
 ```
 
-### 2. Comparison Charts
+**Interactions**:
+- **Hover**: Show tooltip with exact value, date, and status
+- **Click & Drag**: Zoom to selected time range
+- **Double Click**: Reset zoom
+- **Legend Click**: Toggle series visibility
+- **Keyboard**: Arrow keys to navigate points
 
-**Purpose**: Compare health metrics across categories or time periods.
-
-#### Visual Design
-- **Bar width**: Dynamic based on data points
-- **Bar spacing**: 0.2 * bar width
-- **Corner radius**: 4px top corners
-- **Group spacing**: 0.5 * bar width
-
-#### Color Patterns
-```javascript
-// Positive/Negative comparison
-const comparisonColors = {
-  improvement: '#10B981',    // Green
-  neutral: '#6B7280',       // Gray
-  decline: '#EF4444',       // Red
-  target: '#3B82F6'         // Blue
-};
-
-// Sequential data
-const sequentialPalette = [
-  '#3B82F6', // Darkest
-  '#60A5FA',
-  '#93C5FD',
-  '#BFDBFE',
-  '#DBEAFE'  // Lightest
-];
+**Example Implementation**:
+```jsx
+<TimeSeriesChart
+  data={cholesterolData}
+  xAxis={{
+    type: 'time',
+    label: 'Date',
+    format: 'MMM YYYY'
+  }}
+  yAxis={{
+    label: 'Cholesterol (mg/dL)',
+    domain: [0, 300]
+  }}
+  series={[
+    { key: 'total', name: 'Total Cholesterol', color: '#3B82F6' },
+    { key: 'ldl', name: 'LDL', color: '#EF4444' },
+    { key: 'hdl', name: 'HDL', color: '#10B981' }
+  ]}
+  referenceRanges={[
+    { name: 'Normal Total', min: 0, max: 200, color: '#10B981' },
+    { name: 'Borderline', min: 200, max: 239, color: '#F59E0B' }
+  ]}
+/>
 ```
 
-#### Annotations
+### 2. Comparison Bar Chart
+
+**Purpose**: Compare values across categories or time periods.
+
+**Visual Specifications**:
 ```css
-.value-label {
-  font-size: 11px;
+.comparison-chart {
+  /* Bars */
+  --bar-border-radius: 4px;
+  --bar-spacing: 8px;
+  --bar-group-spacing: 16px;
+  
+  /* Colors by status */
+  --bar-normal: #10B981;
+  --bar-warning: #F59E0B;
+  --bar-critical: #EF4444;
+  
+  /* Patterns for accessibility */
+  --pattern-warning: url(#diagonal-stripes);
+  --pattern-critical: url(#dots);
+}
+```
+
+**Variations**:
+- **Grouped**: Multiple metrics side by side
+- **Stacked**: Total with breakdown
+- **Horizontal**: For long labels
+- **Diverging**: Positive/negative from baseline
+
+**Data Structure**:
+```typescript
+interface BarChartData {
+  categories: string[];
+  series: Array<{
+    name: string;
+    data: Array<{
+      category: string;
+      value: number;
+      status?: 'normal' | 'warning' | 'critical';
+      target?: number;
+    }>;
+  }>;
+  baseline?: number;
+}
+```
+
+### 3. Scatter Plot with Correlation
+
+**Purpose**: Show relationships between two health metrics.
+
+**Visual Specifications**:
+```css
+.scatter-plot {
+  /* Points */
+  --point-size: 6px;
+  --point-opacity: 0.7;
+  --point-hover-size: 10px;
+  
+  /* Trend line */
+  --trend-stroke-width: 2px;
+  --trend-stroke-dasharray: 5,5;
+  --confidence-band-opacity: 0.1;
+  
+  /* Quadrant shading */
+  --quadrant-fill-opacity: 0.05;
+}
+```
+
+**Statistical Overlays**:
+- **Trend Line**: Linear regression with R²
+- **Confidence Bands**: 95% confidence interval
+- **Correlation Coefficient**: Displayed with significance
+- **Quadrant Analysis**: Risk/benefit zones
+
+### 4. Heatmap Calendar
+
+**Purpose**: Show daily patterns over months/years.
+
+**Visual Specifications**:
+```css
+.heatmap-calendar {
+  /* Cells */
+  --cell-size: 20px;
+  --cell-spacing: 2px;
+  --cell-border-radius: 3px;
+  
+  /* Color scale */
+  --color-scale-steps: 5;
+  --color-min: #F3F4F6;
+  --color-max: #3B82F6;
+  
+  /* Missing data */
+  --missing-pattern: url(#diagonal-lines);
+  --missing-color: #E5E7EB;
+}
+```
+
+**Use Cases**:
+- Medication adherence tracking
+- Symptom frequency
+- Exercise consistency
+- Sleep patterns
+
+### 5. Gauge Chart
+
+**Purpose**: Show single metric against target ranges.
+
+**Visual Specifications**:
+```css
+.gauge-chart {
+  /* Arc */
+  --arc-width: 20px;
+  --arc-background: #E5E7EB;
+  
+  /* Segments */
+  --segment-gap: 2px;
+  --segment-critical: #EF4444;
+  --segment-warning: #F59E0B;
+  --segment-normal: #10B981;
+  
+  /* Needle */
+  --needle-width: 4px;
+  --needle-length: 80%;
+  --needle-color: #374151;
+}
+```
+
+**Display Elements**:
+- Current value (large, centered)
+- Units and metric name
+- Target range indicators
+- Trend arrow (if applicable)
+
+### 6. Distribution Chart
+
+**Purpose**: Show value distribution and outliers.
+
+**Visual Specifications**:
+```css
+.distribution-chart {
+  /* Box plot */
+  --box-fill: #E0E7FF;
+  --box-stroke: #6366F1;
+  --whisker-stroke: #9CA3AF;
+  --outlier-fill: #EF4444;
+  
+  /* Violin plot */
+  --violin-fill-opacity: 0.3;
+  --violin-stroke-width: 2px;
+  
+  /* Histogram */
+  --bin-spacing: 1px;
+  --bin-radius: 2px;
+}
+```
+
+### 7. Multi-Metric Dashboard
+
+**Purpose**: Comprehensive view of related health metrics.
+
+**Layout Grid**:
+```css
+.metric-dashboard {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.metric-card {
+  /* Visual hierarchy */
+  --value-font-size: 32px;
+  --label-font-size: 12px;
+  --trend-font-size: 14px;
+  
+  /* Status indicators */
+  --status-bar-height: 4px;
+  --status-icon-size: 16px;
+}
+```
+
+**Card Components**:
+- Primary value with unit
+- Metric label
+- Change indicator (↑↓ with percentage)
+- Mini sparkline
+- Status color bar
+- Last updated timestamp
+
+## Interactive Features
+
+### Tooltips
+
+**Design Specifications**:
+```css
+.chart-tooltip {
+  /* Positioning */
+  position: absolute;
+  pointer-events: none;
+  z-index: 1000;
+  
+  /* Styling */
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(4px);
+  border: 1px solid var(--gray-200);
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  
+  /* Typography */
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.tooltip-header {
   font-weight: 600;
-  fill: var(--gray-700);
-  text-anchor: middle;
+  margin-bottom: 4px;
+  color: var(--gray-900);
 }
 
-.change-indicator {
-  font-size: 10px;
-  font-weight: 500;
-}
-
-.change-positive { color: #10B981; }
-.change-negative { color: #EF4444; }
-```
-
-### 3. Distribution Charts
-
-**Purpose**: Show the distribution and range of health values.
-
-#### Box Plot Design
-```javascript
-const boxPlotStyle = {
-  box: {
-    fill: 'rgba(59, 130, 246, 0.2)',
-    stroke: '#3B82F6',
-    strokeWidth: 2
-  },
-  median: {
-    stroke: '#1E40AF',
-    strokeWidth: 3
-  },
-  whiskers: {
-    stroke: '#3B82F6',
-    strokeWidth: 1.5,
-    strokeDasharray: '2,2'
-  },
-  outliers: {
-    fill: '#EF4444',
-    radius: 4,
-    stroke: '#FFFFFF',
-    strokeWidth: 2
-  }
-};
-```
-
-#### Histogram Design
-```css
-.histogram-bar {
-  fill: var(--primary);
-  opacity: 0.8;
-  transition: opacity 0.2s;
-}
-
-.histogram-bar:hover {
-  opacity: 1;
-}
-
-.distribution-curve {
-  fill: none;
-  stroke: var(--primary-dark);
-  stroke-width: 2;
-}
-```
-
-### 4. Correlation Matrix
-
-**Purpose**: Display relationships between multiple health metrics.
-
-#### Visual Design
-```javascript
-const correlationColors = {
-  strong_positive: '#0F766E',  // Dark teal
-  positive: '#10B981',         // Green
-  weak_positive: '#86EFAC',   // Light green
-  neutral: '#F3F4F6',          // Gray
-  weak_negative: '#FCA5A5',    // Light red
-  negative: '#EF4444',         // Red
-  strong_negative: '#991B1B'   // Dark red
-};
-
-// Cell size based on correlation strength
-const cellScale = (correlation) => {
-  const base = 40;
-  return base * (0.6 + Math.abs(correlation) * 0.4);
-};
-```
-
-#### Matrix Layout
-```css
-.correlation-matrix {
-  display: grid;
-  gap: 2px;
-  padding: 20px;
-  background: var(--gray-100);
-}
-
-.correlation-cell {
-  aspect-ratio: 1;
+.tooltip-row {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  transition: all 0.2s;
-  cursor: pointer;
+  justify-content: space-between;
+  gap: 16px;
 }
 
-.correlation-cell:hover {
-  transform: scale(1.05);
-  box-shadow: var(--shadow-md);
-}
-```
-
-### 5. Dashboard Layouts
-
-**Purpose**: Combine multiple visualizations for comprehensive health overview.
-
-#### Grid System
-```css
-.dashboard-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 20px;
-  padding: 20px;
-}
-
-.dashboard-card {
-  background: white;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: var(--shadow-sm);
-}
-
-.card-full-width {
-  grid-column: 1 / -1;
-}
-
-.card-half-width {
-  grid-column: span 2;
-}
-```
-
-#### Metric Cards
-```javascript
-const MetricCard = {
-  layout: {
-    icon: { size: 48, position: 'left' },
-    value: { fontSize: 32, fontWeight: 700 },
-    label: { fontSize: 14, color: 'gray-600' },
-    trend: { position: 'bottom-right' }
-  },
-  colors: {
-    positive: '#10B981',
-    negative: '#EF4444',
-    neutral: '#6B7280'
-  },
-  animations: {
-    valueChange: 'countUp',
-    trendArrow: 'slideIn'
-  }
-};
-```
-
-## Animation Specifications
-
-### Chart Entry Animations
-```javascript
-const animationTimings = {
-  // Stagger data points
-  delayPerPoint: 50,
-  
-  // Line drawing
-  lineDraw: {
-    duration: 1500,
-    easing: 'easeOutQuart'
-  },
-  
-  // Bar growth
-  barGrow: {
-    duration: 800,
-    easing: 'easeOutBack'
-  },
-  
-  // Fade in
-  fadeIn: {
-    duration: 400,
-    easing: 'easeOut'
-  }
-};
-```
-
-### Transition Animations
-```css
-/* Data update transitions */
-@keyframes valueUpdate {
-  0% { opacity: 0.5; transform: scale(0.95); }
-  50% { opacity: 0.8; transform: scale(1.05); }
-  100% { opacity: 1; transform: scale(1); }
-}
-
-/* Loading skeleton */
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-
-.chart-skeleton {
-  background: linear-gradient(90deg,
-    #F3F4F6 25%,
-    #E5E7EB 50%,
-    #F3F4F6 75%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-}
-```
-
-## Responsive Behavior
-
-### Mobile Adaptations
-```javascript
-const mobileChartConfig = {
-  // Reduce data points for performance
-  maxDataPoints: 50,
-  
-  // Larger touch targets
-  markers: { size: 6 },
-  
-  // Simplified tooltips
-  tooltip: { 
-    followCursor: false,
-    fixed: { enabled: true }
-  },
-  
-  // Hide grid lines for clarity
-  grid: { show: false },
-  
-  // Rotate labels if needed
-  xaxis: {
-    labels: { 
-      rotate: -45,
-      rotateAlways: true 
-    }
-  }
-};
-```
-
-### Breakpoint Adjustments
-```css
-/* Tablet and below */
-@media (max-width: 768px) {
-  .chart-container {
-    height: 300px; /* Reduced from 400px */
-    margin: 0 -16px; /* Full width */
-    padding: 0 16px;
-  }
-  
-  .dashboard-grid {
-    grid-template-columns: 1fr;
-  }
-}
-```
-
-## Accessibility Features
-
-### Chart Accessibility
-```javascript
-const accessibilityConfig = {
-  // Screen reader descriptions
-  description: 'Line chart showing cholesterol trends over 15 years',
-  
-  // Keyboard navigation
-  keyboard: {
-    enabled: true,
-    navigation: {
-      nextDataPoint: 'ArrowRight',
-      prevDataPoint: 'ArrowLeft',
-      announceValue: 'Space'
-    }
-  },
-  
-  // High contrast mode
-  highContrast: {
-    enabled: window.matchMedia('(prefers-contrast: high)').matches,
-    colors: ['#000000', '#FFFFFF', '#0000FF', '#FF0000']
-  },
-  
-  // Data table alternative
-  showDataTable: true,
-  dataTablePosition: 'below'
-};
-```
-
-### ARIA Labels
-```html
-<div role="img" 
-     aria-label="Chart showing cholesterol trends from 2010 to 2025">
-  <svg>
-    <title>Cholesterol Trends Analysis</title>
-    <desc>
-      Total cholesterol decreased from 220 to 185 mg/dL over 15 years.
-      LDL decreased from 140 to 110 mg/dL.
-      HDL increased from 45 to 55 mg/dL.
-    </desc>
-    <!-- Chart elements -->
-  </svg>
-</div>
-```
-
-## Performance Optimization
-
-### Data Sampling
-```javascript
-// Reduce data points for large datasets
-function sampleData(data, maxPoints = 100) {
-  if (data.length <= maxPoints) return data;
-  
-  const step = Math.ceil(data.length / maxPoints);
-  return data.filter((_, index) => index % step === 0);
-}
-
-// Progressive rendering for large datasets
-function progressiveRender(data, chunkSize = 50) {
-  let index = 0;
-  
-  function renderChunk() {
-    const chunk = data.slice(index, index + chunkSize);
-    // Render chunk
-    index += chunkSize;
-    
-    if (index < data.length) {
-      requestAnimationFrame(renderChunk);
-    }
-  }
-  
-  renderChunk();
-}
-```
-
-### Canvas vs SVG
-```javascript
-// Use Canvas for > 1000 data points
-const renderMethod = dataPoints.length > 1000 ? 'canvas' : 'svg';
-
-// Canvas optimization
-const canvasConfig = {
-  pixelRatio: window.devicePixelRatio || 1,
-  willReadFrequently: false,
-  imageSmoothingEnabled: true
-};
-```
-
-## Export Functionality
-
-### Export Options
-```javascript
-const exportFormats = {
-  png: {
-    quality: 1,
-    backgroundColor: '#FFFFFF',
-    scale: 2 // For retina displays
-  },
-  svg: {
-    preserveAspectRatio: true,
-    embedCSS: true
-  },
-  csv: {
-    headers: true,
-    separator: ',',
-    dateFormat: 'YYYY-MM-DD'
-  },
-  pdf: {
-    orientation: 'landscape',
-    format: 'letter',
-    margins: { top: 20, bottom: 20, left: 20, right: 20 }
-  }
-};
-```
-
-## Error States
-
-### No Data Display
-```html
-<div class="empty-chart">
-  <svg class="empty-icon" width="64" height="64">
-    <!-- Chart icon -->
-  </svg>
-  <h3 class="empty-title">No Data Available</h3>
-  <p class="empty-message">
-    No cholesterol data found for the selected time period.
-  </p>
-  <button class="empty-action">
-    Adjust Time Range
-  </button>
-</div>
-```
-
-### Error Display
-```css
-.chart-error {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  padding: 40px;
-  text-align: center;
+.tooltip-label {
   color: var(--gray-600);
 }
 
-.error-icon {
-  width: 48px;
-  height: 48px;
-  margin-bottom: 16px;
-  color: var(--error);
+.tooltip-value {
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
 }
 ```
 
-## Implementation Checklist
+**Content Structure**:
+```html
+<div class="chart-tooltip">
+  <div class="tooltip-header">March 15, 2024</div>
+  <div class="tooltip-row">
+    <span class="tooltip-label">Total Cholesterol:</span>
+    <span class="tooltip-value">185 mg/dL</span>
+  </div>
+  <div class="tooltip-row">
+    <span class="tooltip-label">Status:</span>
+    <span class="tooltip-value status-normal">Normal</span>
+  </div>
+  <div class="tooltip-row">
+    <span class="tooltip-label">Change:</span>
+    <span class="tooltip-value trend-down">↓ 5.2%</span>
+  </div>
+</div>
+```
 
-### Core Features
-- [ ] Time series with multiple metrics
-- [ ] Reference range visualization
-- [ ] Interactive tooltips
-- [ ] Zoom and pan controls
-- [ ] Responsive sizing
-- [ ] Export functionality
+### Zoom & Pan
 
-### Accessibility
-- [ ] Keyboard navigation
-- [ ] Screen reader support
-- [ ] High contrast mode
-- [ ] Data table alternative
-- [ ] ARIA labels and descriptions
+**Implementation**:
+```javascript
+const zoomBehavior = {
+  // Mouse interactions
+  wheel: 'zoom',      // Scroll to zoom
+  drag: 'pan',        // Click and drag to pan
+  pinch: 'zoom',      // Touch pinch to zoom
+  
+  // Constraints
+  minZoom: 0.5,
+  maxZoom: 10,
+  
+  // Reset
+  doubleClick: 'reset',
+  
+  // Keyboard
+  '+': 'zoomIn',
+  '-': 'zoomOut',
+  arrows: 'pan'
+};
+```
 
-### Performance
-- [ ] Data sampling for large datasets
-- [ ] Progressive rendering
-- [ ] Efficient redraws
-- [ ] Memory management
-- [ ] Loading states
+### Legend Interactions
 
-### Mobile
-- [ ] Touch-optimized interactions
-- [ ] Simplified visualizations
-- [ ] Gesture support
-- [ ] Appropriate data density
+**Features**:
+- Click to toggle series
+- Hover to highlight
+- Drag to reorder
+- Double-click to isolate
+
+**Visual States**:
+```css
+.legend-item {
+  cursor: pointer;
+  transition: all 150ms ease-out;
+}
+
+.legend-item:hover {
+  background: var(--gray-50);
+}
+
+.legend-item.disabled {
+  opacity: 0.4;
+}
+
+.legend-item.isolated {
+  font-weight: 600;
+  background: var(--primary-50);
+}
+```
+
+## Responsive Design
+
+### Mobile Adaptations
+
+**Time Series**:
+- Reduce data points (sampling)
+- Larger touch targets
+- Swipe to pan
+- Pinch to zoom
+
+**Bar Charts**:
+- Horizontal orientation
+- Scrollable with fixed headers
+- Tap for details
+
+**Heatmaps**:
+- Reduce cell size
+- Month view instead of year
+- Swipe between months
+
+### Breakpoint Behaviors
+```css
+/* Mobile: < 768px */
+@media (max-width: 767px) {
+  .chart-container {
+    height: 300px;
+    margin: -16px; /* Full bleed */
+  }
+  
+  .chart-legend {
+    position: static;
+    display: flex;
+    overflow-x: auto;
+    gap: 12px;
+    padding: 12px 0;
+  }
+}
+
+/* Tablet: 768px - 1023px */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .chart-container {
+    height: 400px;
+  }
+}
+
+/* Desktop: 1024px+ */
+@media (min-width: 1024px) {
+  .chart-container {
+    height: 500px;
+  }
+}
+```
+
+## Color Palettes
+
+### Health Status Colors
+```css
+:root {
+  /* Primary health metrics */
+  --health-cholesterol: #3B82F6;  /* Blue */
+  --health-blood-pressure: #EF4444; /* Red */
+  --health-glucose: #F59E0B;      /* Amber */
+  --health-weight: #8B5CF6;       /* Purple */
+  
+  /* Status colors */
+  --status-optimal: #059669;      /* Emerald-600 */
+  --status-normal: #10B981;       /* Emerald-500 */
+  --status-borderline: #F59E0B;   /* Amber-500 */
+  --status-high: #F97316;         /* Orange-500 */
+  --status-critical: #DC2626;     /* Red-600 */
+  
+  /* Trend colors */
+  --trend-improving: #10B981;
+  --trend-stable: #6B7280;
+  --trend-worsening: #EF4444;
+}
+```
+
+### Accessible Patterns
+```svg
+<!-- Diagonal stripes for warning -->
+<pattern id="diagonal-stripes" patternUnits="userSpaceOnUse" width="4" height="4">
+  <path d="M 0,4 l 4,-4 M -1,1 l 2,-2 M 3,5 l 2,-2" stroke="#000" stroke-width="0.5" opacity="0.2"/>
+</pattern>
+
+<!-- Dots for critical -->
+<pattern id="dots" patternUnits="userSpaceOnUse" width="4" height="4">
+  <circle cx="2" cy="2" r="0.5" fill="#000" opacity="0.2"/>
+</pattern>
+```
+
+## Animation Guidelines
+
+### Chart Entry Animations
+```css
+/* Fade and scale in */
+.chart-enter {
+  animation: chartEnter 600ms ease-out both;
+}
+
+@keyframes chartEnter {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Stagger data points */
+.data-point {
+  animation: pointEnter 300ms ease-out both;
+  animation-delay: calc(var(--index) * 20ms);
+}
+
+/* Draw line paths */
+.line-path {
+  stroke-dasharray: var(--path-length);
+  stroke-dashoffset: var(--path-length);
+  animation: drawPath 1500ms ease-out forwards;
+}
+```
+
+### Transition Timing
+- **Data updates**: 300ms ease-out
+- **Hover effects**: 150ms ease-out
+- **Layout changes**: 500ms ease-in-out
+- **Loading states**: Continuous
+
+## Export Options
+
+### Formats
+1. **PNG**: High-resolution chart image
+2. **SVG**: Vector format for printing
+3. **CSV**: Raw data table
+4. **PDF**: Full report with context
+
+### Export UI
+```html
+<div class="export-menu">
+  <button class="export-btn">
+    <svg><!-- Download icon --></svg>
+    Export
+  </button>
+  <div class="export-options">
+    <button data-format="png">Download as Image</button>
+    <button data-format="svg">Download as Vector</button>
+    <button data-format="csv">Download Data</button>
+    <button data-format="pdf">Generate Report</button>
+  </div>
+</div>
+```
+
+## Performance Guidelines
+
+### Data Optimization
+- **Sampling**: Reduce points for large datasets
+- **Aggregation**: Show averages for dense data
+- **Viewport Culling**: Only render visible data
+- **Progressive Loading**: Load details on demand
+
+### Rendering Performance
+```javascript
+// Use canvas for large datasets
+if (dataPoints > 1000) {
+  return <CanvasChart {...props} />;
+}
+
+// Use SVG for smaller, interactive charts
+return <SVGChart {...props} />;
+```
+
+### Memory Management
+- Cleanup event listeners
+- Cancel animation frames
+- Clear timers on unmount
+- Limit undo/redo history
+
+## Implementation Examples
+
+### React Component Structure
+```jsx
+<ChartContainer
+  title="15-Year Cholesterol Trend"
+  subtitle="Tracking your cardiovascular health"
+  controls={<ChartControls />}
+>
+  <TimeSeriesChart
+    data={data}
+    config={config}
+    onDataHover={handleHover}
+    onRangeSelect={handleZoom}
+  />
+  <ChartLegend
+    series={series}
+    onToggle={handleSeriesToggle}
+  />
+</ChartContainer>
+```
+
+### Configuration Object
+```javascript
+const chartConfig = {
+  type: 'time-series',
+  dimensions: {
+    width: 'auto',
+    height: 400,
+    margin: { top: 20, right: 80, bottom: 40, left: 60 }
+  },
+  scales: {
+    x: {
+      type: 'time',
+      domain: 'auto',
+      nice: true
+    },
+    y: {
+      type: 'linear',
+      domain: [0, 'auto'],
+      nice: true
+    }
+  },
+  interaction: {
+    zoom: true,
+    pan: true,
+    tooltip: true,
+    crosshair: true
+  },
+  animation: {
+    enter: true,
+    update: true,
+    duration: 300
+  }
+};
+```
+
+## Testing Checklist
+
+### Visual Testing
+- [ ] All colors meet contrast requirements
+- [ ] Patterns visible in grayscale
+- [ ] Labels readable at all sizes
+- [ ] Interactions have visual feedback
+
+### Functional Testing
+- [ ] Data updates correctly
+- [ ] Interactions work on all devices
+- [ ] Export functions properly
+- [ ] Performance with large datasets
+
+### Accessibility Testing
+- [ ] Keyboard navigation complete
+- [ ] Screen reader announces data
+- [ ] Alternative text descriptions
+- [ ] Data table fallbacks available

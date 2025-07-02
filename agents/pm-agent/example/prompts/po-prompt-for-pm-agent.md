@@ -26,12 +26,13 @@ The system uses pre-built tools that abstract data storage and querying. All age
 The target users are health-conscious individuals who want to understand their health data through natural language queries, getting insights that would typically require consulting multiple medical specialists.
 
 Please create:
-1. A comprehensive Product Requirements Document (PRD)
-2. Detailed user stories with acceptance criteria
-3. Technical architecture documentation
-4. API specifications for frontend-backend communication
-5. Data model definitions
-6. Success metrics and KPIs
+1. A comprehensive Product Requirements Document (PRD.md)
+2. Detailed user stories with acceptance criteria (user-stories.md)
+3. Technical architecture documentation (system-architecture.md)
+4. API specifications for frontend-backend communication (api-specification.md)
+5. Data model definitions (data-models.md)
+6. Tool interface documentation (tool-interface.md)
+7. Feature prioritization matrix (feature-priority.md)
 
 Focus on making this system extensible so the pattern can be applied to other multi-agent use cases beyond healthcare.
 

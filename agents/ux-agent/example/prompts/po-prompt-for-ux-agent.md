@@ -2,7 +2,7 @@
 
 ## Prompt to Submit:
 
-"I need you to design the user interface for a Multi-Agent Health Insight System. This is a sophisticated health analysis application that uses an AI medical team (CMO + specialists) to provide comprehensive health insights.
+I need you to design the user interface for a Multi-Agent Health Insight System. This is a sophisticated health analysis application that uses an AI medical team (CMO + specialists) to provide comprehensive health insights.
 
 I have attached the Product Manager's outputs (PRD, user stories, architecture) along with visual mockups showing the exact UI we want to achieve. The key UI/UX requirements are:
 
@@ -42,24 +42,25 @@ The design should feel premium and trustworthy, appropriate for health data. Use
 The multi-agent architecture (CMO + specialists) should be visualized in an intuitive way that builds confidence in the system's comprehensiveness.
 
 Please create:
-1. Complete Design System documentation
-2. Component specifications for all UI elements  
-3. Interactive HTML prototypes of key screens
-4. Responsive layout guidelines
-5. Accessibility considerations
-6. Animation and transition specifications
+1. Complete Design System documentation (design-system.md)
+2. Component specifications for all UI elements (component-specs.md)
+3. Interactive HTML prototypes (welcome-prototype.html and main-app-prototype.html)
+4. Responsive layout guidelines (layout-guidelines.md)
+5. Accessibility considerations (accessibility-guidelines.md)
+6. Animation and transition specifications (animation-specs.md)
+7. Visualization specifications (visualization-specs.md)
 
-Focus on creating a design that builds user trust while handling complex medical information in an approachable way."
+Focus on creating a design that builds user trust while handling complex medical information in an approachable way.
 
 ## I have attached the following documents:
 
-1. **health-system-prd.md** (from PM Agent)
-2. **health-system-user-stories.md** (from PM Agent)
-3. **health-system-architecture.md** (from PM Agent)
-4. **health-system-api-spec** (from PM Agent)
-5. **health-system-data-models** (from PM Agent)
-6. **health-system-feature-priority** (from PM Agent)
-7. **health-system-tool-interface** (from PM Agent)
+1. **PRD.md** (from PM Agent)
+2. **user-stories.md** (from PM Agent)
+3. **system-architecture.md** (from PM Agent)
+4. **api-specification.md** (from PM Agent)
+5. **data-models.md** (from PM Agent)
+6. **feature-priority.md** (from PM Agent)
+7. **tool-interface.md** (from PM Agent)
 8. **User Stories, User Flows, and Mockups** (User Stories User Flows Mocks.pdf)
    - Screenshots showing the exact UI we want to achieve
    - 3-panel layout examples
