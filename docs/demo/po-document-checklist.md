@@ -30,17 +30,17 @@
 
 ### For Claude Code Workspace (3 additional documents)
 
-✅ **6. implementation-guide.md** → Goes in `requirements/technical/`
+✅ **6. implementation-guide.md** → Goes in `requirements/technical-patterns/`
 - Generic multi-agent implementation patterns
 - 500+ lines of technical guidance
 - NO health-specific content
 
-✅ **7. multi-agent-patterns.md** → Goes in `requirements/technical/`
+✅ **7. multi-agent-patterns.md** → Goes in `requirements/technical-patterns/`
 - Orchestrator-worker pattern details
 - Based on Anthropic's approach
 - Domain-agnostic patterns
 
-✅ **8. streaming-patterns.md** → Goes in `requirements/technical/`
+✅ **8. streaming-patterns.md** → Goes in `requirements/technical-patterns/`
 - SSE implementation guide
 - Real-time update patterns
 - Frontend/backend streaming code
@@ -88,19 +88,29 @@ workspace/
 │   └── tools/ (4 provided tool files)
 ├── frontend/ (empty)
 └── requirements/
-    ├── technical/
+    ├── technical-patterns/
     │   ├── implementation-guide.md
     │   ├── multi-agent-patterns.md
     │   └── streaming-patterns.md
-    ├── product/ (PM outputs)
-    ├── architecture/ (PM outputs)
-    ├── ux/ (UX outputs)
-    └── reference/
+    ├── pm-outputs/
+    │   ├── PRD.md
+    │   ├── user-stories.md
+    │   ├── feature-priority.md
+    │   └── architecture/
+    │       ├── system-architecture.md
+    │       ├── api-specification.md
+    │       ├── data-models.md
+    │       └── tool-interface.md
+    ├── ux-outputs/
+    │   ├── design-system.md
+    │   ├── component-specs.md
+    │   └── prototypes/
+    └── po-inputs/
         ├── multi-agent-architecture-brief.md
         ├── health-domain-requirements.md
         ├── tool-interface-document.md
         ├── User Stories User Flows Mocks.pdf
-        └── anthropic-blog.md
+        └── anthropic-blog.txt
 ```
 
 ## Key Points for Demo

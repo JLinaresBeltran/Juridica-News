@@ -15,17 +15,12 @@ requirements/
 ├── product/                    [Created by PM Agent]
 │   ├── PRD.md                 # Product Requirements Document
 │   ├── user-stories.md        # All user stories with acceptance criteria
-│   ├── acceptance-criteria.md # Consolidated acceptance criteria
 │   ├── feature-priority.md    # Feature prioritization matrix
-│   └── success-metrics.md     # KPIs and success metrics
-│
-├── architecture/              [Created by PM Agent]
-│   ├── system-architecture.md # Overall system design
-│   ├── api-specification.md   # Complete API documentation
-│   ├── data-models.md        # All data entities and relationships
-│   ├── tool-interface.md     # Documentation of provided tools
-│   ├── integration-spec.md   # External integrations
-│   └── multi-agent-flow.md   # Agent orchestration details
+│   └── architecture/          [Technical documents from PM Agent]
+│       ├── system-architecture.md # Overall system design
+│       ├── api-specification.md   # Complete API documentation
+│       ├── data-models.md        # All data entities and relationships
+│       └── tool-interface.md     # Documentation of provided tools
 │
 ├── ux/                       [Created by UX Designer Agent]
 │   ├── design-system.md      # Colors, typography, spacing
@@ -46,13 +41,13 @@ requirements/
 │       ├── main-interface.png
 │       └── [domain-specific-screens].png
 │
-├── reference/                [Provided by Product Owner]
-│   ├── anthropic-multi-agent-blog.md  # Copy of https://www.anthropic.com/engineering/built-multi-agent-research-system
-│   ├── [domain]-guide.md              # Domain expertise (health, finance, etc.)
-│   ├── tool-interface.md              # Documentation of pre-built tools
-│   ├── user-stories-flows-mocks.pdf   # Visual examples of desired UI/UX
-│   ├── brand-guidelines.md            # Visual identity and design system
-│   └── example-queries.md             # Sample domain queries
+├── po-inputs/                [Provided by Product Owner]
+│   ├── anthropic-multi-agent-blog.txt  # Copy of Anthropic's blog post
+│   ├── [domain]-requirements.md        # Domain expertise (health, finance, etc.)
+│   ├── tool-interface-document.md      # Documentation of pre-built tools
+│   ├── user-stories-flows-mocks.pdf    # Visual examples of desired UI/UX
+│   ├── [domain]-brand-guidelines.md    # Visual identity and design system
+│   └── multi-agent-architecture-brief.md # Why multi-agent approach
 │
 └── examples/                 [Created by PM & UX Agents]
     ├── user-flows/
@@ -100,7 +95,7 @@ Format:
 - Simple visualization (single metric)
 ```
 
-### Architecture Directory Files
+### Product Architecture Directory Files
 
 #### system-architecture.md
 Must include:
@@ -148,11 +143,11 @@ Fully functional HTML prototype showing:
 - Interactive elements
 - Responsive behavior
 
-### Reference Directory Files
+### Product Owner Input Files
 
-These should be provided by the Product Owner:
+These should be provided by the Product Owner in po-inputs/:
 
-#### anthropic-multi-agent-blog.md
+#### anthropic-multi-agent-blog.txt
 Copy of Anthropic's blog post ["How we built our multi-agent research system"](https://www.anthropic.com/engineering/built-multi-agent-research-system)
 
 #### tool-interface.md
@@ -186,7 +181,7 @@ Before starting Claude Code, ensure:
 - [ ] Accessibility guidelines are included
 
 ### ✅ From Product Owner:
-- [ ] Technical patterns are in requirements/technical/
+- [ ] Technical patterns are in requirements/technical-patterns/
 - [ ] Domain-specific references are gathered
 - [ ] Tool interface documentation is prepared
 - [ ] Example data is available

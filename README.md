@@ -195,67 +195,63 @@ cd my-awesome-system
 # Create directory structure
 mkdir -p backend/tools
 mkdir -p frontend
-mkdir -p requirements/{technical,product,architecture,ux/prototypes,reference}
+mkdir -p requirements/{technical-patterns,pm-outputs/architecture,ux-outputs/prototypes,po-inputs}
 ```
 
 #### 4.2 Copy Technical Guides (Reusable)
 
 ```bash
 # Copy from this repo's technical-guides/
-cp path/to/3-AMIGO-AGENTS/technical-guides/* requirements/technical/
+cp path/to/3-AMIGO-AGENTS/technical-guides/* requirements/technical-patterns/
 ```
 
 #### 4.3 Add PM Outputs
 
-Place in `requirements/`:
-- product/ → PM's product documents
-- architecture/ → PM's technical documents
+Place in `requirements/pm-outputs/`:
+- PRD.md, user-stories.md, feature-priority.md (root level)
+- architecture/ → PM's technical documents (api-specification.md, data-models.md, system-architecture.md, tool-interface.md)
 
 #### 4.4 Add UX Outputs
 
-Place in `requirements/ux/`:
+Place in `requirements/ux-outputs/`:
 - All design documents
 - prototypes/ folder (containing HTML prototypes)
 
-#### 4.5 Add Reference Documents
+#### 4.5 Add Domain Input Documents
 
-Place in `requirements/reference/`:
+Place in `requirements/po-inputs/`:
 - Your original domain requirements
 - Tool documentation (if any)
 - Anthropic blog
 
-#### 4.6 Create Minimal CLAUDE.md
+#### 4.6 Create CLAUDE.md
 
-Create `CLAUDE.md` in workspace root:
+Copy the template from `agents/code-agent/config/minimal-claude-md-template.md` to your workspace root:
 
-```markdown
-# CLAUDE.md
-
-You are implementing [Your System Name] - [Brief Description].
-
-## Start Here
-1. Read the PRD: `requirements/product/PRD.md`
-2. Review technical patterns: `requirements/technical/implementation-guide.md`
-3. Check for provided tools: `backend/tools/` (if any exist, DO NOT modify them)
-4. Follow the implementation phases in the technical guide
-
-## Quick Links
-- Architecture: `requirements/architecture/`
-- UX Designs: `requirements/ux/`
-- Domain Info: `requirements/reference/`
-
-Begin by understanding the complete system from the PRD.
+```bash
+cp path/to/3-AMIGO-AGENTS/agents/code-agent/config/minimal-claude-md-template.md CLAUDE.md
 ```
+
+Then edit `CLAUDE.md` to replace:
+- `[PROJECT_NAME]` with your system name
+- `[ONE_LINE_DESCRIPTION]` with a brief description
+
+This template ensures Claude Code will:
+- Review all requirements before implementing
+- Create a comprehensive plan and get your approval
+- Avoid duplicate todo entries
+- Follow a structured implementation process
 
 ### Phase 5: Run Claude Code
 
 1. Open terminal in your workspace
 2. Run: `claude-code`
 3. Claude Code will:
-   - Read CLAUDE.md
-   - Analyze all requirements
-   - Create complete implementation
-   - Provide running instructions
+   - Read CLAUDE.md and analyze all requirements
+   - Create a comprehensive implementation plan
+   - **Present the plan for your review and approval**
+   - Only proceed with implementation after you confirm
+   - Provide running instructions when complete
 
 ## 🏥 Health Insight System Demo
 

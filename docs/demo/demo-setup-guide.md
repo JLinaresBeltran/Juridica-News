@@ -9,20 +9,20 @@ Set up the 3 AI Amigos demo to show how the pattern works for ANY use case, not 
 
 Create these files once and reuse across all demos:
 
-**requirements/technical/implementation-guide.md**
+**requirements/technical-patterns/implementation-guide.md**
 - The refactored, domain-agnostic implementation guide
 - Multi-agent orchestration patterns
 - SSE streaming implementation
 - Error handling approaches
 - No domain-specific references
 
-**requirements/technical/multi-agent-patterns.md**
+**requirements/technical-patterns/multi-agent-patterns.md**
 - Orchestrator-worker pattern details
 - Specialist coordination strategies
 - Parallel execution guidelines
 - Based on Anthropic's blog
 
-**requirements/technical/streaming-patterns.md**
+**requirements/technical-patterns/streaming-patterns.md**
 - SSE implementation patterns
 - Progress update structures
 - Real-time UI synchronization
@@ -95,17 +95,19 @@ Result: Multi-agent legal assistant
 ```
 health-system/
 └── requirements/
-    ├── technical/        # ← SAME FILES
-    ├── product/          # ← Health-specific
-    ├── architecture/     # ← Health-specific
-    └── ux/              # ← Health-specific
+    ├── technical-patterns/  # ← SAME FILES
+    ├── pm-outputs/          # ← Health-specific
+    │   └── architecture/   # ← Health technical specs
+    ├── ux-outputs/         # ← Health-specific designs
+    └── po-inputs/          # ← Health domain docs
 
 finance-system/
 └── requirements/
-    ├── technical/        # ← SAME FILES (copied)
-    ├── product/          # ← Finance-specific
-    ├── architecture/     # ← Finance-specific
-    └── ux/              # ← Finance-specific
+    ├── technical-patterns/  # ← SAME FILES (copied)
+    ├── pm-outputs/          # ← Finance-specific
+    │   └── architecture/   # ← Finance technical specs
+    ├── ux-outputs/         # ← Finance-specific designs
+    └── po-inputs/          # ← Finance domain docs
 ```
 
 ## Demo Script Enhancement

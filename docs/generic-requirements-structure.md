@@ -4,42 +4,42 @@
 
 ```
 requirements/
-├── technical/                    [Domain-agnostic technical guides]
-│   ├── implementation-guide.md   # Generic CLAUDE.md content
+├── technical-patterns/         [Domain-agnostic technical guides from this repo]
+│   ├── implementation-guide.md   # Generic multi-agent patterns
 │   ├── multi-agent-patterns.md  # Best practices for multi-agent systems
-│   ├── streaming-patterns.md    # SSE and real-time update patterns
-│   └── tool-integration.md      # How to integrate with provided tools
+│   └── streaming-patterns.md    # SSE and real-time update patterns
 │
-├── product/                     [Domain-specific from PM Agent]
+├── pm-outputs/                  [Created by PM Agent]
 │   ├── PRD.md
 │   ├── user-stories.md
-│   ├── acceptance-criteria.md
-│   └── success-metrics.md
+│   ├── feature-priority.md
+│   └── architecture/           [Technical specs from PM Agent]
+│       ├── system-architecture.md
+│       ├── api-specification.md
+│       ├── data-models.md
+│       └── tool-interface.md
 │
-├── architecture/                [Domain-specific from PM Agent]
-│   ├── system-architecture.md
-│   ├── api-specification.md
-│   ├── data-models.md
-│   └── domain-tools.md         # Documentation of domain-specific tools
-│
-├── ux/                         [Domain-specific from UX Agent]
+├── ux-outputs/                  [Created by UX Designer Agent]
 │   ├── design-system.md
 │   ├── component-specs.md
 │   ├── prototypes/
-│   └── mockups/
+│   ├── layout-guidelines.md
+│   ├── visualization-specs.md
+│   ├── accessibility-guidelines.md
+│   └── animation-specs.md
 │
-└── reference/                  [Domain-specific from PO]
-    ├── domain-guide.md         # Domain expertise (health, finance, etc.)
+└── po-inputs/                   [Provided by Product Owner]
+    ├── domain-requirements.md   # Domain expertise (health, finance, etc.)
     ├── tool-interface.md       # If pre-built tools exist
-    ├── mockups-screenshots/    # Visual examples of desired UI/UX
+    ├── visual-references/       # Screenshots/PDFs of desired UI
     ├── brand-guidelines.md     # Visual identity and design system
-    ├── example-data.json       # Sample domain data
+    ├── architecture-brief.md    # Multi-agent approach rationale
     └── external-references.md  # Links to research, patterns
 ```
 
 ## How This Enables Reusability
 
-### 1. **Generic CLAUDE.md Becomes `technical/implementation-guide.md`**
+### 1. **Generic CLAUDE.md Becomes `technical-patterns/implementation-guide.md`**
 ```markdown
 # At the top of the new workspace CLAUDE.md:
 
@@ -48,13 +48,13 @@ requirements/
 This project implements a multi-agent system for [domain].
 
 ## Technical Implementation Guide
-See `requirements/technical/implementation-guide.md` for detailed 
+See `requirements/technical-patterns/implementation-guide.md` for detailed 
 implementation patterns and best practices.
 
 ## Domain-Specific Requirements
-- Product Requirements: `requirements/product/PRD.md`
-- Architecture: `requirements/architecture/system-architecture.md`
-- UX Specifications: `requirements/ux/design-system.md`
+- Product Requirements: `requirements/pm-outputs/PRD.md`
+- Architecture: `requirements/pm-outputs/architecture/system-architecture.md`
+- UX Specifications: `requirements/ux-outputs/design-system.md`
 
 Start by reviewing all requirements before beginning implementation.
 ```
@@ -85,10 +85,10 @@ For independent task processing...
 ### 3. **Domain-Specific Sections**
 
 All domain knowledge lives in:
-- `product/` - What to build
-- `architecture/` - How it connects
-- `ux/` - How it looks
-- `reference/` - Domain expertise
+- `pm-outputs/` - What to build (including architecture/)
+- `pm-outputs/architecture/` - How it connects
+- `ux-outputs/` - How it looks
+- `po-inputs/` - Domain expertise and background
 
 ## Benefits of This Structure
 
@@ -107,13 +107,13 @@ Create the generic technical documents that can be reused:
 
 ### Per Use Case
 The 3 AI Amigos create only domain-specific content:
-- PM Agent: Creates product/ and architecture/ (after you attach domain docs)
-- UX Agent: Creates ux/ (after you attach PM outputs)
-- PO: Provides reference/
+- PM Agent: Creates pm-outputs/ (including architecture subfolder) after you attach domain docs
+- UX Agent: Creates ux-outputs/ (after you attach PM outputs)
+- PO: Provides po-inputs/
 
 ### Claude Code Gets
 - Minimal CLAUDE.md pointing to requirements/
-- All technical patterns in requirements/technical/
+- All technical patterns in requirements/technical-patterns/
 - All domain specifics in other requirements/ folders
 
 This way, your demo can show how the same technical patterns enable different domains just by changing the domain-specific requirements!

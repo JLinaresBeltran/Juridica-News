@@ -18,10 +18,11 @@ workspace/
 ├── frontend/
 │   └── [you will create all frontend files]
 └── requirements/               # Domain-specific requirements
-    ├── product/               # Product specifications
-    ├── architecture/          # Technical architecture
-    ├── ux/                   # Design specifications
-    └── reference/            # Reference materials
+    ├── technical-patterns/    # Reusable technical patterns
+    ├── pm-outputs/            # Product Manager outputs
+    │   └── architecture/      # Technical architecture
+    ├── ux-outputs/           # UX Designer outputs
+    └── po-inputs/            # Product Owner inputs
 ```
 
 ## Implementation Phases
@@ -30,9 +31,9 @@ workspace/
 
 Before writing any code:
 1. Review ALL files in `requirements/` directory thoroughly
-2. Understand the domain model from `requirements/architecture/data-models.md`
-3. Study the API contracts in `requirements/architecture/api-specification.md`
-4. Review UX prototypes in `requirements/ux/prototypes/`
+2. Understand the domain model from `requirements/pm-outputs/architecture/data-models.md`
+3. Study the API contracts in `requirements/pm-outputs/architecture/api-specification.md`
+4. Review UX prototypes in `requirements/ux-outputs/prototypes/`
 5. Identify any pre-built tools in `backend/tools/`
 
 ### Phase 2: Backend Foundation
@@ -103,7 +104,7 @@ class SpecialistAgent(BaseAgent):
 
 ### Phase 3: API Implementation
 
-Implement endpoints defined in `requirements/architecture/api-specification.md`:
+Implement endpoints defined in `requirements/pm-outputs/architecture/api-specification.md`:
 
 1. **Main Processing Endpoint** (usually with SSE)
 2. **Resource Management Endpoints** (CRUD operations)
@@ -235,9 +236,9 @@ Your implementation succeeds when:
 
 ## Getting Started
 
-1. Start by reading `requirements/product/PRD.md`
-2. Review `requirements/architecture/system-architecture.md`
-3. Examine `requirements/ux/prototypes/`
+1. Start by reading `requirements/pm-outputs/PRD.md`
+2. Review `requirements/pm-outputs/architecture/system-architecture.md`
+3. Examine `requirements/ux-outputs/prototypes/`
 4. Check for any provided tools in `backend/tools/`
 5. Begin with Phase 1 and progress systematically
 

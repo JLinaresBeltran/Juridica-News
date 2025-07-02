@@ -94,8 +94,8 @@ You provide domain expertise, they build the system.
 - `agents/code-agent/config/minimal-claude-md-template.md`
 
 ### To Understand What to Submit:
-- `agents/pm-agent/example-prompts/po-prompt-for-pm-agent.md` - Prompt + attached docs
-- `agents/ux-agent/example-prompts/po-prompt-for-ux-agent.md` - Prompt + attached docs
+- `agents/pm-agent/example/prompts/po-prompt-for-pm-agent.md` - Prompt + attached docs
+- `agents/ux-agent/example/prompts/po-prompt-for-ux-agent.md` - Prompt + attached docs
 
 ### To See What Documents You Need:
 - `docs/po-document-checklist.md`
