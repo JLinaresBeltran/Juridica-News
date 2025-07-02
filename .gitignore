@@ -1,2 +1,6 @@
 use-cases/.DS_Store
 use-cases/multi-agent-health-insight-system/.DS_Store
+agents/.DS_Store
+.gitignore
+agents/pm-agent/.DS_Store
+.DS_Store

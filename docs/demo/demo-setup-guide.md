@@ -38,8 +38,10 @@ For each new use case demo:
 ### What the PO Provides:
 1. **Domain Brief** (replaces health-domain-requirements.md)
 2. **Tool Interface Doc** (if domain has pre-built tools)
-3. **Domain Examples** (sample queries, data)
-4. **Minimal CLAUDE.md** (3-4 lines pointing to requirements)
+3. **Visual Mockups/Screenshots** (shows desired UI/UX)
+4. **Brand Guidelines** (visual identity based on mockups)
+5. **Domain Examples** (sample queries, data)
+6. **Minimal CLAUDE.md** (3-4 lines pointing to requirements)
 
 ### What Gets Created Fresh:
 - PM Agent outputs (product/, architecture/)
@@ -58,17 +60,17 @@ Result: Multi-agent health insight system
 
 ### Financial Advisory System
 ```
-Input: Finance domain requirements, market data tools  
+Input: Finance domain requirements, market data tools, dashboard mockups
 PM Creates: Chief Investment Officer + specialists (Tax, Risk, Research)
-UX Creates: Financial dashboards, portfolio visualizations
+UX Creates: Financial dashboards matching mockups, portfolio visualizations
 Result: Multi-agent investment advisor
 ```
 
 ### Legal Document Analyzer
 ```
-Input: Legal domain requirements, document parsing tools
+Input: Legal domain requirements, document parsing tools, interface mockups
 PM Creates: Senior Counsel + specialists (Contract, Compliance, IP)
-UX Creates: Document review UI, clause highlighting
+UX Creates: Document review UI matching mockups, clause highlighting
 Result: Multi-agent legal assistant
 ```
 

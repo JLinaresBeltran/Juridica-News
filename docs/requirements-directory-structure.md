@@ -50,8 +50,9 @@ requirements/
 │   ├── anthropic-multi-agent-blog.md  # Copy of https://www.anthropic.com/engineering/built-multi-agent-research-system
 │   ├── [domain]-guide.md              # Domain expertise (health, finance, etc.)
 │   ├── tool-interface.md              # Documentation of pre-built tools
-│   ├── example-queries.md             # Sample domain queries
-│   └── brand-guidelines.md            # If applicable
+│   ├── user-stories-flows-mocks.pdf   # Visual examples of desired UI/UX
+│   ├── brand-guidelines.md            # Visual identity and design system
+│   └── example-queries.md             # Sample domain queries
 │
 └── examples/                 [Created by PM & UX Agents]
     ├── user-flows/

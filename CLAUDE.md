@@ -24,6 +24,9 @@ This repository contains everything needed to implement the 3 AI Amigos methodol
 
 ### Want to see a complete example?
 - **use-cases/multi-agent-health-insight-system/** - Full health system implementation
+  - Includes brand guidelines based on the mockups
+  - Complete domain documentation
+  - Visual examples in the PDF
 
 ## 📁 Repository Structure
 
@@ -47,7 +50,8 @@ This repository contains everything needed to implement the 3 AI Amigos methodol
 │
 ├── 🏥 use-cases/                 # EXAMPLE: Complete health system
 │   └── multi-agent-health-insight-system/
-│       └── [domain documents]    # Templates for your own domains
+│       ├── [domain documents]    # Templates for your own domains
+│       └── User Stories User Flows Mocks.pdf # UI/UX examples
 │
 ├── 📖 docs/                      # HOW-TO guides
 │   ├── demo-setup-guide.md      # Run the demo
@@ -85,15 +89,13 @@ You provide domain expertise, they build the system.
 ## 🔑 Key Files You'll Need
 
 ### To Configure Agents:
-- `agents/pm-agent/config/pm-agent-description.md`
 - `agents/pm-agent/config/pm-agent-instructions.md`
-- `agents/ux-agent/config/ux-agent-description.md`
 - `agents/ux-agent/config/ux-designer-agent-instructions.md`  
 - `agents/code-agent/config/minimal-claude-md-template.md`
 
 ### To Understand What to Submit:
-- `agents/pm-agent/example-prompts/po-prompt-for-pm-agent.md`
-- `agents/ux-agent/example-prompts/po-prompt-for-ux-agent.md`
+- `agents/pm-agent/example-prompts/po-prompt-for-pm-agent.md` - Prompt + attached docs
+- `agents/ux-agent/example-prompts/po-prompt-for-ux-agent.md` - Prompt + attached docs
 
 ### To See What Documents You Need:
 - `docs/po-document-checklist.md`

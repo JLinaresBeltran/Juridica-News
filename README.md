@@ -52,10 +52,10 @@ This creates a seamless flow where human vision is amplified by AI expertise at 
 │
 ├── 🤖 agents/                    # Reusable agent configurations
 │   ├── pm-agent/                 # Product Manager Agent
-│   │   ├── config/               # Agent instructions & description
+│   │   ├── config/               # Agent instructions
 │   │   └── example-prompts/      # What to submit to PM
 │   ├── ux-agent/                 # UX Designer Agent
-│   │   ├── config/               # Agent instructions & description
+│   │   ├── config/               # Agent instructions
 │   │   └── example-prompts/      # What to submit to UX
 │   └── code-agent/               # Claude Code configuration
 │       └── config/               # CLAUDE.md template
@@ -70,6 +70,8 @@ This creates a seamless flow where human vision is amplified by AI expertise at 
 │       ├── health-domain-requirements.md
 │       ├── multi-agent-architecture-brief.md
 │       ├── tool-interface-document.md
+│       ├── User Stories User Flows Mocks.pdf
+│       ├── health-insight-brand-guidelines.md
 │       └── Anthropic-Blog-[...].txt
 │
 ├── 📖 docs/                      # Setup guides
@@ -108,20 +110,18 @@ This creates a seamless flow where human vision is amplified by AI expertise at 
 **In Claude Desktop:**
 1. Click "Create New Project"
 2. Name: "Product Manager Agent"
-3. Description: Copy from `agents/pm-agent/config/pm-agent-description.md`
-4. Copy instructions from: `agents/pm-agent/config/pm-agent-instructions.md`
-5. Paste into project instructions
-6. Save project
+3. Copy instructions from: `agents/pm-agent/config/pm-agent-instructions.md`
+4. Paste into project instructions
+5. Save project
 
 #### 1.2 Create UX Designer Agent
 
 **In Claude Desktop:**
 1. Click "Create New Project"
 2. Name: "UX Designer Agent"
-3. Description: Copy from `agents/ux-agent/config/ux-agent-description.md`
-4. Copy instructions from: `agents/ux-agent/config/ux-designer-agent-instructions.md`
-5. Paste into project instructions
-6. Save project
+3. Copy instructions from: `agents/ux-agent/config/ux-designer-agent-instructions.md`
+4. Paste into project instructions
+5. Save project
 
 ### Phase 2: Prepare Your Documents
 
@@ -136,7 +136,9 @@ Create these documents (use health examples as templates):
 1. **[domain]-requirements.md** - Your domain expertise
 2. **multi-agent-architecture-brief.md** - Why multi-agent
 3. **tool-interface-document.md** - If you have pre-built tools
-4. **Anthropic blog** - [Link](https://www.anthropic.com/engineering/built-multi-agent-research-system)
+4. **Visual mockups/screenshots** - Show desired UI/UX (optional but recommended)
+5. **[domain]-brand-guidelines.md** - Visual identity based on mockups
+6. **Anthropic blog** - [Link](https://www.anthropic.com/engineering/built-multi-agent-research-system)
 
 ### Phase 3: Run the AI Amigos
 
@@ -146,7 +148,7 @@ Create these documents (use health examples as templates):
 2. Start new conversation
 3. Copy prompt from: `agents/pm-agent/example-prompts/po-prompt-for-pm-agent.md`
 4. Customize for your domain
-5. Upload your 4 documents
+5. Attach your 5 documents to the message
 6. Submit and wait for outputs
 
 **PM Agent will create:**
@@ -161,7 +163,7 @@ Create these documents (use health examples as templates):
 1. Open UX Agent project
 2. Start new conversation  
 3. Copy prompt from: `agents/ux-agent/example-prompts/po-prompt-for-ux-agent.md`
-4. Upload all PM outputs
+4. Attach all PM outputs + mockups to the message
 5. Submit and wait for designs
 
 **UX Agent will create:**
@@ -265,6 +267,8 @@ A sophisticated multi-agent health analysis system featuring:
    ├── health-domain-requirements.md
    ├── multi-agent-architecture-brief.md
    ├── tool-interface-document.md
+   ├── User Stories User Flows Mocks.pdf
+   ├── health-insight-brand-guidelines.md
    └── Anthropic-Blog-[...].txt
    ```
 
@@ -312,10 +316,11 @@ A sophisticated multi-agent health analysis system featuring:
    - Analysis types: risk, performance, allocation
    - User queries: "Optimize my portfolio", "Tax implications"
    ```
+   Plus: Dashboard mockups showing portfolio views
 
 2. **Run Through AI Amigos**
    - PM creates: Chief Investment Officer + specialists
-   - UX creates: Financial dashboards
+   - UX creates: Financial dashboards matching your mockups
    - Claude Code: Implements complete system
 
 ### Example: Legal Document Analyzer
@@ -362,6 +367,12 @@ Orchestrator (CMO/CIO/Senior Counsel)
 - **Based on**: [Anthropic's Research](https://www.anthropic.com/engineering/built-multi-agent-research-system)
 
 ## ❓ FAQ
+
+<details>
+<summary><b>Do I need to create brand guidelines?</b></summary>
+
+It's highly recommended! If you have mockups or screenshots of your desired UI, create a brand guidelines document (see health example). This ensures the UX Designer Agent creates consistent, on-brand designs that match your vision.
+</details>
 
 <details>
 <summary><b>Can I use this for non-health domains?</b></summary>

@@ -30,8 +30,11 @@ requirements/
 │
 └── reference/                  [Domain-specific from PO]
     ├── domain-guide.md         # Domain expertise (health, finance, etc.)
-    ├── example-data.json
-    └── external-references.md
+    ├── tool-interface.md       # If pre-built tools exist
+    ├── mockups-screenshots/    # Visual examples of desired UI/UX
+    ├── brand-guidelines.md     # Visual identity and design system
+    ├── example-data.json       # Sample domain data
+    └── external-references.md  # Links to research, patterns
 ```
 
 ## How This Enables Reusability
@@ -104,8 +107,8 @@ Create the generic technical documents that can be reused:
 
 ### Per Use Case
 The 3 AI Amigos create only domain-specific content:
-- PM Agent: Creates product/ and architecture/
-- UX Agent: Creates ux/
+- PM Agent: Creates product/ and architecture/ (after you attach domain docs)
+- UX Agent: Creates ux/ (after you attach PM outputs)
 - PO: Provides reference/
 
 ### Claude Code Gets
