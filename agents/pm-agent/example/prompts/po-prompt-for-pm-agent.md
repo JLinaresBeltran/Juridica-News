@@ -53,13 +53,69 @@ I need you to create a comprehensive product specification for a production-read
 
 Please create all standard PM artifacts with special attention to health domain requirements and HIPAA-compliant patterns. The system should feel as trustworthy and polished as a professional medical application.
 
-### Attached Documents:
-1. health-domain-requirements.md - Medical domain expertise and health data types
-2. multi-agent-architecture-brief.md - Why we're using multi-agent for healthcare
-3. tool-interface-document.md - Snowflake health tools documentation
-4. User Stories User Flows Mocks.pdf - Visual references for health UI
-5. health-insight-brand-guidelines.md - Medical visual identity
-6. Anthropic-Blog-Building-Effective-Agents.txt - Reference for best practices
+### I have attached the following documents:
+
+### 1. **Simplified Architecture Brief** (simplified-architecture-brief.md)
+- Defines the exact technology stack: FastAPI + React/Vite
+- Explains the simple, direct implementation approach
+- Shows what NOT to use (no Redis, no databases, no Next.js)
+- Provides clear code patterns to follow
+
+### 2. **Multi-Agent Implementation Architecture** (multi-agent-implementation-architecture.md)
+- Shows the exact backend service structure needed
+- Explains single SpecialistAgent class with multiple specialties
+- Details prompt organization and externalization
+- Provides concrete code patterns for initialization
+
+### 3. **Multi-Agent Architecture Brief** (multi-agent-architecture-brief.md)
+- Explains the orchestrator-worker pattern conceptually
+- Shows expected 90.2% performance improvement over single agents
+- Defines the CMO + specialist pattern we want to implement
+
+### 4. **Domain Requirements** (health-domain-requirements.md)
+- Details all health-specific data types 
+- Lists the 8 medical specialist agents needed
+- Provides example health queries from simple to complex
+- Defines health visualization requirements
+
+### 5. **Tool Interface Documentation** (tool-interface.md)
+- Documents the pre-built Snowflake health data access tools
+- Shows input/output schemas for health queries
+- Provides usage examples for medical data queries
+- Explains how agents should integrate with these tools
+
+### 6. **User Stories, User Flows, and Mockups** (User Stories User Flows Mocks.pdf)
+- Screenshots of the actual working health system showing:
+  - 3-panel layout with health consultation interface
+  - Medical team visualization with real-time status
+  - Dynamic health data visualizations
+  - User flow from welcome screen through health analysis
+- These mockups show the exact health UI/UX we want to achieve
+
+### 7. **Anthropic's Multi-Agent Blog Post** 
+- Link: https://www.anthropic.com/engineering/built-multi-agent-research-system
+- This is the reference architecture pattern we're following
+
+### 8. **Technology Requirements** (technology-requirements.md)
+- Exact technology stack and versions (FastAPI, React, Vite, Tailwind CSS)
+- What NOT to use (no Next.js, no Redis, no databases)
+- Critical implementation rules
+- SSE streaming requirements
+- Pre-built tool usage guidelines
+
+### 9. **Health Technical Customization Guide** (health-technical-customization-guide.md)
+- Health-specific agent configurations (CMO + 8 specialists)
+- Medical data models and schemas
+- Health query complexity rules
+- Health-specific API endpoints
+- Compliance and security considerations
+
+### 10. **Health Insight Brand Guidelines** (health-insight-brand-guidelines.md)
+- Medical color palette and visual identity
+- Healthcare typography and spacing
+- Medical iconography and imagery
+- Trust-building design elements
+- Professional healthcare aesthetic
 
 ### Expected Outputs:
 - PRD.md with health system production features
