@@ -1,314 +1,340 @@
 # User Stories: Multi-Agent Health Insight System
 
-## Epic 1: Initial User Experience
+## Epic 1: Health Query Submission and Analysis
 
-### User Story: Welcome Experience
+### User Story: Welcome Screen Quick Query Selection
 
-**As a** health-conscious individual  
-**I want** to understand the system's capabilities when I first arrive  
-**So that** I can immediately start getting value from my health data
+**As a** health-conscious user  
+**I want** to quickly select from example health queries  
+**So that** I can immediately see the system's capabilities without typing
 
 #### Acceptance Criteria
-- [ ] Welcome page displays with clear system explanation
-- [ ] "Medical Team Status: Ready" indicator is visible
-- [ ] Example questions are prominently displayed
-- [ ] One-click access to example queries
-- [ ] Clear indication of AI-powered analysis with Anthropic Claude
+- [ ] Welcome screen displays at least 3 example queries
+- [ ] Clicking an example query automatically submits it
+- [ ] Example queries represent different complexity levels
+- [ ] Visual indicators show query complexity (Simple/Standard/Complex)
+- [ ] System transitions smoothly to the analysis interface
 
 #### Technical Notes
-- Pre-populate example questions based on common health queries
-- Initialize CMO agent on page load for instant readiness
-- Show medical team architecture visualization (for demo purposes)
+- Examples stored in frontend constants
+- Query submission triggers navigation to /chat route
+- Complexity shown via color-coded badges
 
 #### Design Notes
-- Clean, medical-themed design with trust indicators
-- Progressive disclosure of complexity
-- Mobile-responsive layout
+- Card-based layout for example queries
+- Hover effects to indicate interactivity
+- Icons to represent query types
 
 ---
 
-### User Story: Quick Query Selection
+### User Story: Natural Language Health Query Input
 
-**As a** first-time user  
-**I want** to select from example health questions  
-**So that** I can see the system in action without formulating my own query
+**As a** user with health data  
+**I want** to ask questions about my health in natural language  
+**So that** I don't need to learn complex query syntax
 
 #### Acceptance Criteria
-- [ ] At least 4 example queries displayed
-- [ ] Single click submits the query
-- [ ] Immediate transition to analysis view
-- [ ] Selected query appears in chat interface
-- [ ] System begins processing without additional user action
+- [ ] Text input accepts queries up to 500 characters
+- [ ] Input provides placeholder text with query suggestions
+- [ ] Submit button is disabled when input is empty
+- [ ] Enter key submits the query
+- [ ] Loading state shows during submission
 
 #### Technical Notes
-- Example queries should cover different complexity levels
-- Pre-validated queries ensure smooth demo experience
+- Frontend validation before API call
+- Query sent via POST to /api/chat/message
+- Debounced input to prevent excessive updates
 
 #### Design Notes
-- Visual hierarchy emphasizing quick actions
-- Clear visual feedback on selection
+- Large, prominent input field
+- Clear call-to-action button
+- Accessibility labels for screen readers
 
 ---
 
-## Epic 2: Query Analysis & Orchestration
+## Epic 2: Real-Time Agent Coordination
 
-### User Story: Real-Time Analysis Status
+### User Story: Medical Team Assembly Visualization
 
-**As a** user submitting a health query  
-**I want** to see which medical specialists are analyzing my data  
-**So that** I understand the comprehensive nature of the analysis
+**As a** user seeking health insights  
+**I want** to see which medical specialists are analyzing my query  
+**So that** I understand the comprehensiveness of the analysis
 
 #### Acceptance Criteria
-- [ ] Medical team panel shows active specialists
-- [ ] Real-time progress indicators (0-100%)
-- [ ] Visual distinction between Waiting/Active/Complete states
-- [ ] CMO's orchestration decisions are visible
-- [ ] Specialist tasks are clearly described
+- [ ] CMO agent appears first and shows "Orchestrating"
+- [ ] Specialist agents appear as they're activated
+- [ ] Team hierarchy shows CMO -> Specialists relationship
+- [ ] Each specialist shows their medical specialty
+- [ ] Team size varies based on query complexity (3-8 specialists)
 
 #### Technical Notes
-- SSE updates every 500ms for smooth progress
-- Graceful handling of connection drops
-- State persistence across reconnections
+- SSE events: team_assembly, specialist_activated
+- Agent metadata includes name, specialty, avatar
+- Tree visualization using CSS/SVG connections
 
 #### Design Notes
-- Medical team hierarchy visualization
-- Color coding: Waiting (gray), Active (blue), Complete (green)
-- Animated transitions between states
+- Doctor avatars with specialty badges
+- Animated appearance as agents join
+- Visual hierarchy with CMO at top
 
 ---
 
-### User Story: Query Complexity Classification
+### User Story: Agent Progress Tracking
 
-**As a** user asking health questions  
-**I want** the system to adapt its response depth to my query complexity  
-**So that** I get appropriately detailed insights without unnecessary wait times
+**As a** user waiting for analysis  
+**I want** to see real-time progress of each specialist  
+**So that** I know the system is actively working
 
 #### Acceptance Criteria
-- [ ] Query complexity displayed (Simple/Standard/Complex/Critical)
-- [ ] Simple queries activate 1-2 specialists
-- [ ] Complex queries activate 4-6 specialists
-- [ ] Critical queries activate all relevant specialists
-- [ ] Complexity reasoning is explained to user
+- [ ] Each agent shows status: Waiting, Active, Complete
+- [ ] Active agents display progress percentage
+- [ ] Completed agents show checkmark with completion time
+- [ ] Overall team progress indicator
+- [ ] Smooth animations between status changes
 
 #### Technical Notes
-- CMO agent determines complexity based on:
-  - Number of health domains involved
-  - Time range of analysis required
-  - Correlation analysis needs
-  - Risk assessment requirements
+- SSE events: specialist_progress, specialist_complete
+- Progress calculated from task completion
+- Status stored in React state per agent
 
 #### Design Notes
-- Visual complexity indicator
-- Estimated completion time display
+- Color coding: gray (waiting), blue (active), green (complete)
+- Progress bars under active agents
+- Subtle pulse animation for active status
 
 ---
 
-## Epic 3: Specialist Analysis
+## Epic 3: Health Data Analysis
 
-### User Story: Cardiology Specialist Analysis
+### User Story: Comprehensive Health Synthesis
 
-**As a** user with heart health concerns  
-**I want** specialized cardiovascular analysis  
-**So that** I understand my heart health trends and risks
+**As a** user with complex health data  
+**I want** to receive a synthesized analysis from multiple specialists  
+**So that** I get a complete picture of my health status
 
 #### Acceptance Criteria
-- [ ] Analyzes blood pressure, cholesterol, heart rate data
-- [ ] Identifies cardiovascular risk factors
-- [ ] Provides trend analysis over time
-- [ ] Highlights concerning patterns
-- [ ] Suggests relevant follow-up questions
+- [ ] CMO provides executive summary first
+- [ ] Key findings highlighted with severity indicators
+- [ ] Each finding linked to contributing specialists
+- [ ] Recommendations clearly separated
+- [ ] Medical terminology explained in layman's terms
 
 #### Technical Notes
-- Uses execute_health_query_v2 tool with cardiology-specific queries
-- Applies latest clinical guidelines for risk assessment
+- Synthesis occurs after all specialists complete
+- Markdown formatting for structured output
+- Severity levels: info, warning, critical
 
 #### Design Notes
-- Cardiology-specific visualizations (BP charts, lipid panels)
-- Red highlights for out-of-range values
+- Card-based layout for findings
+- Icons for different severity levels
+- Expandable sections for details
 
 ---
 
-### User Story: Medication Impact Analysis
+### User Story: Interactive Data Visualizations
 
-**As a** user taking multiple medications  
-**I want** to understand how my medications affect my lab results  
-**So that** I can discuss optimization with my healthcare provider
+**As a** user reviewing health trends  
+**I want** to interact with visualizations of my data  
+**So that** I can explore patterns and correlations
 
 #### Acceptance Criteria
-- [ ] Pharmacy specialist identifies all medications
-- [ ] Correlates medication changes with lab value changes
-- [ ] Highlights potential drug interactions
-- [ ] Shows adherence patterns
-- [ ] Identifies lab values affected by medications
+- [ ] Charts appear in dedicated visualization tab
+- [ ] Time series show with zoom/pan capabilities
+- [ ] Hover shows detailed values
+- [ ] Legend toggles data series
+- [ ] Multiple chart types based on data (line, bar, scatter)
 
 #### Technical Notes
-- Time-series correlation analysis
-- Reference common medication side effects
-- Flag significant changes after medication starts
+- Recharts components dynamically generated
+- Data embedded in React component code
+- @babel/standalone for runtime compilation
 
 #### Design Notes
-- Timeline visualization showing medication periods
-- Overlay lab results on medication timeline
+- Consistent color scheme across charts
+- Responsive sizing for different screens
+- Print-friendly styling option
 
 ---
 
-## Epic 4: Results Synthesis & Visualization
+## Epic 4: Query History and Navigation
 
-### User Story: Comprehensive Health Summary
+### User Story: Conversation Management
 
-**As a** user who asked a complex health question  
-**I want** a synthesized summary from all specialists  
-**So that** I get a complete picture without information overload
+**As a** returning user  
+**I want** to see my previous health conversations  
+**So that** I can track my health journey over time
 
 #### Acceptance Criteria
-- [ ] CMO provides executive summary
-- [ ] Key findings highlighted at top
-- [ ] Specialist insights integrated coherently
-- [ ] Action items clearly identified
-- [ ] Confidence levels indicated
+- [ ] Left panel shows conversation list
+- [ ] Auto-generated conversation titles based on first query
+- [ ] Timestamp for each conversation
+- [ ] Click to load previous conversation
+- [ ] New conversation button always visible
 
 #### Technical Notes
-- CMO synthesis includes:
-  - Deduplication of findings
-  - Conflict resolution between specialists
-  - Priority ranking of insights
-  - Holistic health picture
+- Conversations stored in browser localStorage
+- Maximum 20 conversations retained
+- Auto-save every state change
 
 #### Design Notes
-- "Bottom line up front" format
-- Progressive disclosure of details
-- Visual hierarchy for scannability
+- Truncated preview of first query
+- Visual indicator for current conversation
+- Search/filter capabilities
 
 ---
 
-### User Story: Dynamic Chart Generation
+### User Story: Query Selector Navigation
 
-**As a** visual learner  
-**I want** interactive charts of my health data  
-**So that** I can explore trends and patterns intuitively
+**As a** user in a multi-query conversation  
+**I want** to jump between different queries and their results  
+**So that** I can compare different analyses
 
 #### Acceptance Criteria
-- [ ] Charts generated based on query context
-- [ ] Interactive features (zoom, pan, hover details)
-- [ ] Multiple chart types (line, bar, distribution)
-- [ ] Data points link to source records
-- [ ] Export capability for sharing
+- [ ] Dropdown shows all queries in current conversation
+- [ ] Selecting query scrolls chat to that position
+- [ ] Associated visualization loads automatically
+- [ ] Medical team for that query displayed
+- [ ] Maintains query context
 
 #### Technical Notes
-- Visualization agent generates React components
-- Self-contained charts with embedded data
-- Recharts library for consistency
-- Responsive design for all screen sizes
+- Query index stored with each message
+- Smooth scroll to query position
+- State management for active query
 
 #### Design Notes
-- Medical-appropriate color schemes
-- Clear axis labels and legends
-- Reference ranges clearly marked
-- Accessibility considerations (colorblind-friendly)
+- Query selector in both Medical Team and Visualization tabs
+- Visual timeline of queries
+- Keyboard navigation support
 
 ---
 
-## Epic 5: Conversation Management
+## Epic 5: Error Handling and Recovery
 
-### User Story: Follow-Up Questions
+### User Story: Specialist Failure Handling
 
-**As a** user exploring my health data  
-**I want** to ask follow-up questions in the same conversation  
-**So that** I can dive deeper into specific findings
+**As a** user when a specialist fails  
+**I want** the analysis to continue with available specialists  
+**So that** I still receive valuable insights
 
 #### Acceptance Criteria
-- [ ] Previous context maintained
-- [ ] CMO references earlier findings
-- [ ] Specialists build on previous analysis
-- [ ] Conversation history visible
-- [ ] Query selector for navigating conversation
+- [ ] Failed specialist shows error status
+- [ ] Other specialists continue analysis
+- [ ] CMO acknowledges missing perspective
+- [ ] Partial results clearly marked
+- [ ] Option to retry failed specialist
 
 #### Technical Notes
-- Conversation state management
-- Efficient context passing to agents
-- Token optimization for long conversations
+- Individual try-catch per specialist
+- Timeout of 30 seconds per specialist
+- Error details in collapsed section
 
 #### Design Notes
-- Clear conversation threading
-- Visual connection between related queries
-- Easy navigation between query results
+- Red indicator for failed specialists
+- Warning banner if critical specialist fails
+- Retry button with loading state
 
 ---
 
-### User Story: Analysis History Navigation
+### User Story: Connection Recovery
 
-**As a** user with multiple queries in a session  
-**I want** to navigate between different analyses  
-**So that** I can compare findings and see progression
+**As a** user when my connection drops  
+**I want** the system to automatically reconnect  
+**So that** I don't lose my analysis progress
 
 #### Acceptance Criteria
-- [ ] Query selector shows all queries in conversation
-- [ ] Selecting query updates all panels
-- [ ] Medical team state restored for each query
-- [ ] Visualizations update accordingly
-- [ ] Smooth transitions between states
+- [ ] Connection loss detected within 5 seconds
+- [ ] Reconnection attempted automatically
+- [ ] Progress preserved during disconnection
+- [ ] User notified of connection status
+- [ ] Manual reconnect option available
 
 #### Technical Notes
-- Client-side state management for quick switching
-- Lazy loading of historical states
-- URL updates for shareable states
+- EventSource error handling
+- Exponential backoff for reconnection
+- Local state preservation
 
 #### Design Notes
-- Dropdown selector with query previews
-- Visual indicators for query complexity
-- Timestamp information
+- Subtle connection indicator
+- Toast notification for disconnection
+- Non-intrusive reconnecting message
 
 ---
 
-## Epic 6: Error Handling & Edge Cases
+## Epic 6: Data Privacy and Security
 
-### User Story: Graceful Degradation
+### User Story: Secure Health Data Handling
 
-**As a** user when technical issues occur  
-**I want** to still receive partial insights  
-**So that** my query isn't completely wasted
+**As a** user with sensitive health information  
+**I want** my data handled securely  
+**So that** my privacy is protected
 
 #### Acceptance Criteria
-- [ ] Timeout handling for slow specialists
-- [ ] Partial results shown if some specialists fail
-- [ ] Clear communication about limitations
-- [ ] Retry options for failed components
-- [ ] Fallback visualizations available
+- [ ] No PII displayed in URLs
+- [ ] Data transmitted over HTTPS
+- [ ] No health data in browser console logs
+- [ ] Session data cleared on logout
+- [ ] Privacy notice displayed
 
 #### Technical Notes
-- 30-second timeout per specialist
-- CMO synthesizes available results
-- Error states clearly tracked
-- Automatic retry with exponential backoff
+- All API calls use POST (no sensitive data in GET)
+- Sanitization of all outputs
+- Secure headers in API responses
 
 #### Design Notes
-- Non-alarming error messages
-- Clear indication of partial results
-- Maintain professional medical theme
+- Privacy indicator in UI
+- Clear data management options
+- Visible security badges
 
 ---
 
-## Epic 7: Demo & Showcase Features
+## Epic 7: Accessibility
 
-### User Story: Architecture Visualization
+### User Story: Keyboard Navigation
 
-**As a** demo viewer  
-**I want** to see the multi-agent architecture in action  
-**So that** I understand the technical innovation
+**As a** user who prefers keyboard navigation  
+**I want** to navigate the entire interface without a mouse  
+**So that** I can use the system efficiently
 
 #### Acceptance Criteria
-- [ ] Medical team hierarchy clearly visualized
-- [ ] Real-time status updates visible
-- [ ] Orchestration decisions explained
-- [ ] Performance metrics displayed
-- [ ] Token usage indicated (demo mode)
+- [ ] Tab order follows logical flow
+- [ ] All interactive elements keyboard accessible
+- [ ] Escape key closes modals/dropdowns
+- [ ] Arrow keys navigate agent tree
+- [ ] Shortcuts documented and discoverable
 
 #### Technical Notes
-- Additional telemetry for demo mode
-- Architecture diagram updates live
-- Performance counters visible
+- ARIA labels on all components
+- Focus management in React
+- Keyboard event handlers
 
 #### Design Notes
-- Professional but engaging visualization
-- Technical details in collapsible sections
-- Balance between technical and medical focus
+- Focus indicators clearly visible
+- Skip links for main sections
+- Keyboard shortcut overlay
+
+---
+
+## Epic 8: Performance Optimization
+
+### User Story: Fast Initial Load
+
+**As a** user accessing the system  
+**I want** the interface to load quickly  
+**So that** I can start my health analysis immediately
+
+#### Acceptance Criteria
+- [ ] Initial page load < 3 seconds
+- [ ] Progressive loading of components
+- [ ] Meaningful loading states
+- [ ] Core functionality available immediately
+- [ ] Smooth transition from loading to ready
+
+#### Technical Notes
+- Code splitting for visualization components
+- Lazy loading of non-critical features
+- Service worker for asset caching
+
+#### Design Notes
+- Skeleton screens during load
+- Progressive enhancement approach
+- Optimized asset delivery

@@ -1,456 +1,510 @@
 # API Specification: Multi-Agent Health Insight System
 
-## Base Configuration
+## Overview
 
-### Base URL
+This document defines all API endpoints for the Multi-Agent Health Insight System. The API follows RESTful principles with a critical enhancement: Server-Sent Events (SSE) for real-time streaming of agent activities and results.
+
+## Base URL
+
 ```
 Development: http://localhost:8000
 Production: https://api.health-insights.example.com
 ```
 
-### Headers
+## Authentication
+
+**Note**: For this demo/POC system, authentication is optional and not implemented. In production, all endpoints would require authentication tokens.
+
+## Common Headers
+
+All requests should include:
 ```
 Content-Type: application/json
 Accept: application/json
 ```
 
-### CORS Configuration
-```python
-origins = [
-    "http://localhost:5173",  # Vite dev server
-    "http://localhost:3000",  # Alternative dev port
-    "https://health-insights.example.com"  # Production frontend
-]
-```
+SSE endpoints require additional headers (see SSE section).
 
-## Core Endpoints
+## Endpoints
 
-### Health Check
+### 1. Health Check
 
-#### Endpoint: System Health
+#### Endpoint: System Health Status
 - **Method**: GET
 - **Path**: /api/health
-- **Description**: Check if the system is operational and all agents are ready
-- **Request Body**: None
-- **Response**: 
-```json
-{
-  "status": "healthy",
-  "timestamp": "2024-01-15T10:30:00Z",
-  "agents": {
-    "cmo": "ready",
-    "specialists": "ready",
-    "visualization": "ready"
-  },
-  "tools": {
-    "health_query": "connected",
-    "import_tool": "connected"
-  }
-}
-```
-- **Errors**: 
-  - 503: Service unavailable if any component is down
-- **Example**:
-```bash
-curl http://localhost:8000/api/health
-```
-
-### Chat Endpoints
-
-#### Endpoint: Stream Analysis (SSE)
-- **Method**: POST
-- **Path**: /api/chat/message
-- **Description**: Submit a health query and receive real-time analysis updates via Server-Sent Events
-- **Request Body**:
-```json
-{
-  "message": "What's my cholesterol trend over the last 15 years?",
-  "conversation_id": "conv_123abc",  // Optional, for conversation context
-  "user_id": "user_456def"           // Optional, for demo purposes
-}
-```
-- **Response**: Server-Sent Events stream
-- **Event Types**:
-
-```typescript
-// Initial acknowledgment
-data: {"type": "start", "query_id": "q_789ghi", "timestamp": "2024-01-15T10:30:00Z"}
-
-// CMO thinking process
-data: {"type": "thinking", "agent": "cmo", "content": "Analyzing query complexity..."}
-
-// Tool execution
-data: {"type": "tool_call", "agent": "cmo", "tool": "execute_health_query_v2", "input": {"query": "summarize available health data"}}
-data: {"type": "tool_result", "agent": "cmo", "tool": "execute_health_query_v2", "success": true, "result_summary": "Found 12 years of cholesterol data"}
-
-// Complexity assessment
-data: {"type": "complexity_assessment", "level": "STANDARD", "reasoning": "Query involves trend analysis over extended time period"}
-
-// Team assembly
-data: {"type": "team_assembled", "specialists": [
-  {"name": "cardiology", "task": "Analyze cholesterol trends including LDL, HDL, and triglycerides"},
-  {"name": "data_analysis", "task": "Create statistical analysis and visualization"}
-]}
-
-// Specialist progress
-data: {"type": "specialist_start", "specialist": "cardiology", "task": "Analyzing cholesterol trends"}
-data: {"type": "specialist_progress", "specialist": "cardiology", "progress": 25}
-data: {"type": "specialist_progress", "specialist": "cardiology", "progress": 50}
-data: {"type": "specialist_complete", "specialist": "cardiology", "confidence": 85, "summary": "Found concerning LDL trend"}
-
-// Synthesis
-data: {"type": "synthesis_start", "agent": "cmo"}
-data: {"type": "text", "content": "## Your 15-Year Cholesterol Trend Analysis\n\nBased on comprehensive analysis..."}
-
-// Visualization generation
-data: {"type": "visualization_start", "description": "Generating interactive cholesterol trend chart"}
-data: {"type": "visualization", "code": "const HealthVisualization = () => {\n  const data = [...]\n  return <LineChart>...</LineChart>\n}"}
-
-// Completion
-data: {"type": "complete", "query_id": "q_789ghi", "duration_ms": 8500, "tokens_used": 12500}
-```
-
-- **Errors**: 
-  - 400: Invalid request format
-  - 401: Unauthorized (if auth is enabled)
-  - 429: Rate limit exceeded
-  - 500: Internal server error
-- **Example**:
-```javascript
-const eventSource = new EventSource('/api/chat/message', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ message: "What's my cholesterol trend?" })
-});
-
-eventSource.onmessage = (event) => {
-  const data = JSON.parse(event.data);
-  console.log('Received:', data);
-};
-```
-
-#### Endpoint: Get Conversation History
-- **Method**: GET
-- **Path**: /api/chat/conversations/{conversation_id}
-- **Description**: Retrieve all messages and analyses from a conversation
+- **Description**: Verifies the API is operational
 - **Request Body**: None
 - **Response**:
-```json
-{
-  "conversation_id": "conv_123abc",
-  "created_at": "2024-01-15T10:00:00Z",
-  "messages": [
-    {
-      "id": "msg_001",
-      "type": "user",
-      "content": "What's my cholesterol trend?",
-      "timestamp": "2024-01-15T10:00:00Z"
+  ```json
+  {
+    "status": "healthy",
+    "version": "1.0.0",
+    "timestamp": "2025-01-15T10:30:00Z",
+    "services": {
+      "anthropic_api": "connected",
+      "tool_registry": "ready"
+    }
+  }
+  ```
+- **Errors**: 
+  - 503: Service unavailable
+- **Example**:
+  ```bash
+  curl http://localhost:8000/api/health
+  ```
+
+---
+
+### 2. Chat Endpoints
+
+#### Endpoint: Stream Analysis (CRITICAL - PRIMARY ENDPOINT)
+- **Method**: GET (for EventSource compatibility)
+- **Path**: /api/chat/stream
+- **Description**: Streams health analysis with real-time updates via Server-Sent Events
+- **Query Parameters**:
+  - `message` (required): URL-encoded health query
+  - `conversation_id` (optional): UUID for conversation continuity
+- **Headers Required**:
+  ```
+  X-Accel-Buffering: no
+  Cache-Control: no-cache
+  Connection: keep-alive
+  ```
+- **Response**: Server-Sent Events stream
+  
+  **Event Format**:
+  ```
+  event: {event_type}
+  data: {json_payload}
+  
+  ```
+  
+  **Event Types**:
+  
+  1. **connected**
+     ```json
+     {
+       "type": "connected",
+       "timestamp": "2025-01-15T10:30:00Z",
+       "conversation_id": "uuid"
+     }
+     ```
+  
+  2. **message**
+     ```json
+     {
+       "type": "message",
+       "subtype": "text|thinking|tool_call|tool_result|specialist_update",
+       "content": "string or object",
+       "metadata": {
+         "agent": "cmo|specialist_name",
+         "timestamp": "2025-01-15T10:30:00Z"
+       }
+     }
+     ```
+  
+  3. **team_assembly**
+     ```json
+     {
+       "type": "team_assembly",
+       "complexity": "simple|standard|complex|critical",
+       "specialists": [
+         {
+           "id": "cardiology",
+           "name": "Dr. Heart",
+           "specialty": "Cardiology",
+           "status": "waiting"
+         }
+       ]
+     }
+     ```
+  
+  4. **specialist_progress**
+     ```json
+     {
+       "type": "specialist_progress",
+       "specialist_id": "cardiology",
+       "progress": 65,
+       "status": "active",
+       "current_task": "Analyzing cholesterol trends"
+     }
+     ```
+  
+  5. **specialist_complete**
+     ```json
+     {
+       "type": "specialist_complete",
+       "specialist_id": "cardiology",
+       "confidence": 85,
+       "key_findings": 2,
+       "execution_time": 4.2
+     }
+     ```
+  
+  6. **visualization**
+     ```json
+     {
+       "type": "visualization",
+       "code": "```javascript\n// Complete React component code\n```",
+       "metadata": {
+         "chart_type": "time_series",
+         "data_points": 150
+       }
+     }
+     ```
+  
+  7. **error**
+     ```json
+     {
+       "type": "error",
+       "error_code": "SPECIALIST_TIMEOUT",
+       "message": "Cardiology specialist timed out",
+       "recoverable": true
+     }
+     ```
+  
+  8. **done**
+     ```json
+     {
+       "type": "done",
+       "summary": {
+         "total_time": 15.3,
+         "specialists_used": 5,
+         "tokens_used": 4523
+       }
+     }
+     ```
+
+- **Implementation Notes**:
+  - Add 0.001s delays between events for proper flushing
+  - Use EventSourceResponse from sse-starlette
+  - Frontend uses: `new EventSource(/api/chat/stream?message=${encodeURIComponent(msg)})`
+  - Automatic reconnection handled by EventSource API
+  - Maximum connection duration: 5 minutes (then reconnect)
+
+- **Error Handling**:
+  - Connection errors trigger automatic reconnection
+  - Partial results delivered even if some specialists fail
+  - Graceful degradation for complex queries
+
+- **Example Frontend Usage**:
+  ```javascript
+  const eventSource = new EventSource(
+    `/api/chat/stream?message=${encodeURIComponent("What's my cholesterol trend?")}`
+  );
+  
+  eventSource.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    console.log('Received:', data);
+  };
+  
+  eventSource.onerror = (error) => {
+    console.error('SSE Error:', error);
+    // EventSource automatically reconnects
+  };
+  ```
+
+---
+
+#### Endpoint: Save Conversation
+- **Method**: POST
+- **Path**: /api/chat/conversations
+- **Description**: Saves conversation state (client-side state persistence)
+- **Request Body**:
+  ```json
+  {
+    "conversation_id": "uuid",
+    "title": "Cholesterol Analysis",
+    "messages": [
+      {
+        "id": "msg_uuid",
+        "role": "user|assistant",
+        "content": "string",
+        "timestamp": "2025-01-15T10:30:00Z",
+        "metadata": {}
+      }
+    ],
+    "agent_states": [
+      {
+        "query_index": 0,
+        "specialists": [],
+        "complexity": "standard"
+      }
+    ]
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "conversation_id": "uuid",
+    "saved": true,
+    "timestamp": "2025-01-15T10:30:00Z"
+  }
+  ```
+- **Errors**:
+  - 400: Invalid conversation data
+  - 413: Conversation too large
+- **Example**:
+  ```bash
+  curl -X POST http://localhost:8000/api/chat/conversations \
+    -H "Content-Type: application/json" \
+    -d '{"conversation_id": "123", "messages": []}'
+  ```
+
+---
+
+### 3. Health Data Endpoints
+
+#### Endpoint: Import Health Records
+- **Method**: POST
+- **Path**: /api/health/import
+- **Description**: Triggers import of health records using pre-built tools
+- **Request Body**:
+  ```json
+  {
+    "import_type": "full|incremental",
+    "file_directory": "/path/to/health/data",
+    "options": {
+      "validate": true,
+      "skip_duplicates": true
+    }
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "import_id": "uuid",
+    "status": "processing|complete|failed",
+    "summary": {
+      "total_records": 1234,
+      "imported": 1230,
+      "skipped": 4,
+      "errors": 0
     },
-    {
-      "id": "msg_002",
-      "type": "assistant",
-      "content": "Your 15-Year Cholesterol Trend Analysis...",
-      "timestamp": "2024-01-15T10:00:08Z",
-      "metadata": {
-        "complexity": "STANDARD",
-        "specialists_used": ["cardiology", "data_analysis"],
-        "has_visualization": true
+    "estimated_time": 45
+  }
+  ```
+- **Errors**:
+  - 400: Invalid import configuration
+  - 404: Directory not found
+  - 500: Import tool failure
+- **Example**:
+  ```bash
+  curl -X POST http://localhost:8000/api/health/import \
+    -H "Content-Type: application/json" \
+    -d '{"import_type": "full", "file_directory": "/data/health"}'
+  ```
+
+---
+
+#### Endpoint: Query Health Metrics
+- **Method**: GET
+- **Path**: /api/health/metrics
+- **Description**: Retrieves specific health metrics using natural language
+- **Query Parameters**:
+  - `query` (required): Natural language query
+  - `start_date` (optional): ISO 8601 date
+  - `end_date` (optional): ISO 8601 date
+  - `metric_types` (optional): Comma-separated list
+- **Response**:
+  ```json
+  {
+    "query": "cholesterol levels",
+    "results": [
+      {
+        "date": "2024-06-15",
+        "metric": "Total Cholesterol",
+        "value": 185,
+        "unit": "mg/dL",
+        "reference_range": "< 200",
+        "status": "normal"
+      }
+    ],
+    "metadata": {
+      "total_results": 12,
+      "date_range": {
+        "start": "2024-01-01",
+        "end": "2024-12-31"
       }
     }
-  ],
-  "analyses": [
-    {
-      "query_id": "q_789ghi",
-      "specialists_results": {...},
-      "visualization_code": "..."
-    }
-  ]
-}
-```
+  }
+  ```
 - **Errors**:
-  - 404: Conversation not found
+  - 400: Invalid query
+  - 404: No data found
 - **Example**:
-```bash
-curl http://localhost:8000/api/chat/conversations/conv_123abc
-```
+  ```bash
+  curl "http://localhost:8000/api/health/metrics?query=cholesterol&start_date=2024-01-01"
+  ```
 
-### Data Management Endpoints
+---
 
-#### Endpoint: Import Health Data
-- **Method**: POST
-- **Path**: /api/data/import
-- **Description**: Trigger import of health data files
-- **Request Body**:
-```json
-{
-  "file_directory": "/path/to/health/data/files",
-  "user_id": "user_456def"
-}
-```
-- **Response**:
-```json
-{
-  "import_id": "imp_789xyz",
-  "status": "processing",
-  "message": "Import started successfully"
-}
-```
-- **Errors**:
-  - 400: Invalid directory path
-  - 500: Import tool error
-- **Example**:
-```bash
-curl -X POST http://localhost:8000/api/data/import \
-  -H "Content-Type: application/json" \
-  -d '{"file_directory": "/uploads/user_456def"}'
-```
+### 4. Agent Management Endpoints
 
-#### Endpoint: Get Import Status
+#### Endpoint: List Available Specialists
 - **Method**: GET
-- **Path**: /api/data/import/{import_id}/status
-- **Description**: Check the status of a health data import
-- **Request Body**: None
+- **Path**: /api/agents/specialists
+- **Description**: Returns all available medical specialists
 - **Response**:
-```json
-{
-  "import_id": "imp_789xyz",
-  "status": "completed",
-  "summary": {
-    "total_records": 1234,
-    "records_by_category": {
-      "lab_results": 450,
-      "medications": 234,
-      "vitals": 550
+  ```json
+  {
+    "specialists": [
+      {
+        "id": "cardiology",
+        "name": "Dr. Heart",
+        "specialty": "Cardiology",
+        "description": "Cardiovascular health expert",
+        "capabilities": [
+          "Blood pressure analysis",
+          "Cholesterol assessment",
+          "Heart rate patterns"
+        ]
+      }
+    ]
+  }
+  ```
+- **Errors**: None
+- **Example**:
+  ```bash
+  curl http://localhost:8000/api/agents/specialists
+  ```
+
+---
+
+#### Endpoint: Get Agent Status
+- **Method**: GET
+- **Path**: /api/agents/status
+- **Description**: Returns current status of all agents
+- **Response**:
+  ```json
+  {
+    "cmo": {
+      "status": "ready",
+      "active_queries": 0,
+      "model": "claude-3-sonnet-20240229"
     },
-    "date_range": {
-      "start": "2013-01-15",
-      "end": "2025-06-30"
+    "specialists": {
+      "available": 8,
+      "busy": 0,
+      "error": 0
+    },
+    "system_load": {
+      "tokens_per_minute": 1523,
+      "average_response_time": 8.2
     }
   }
-}
-```
-- **Errors**:
-  - 404: Import ID not found
+  ```
+- **Errors**: None
+- **Example**:
+  ```bash
+  curl http://localhost:8000/api/agents/status
+  ```
 
-### Analytics Endpoints
+---
 
-#### Endpoint: Get System Metrics
+### 5. Visualization Endpoints
+
+#### Endpoint: Get Visualization Templates
 - **Method**: GET
-- **Path**: /api/analytics/metrics
-- **Description**: Retrieve system performance metrics (demo mode only)
-- **Request Body**: None
+- **Path**: /api/visualizations/templates
+- **Description**: Returns available visualization templates
 - **Response**:
-```json
-{
-  "period": "last_hour",
-  "metrics": {
-    "total_queries": 156,
-    "complexity_distribution": {
-      "SIMPLE": 45,
-      "STANDARD": 78,
-      "COMPLEX": 28,
-      "CRITICAL": 5
-    },
-    "average_response_time_ms": {
-      "SIMPLE": 2500,
-      "STANDARD": 5200,
-      "COMPLEX": 12000,
-      "CRITICAL": 18500
-    },
-    "specialist_usage": {
-      "cardiology": 89,
-      "laboratory_medicine": 134,
-      "data_analysis": 98,
-      "pharmacy": 67,
-      "endocrinology": 45,
-      "preventive_medicine": 56,
-      "nutrition": 34,
-      "general_practice": 78
-    },
-    "token_usage": {
-      "total": 1850000,
-      "average_per_query": 11859
-    }
+  ```json
+  {
+    "templates": [
+      {
+        "id": "time_series",
+        "name": "Time Series Chart",
+        "description": "Line chart for trends over time",
+        "required_data": ["date", "value"],
+        "options": ["multiple_series", "zoom", "export"]
+      }
+    ]
   }
-}
-```
+  ```
+- **Errors**: None
+- **Example**:
+  ```bash
+  curl http://localhost:8000/api/visualizations/templates
+  ```
 
-## WebSocket Alternative (Future Enhancement)
+---
 
-### Endpoint: WebSocket Connection
-- **Path**: /ws/chat/{conversation_id}
-- **Description**: Alternative to SSE for bidirectional communication
-- **Message Format**:
-```json
-// Client to Server
-{
-  "type": "query",
-  "content": "What's my cholesterol trend?",
-  "id": "msg_client_001"
-}
+### 6. System Configuration
 
-// Server to Client (same as SSE data format)
-{
-  "type": "specialist_progress",
-  "specialist": "cardiology",
-  "progress": 75
-}
-```
+#### Endpoint: Get Query Examples
+- **Method**: GET
+- **Path**: /api/config/examples
+- **Description**: Returns example queries for the welcome screen
+- **Response**:
+  ```json
+  {
+    "examples": [
+      {
+        "id": "cholesterol_trend",
+        "query": "What's my cholesterol trend over the last 15 years?",
+        "complexity": "standard",
+        "description": "Analyzes long-term cholesterol patterns",
+        "expected_specialists": ["cardiology", "laboratory_medicine", "data_analysis"]
+      }
+    ]
+  }
+  ```
+- **Errors**: None
+- **Example**:
+  ```bash
+  curl http://localhost:8000/api/config/examples
+  ```
+
+---
 
 ## Error Response Format
 
-All error responses follow this structure:
+All errors follow this structure:
+
 ```json
 {
   "error": {
-    "code": "INVALID_REQUEST",
-    "message": "The request body is missing required fields",
+    "code": "ERROR_CODE",
+    "message": "Human-readable error message",
     "details": {
-      "missing_fields": ["message"]
+      "field": "Additional context"
     },
-    "timestamp": "2024-01-15T10:30:00Z",
-    "request_id": "req_abc123"
+    "timestamp": "2025-01-15T10:30:00Z",
+    "request_id": "uuid"
   }
 }
 ```
-
-### Error Codes
-- `INVALID_REQUEST`: Malformed request
-- `RATE_LIMITED`: Too many requests
-- `TOOL_ERROR`: Tool execution failed
-- `AGENT_ERROR`: Agent processing failed
-- `TIMEOUT`: Operation timed out
-- `INTERNAL_ERROR`: Unexpected server error
 
 ## Rate Limiting
 
-### Limits
-- 60 requests per minute per IP
-- 10 concurrent SSE connections per user
-- 100MB max request size for data imports
+- **Default limit**: 100 requests per minute per IP
+- **SSE connections**: Maximum 5 concurrent per IP
+- **Token limit**: 100,000 tokens per hour per IP
 
-### Headers
+Headers returned:
 ```
-X-RateLimit-Limit: 60
-X-RateLimit-Remaining: 45
-X-RateLimit-Reset: 1705320000
-```
-
-## Demo Mode Features
-
-When `ENABLE_DEMO_MODE=true`, additional endpoints are available:
-
-### Endpoint: Reset Demo Data
-- **Method**: POST
-- **Path**: /api/demo/reset
-- **Description**: Reset to initial demo state
-- **Response**:
-```json
-{
-  "status": "reset_complete",
-  "message": "Demo environment reset to initial state"
-}
+X-RateLimit-Limit: 100
+X-RateLimit-Remaining: 95
+X-RateLimit-Reset: 1673784000
 ```
 
-### Endpoint: Load Sample Query
-- **Method**: GET
-- **Path**: /api/demo/sample-queries
-- **Description**: Get predefined demo queries
-- **Response**:
-```json
-{
-  "queries": [
-    {
-      "id": "demo_001",
-      "category": "simple",
-      "query": "What's my latest cholesterol?",
-      "expected_duration_ms": 2500
-    },
-    {
-      "id": "demo_002", 
-      "category": "complex",
-      "query": "Analyze my cardiovascular risk based on all my health data",
-      "expected_duration_ms": 15000
-    }
-  ]
-}
+## CORS Configuration
+
+For development:
+```
+Access-Control-Allow-Origin: http://localhost:5173
+Access-Control-Allow-Methods: GET, POST, OPTIONS
+Access-Control-Allow-Headers: Content-Type
+Access-Control-Allow-Credentials: true
 ```
 
-## Client Implementation Guide
+## WebSocket Alternative (Not Implemented)
 
-### JavaScript/TypeScript SSE Client
-```typescript
-class HealthInsightClient {
-  private eventSource: EventSource | null = null;
-  
-  async streamQuery(query: string, onUpdate: (data: any) => void) {
-    const response = await fetch('/api/chat/message', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: query })
-    });
-    
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      
-      const chunk = decoder.decode(value);
-      const lines = chunk.split('\n');
-      
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const data = JSON.parse(line.slice(6));
-          onUpdate(data);
-        }
-      }
-    }
-  }
-}
+While this system uses SSE, a WebSocket alternative could provide bidirectional communication:
+
+```
+ws://localhost:8000/ws/chat/{conversation_id}
 ```
 
-### Python Client Example
-```python
-import json
-import requests
-from sseclient import SSEClient
-
-def stream_health_query(query: str):
-    response = requests.post(
-        'http://localhost:8000/api/chat/message',
-        json={'message': query},
-        stream=True
-    )
-    
-    client = SSEClient(response)
-    for event in client.events():
-        data = json.loads(event.data)
-        print(f"{data['type']}: {data}")
-        
-        if data['type'] == 'complete':
-            break
-```
-
-## Testing Endpoints
-
-### Endpoint: Validate Query
-- **Method**: POST
-- **Path**: /api/test/validate-query
-- **Description**: Test query parsing without execution
-- **Request Body**:
-```json
-{
-  "query": "What's my cholesterol trend?"
-}
-```
-- **Response**:
-```json
-{
-  "valid": true,
-  "detected_domains": ["laboratory", "cardiology"],
-  "estimated_complexity": "STANDARD",
-  "suggested_specialists": ["cardiology", "data_analysis"]
-}
-```
+This is noted for future enhancement but not part of the current implementation.

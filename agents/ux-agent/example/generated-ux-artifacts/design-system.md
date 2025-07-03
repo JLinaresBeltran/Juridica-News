@@ -1,127 +1,394 @@
-# Design System: Multi-Agent Health Insight System
+# Design System: Health Insight Assistant
 
 ## Brand Principles
 - **Trustworthy**: Medical-grade accuracy with transparent processes
-- **Intelligent**: Showcase AI orchestration without overwhelming users
-- **Accessible**: Complex insights made simple and actionable
-- **Professional**: Clinical expertise with a human touch
-- **Responsive**: Real-time analysis with adaptive interactions
+- **Intelligent**: Advanced AI orchestration made approachable
+- **Accessible**: Complex health insights simplified
+- **Professional**: Clinical expertise with human warmth
+- **Responsive**: Real-time analysis with visual feedback
 
 ## Color Palette
 
 ### Primary Colors
-- Primary: `#3B82F6` - Trust, stability, medical professionalism
-- Primary Light: `#60A5FA` - Hover states, highlights
-- Primary Dark: `#2563EB` - Active states, emphasis
-- Pure White: `#FFFFFF` - Primary backgrounds, cards
+- **Primary Blue**: `#3B82F6` (RGB: 59, 130, 246)
+  - Used for: Primary buttons, logo, active states, links, CMO agent
+  - Represents: Trust, stability, medical professionalism
+
+- **Pure White**: `#FFFFFF` (RGB: 255, 255, 255)
+  - Used for: Primary backgrounds, cards, clean slate
+  - Represents: Cleanliness, clarity, medical sterility
 
 ### Medical Specialist Colors
 Each specialist has a unique color for instant recognition:
-- **Cardiology (Dr. Heart)**: `#EF4444` - Heart health
-- **Laboratory (Dr. Lab)**: `#10B981` - Test results  
-- **Endocrinology (Dr. Hormone)**: `#8B5CF6` - Hormones
-- **Data Analysis (Dr. Analytics)**: `#F59E0B` - Analytics
-- **Preventive (Dr. Prevention)**: `#F97316` - Prevention
-- **Pharmacy (Dr. Pharma)**: `#FB923C` - Medications
-- **Nutrition (Dr. Nutrition)**: `#84CC16` - Diet
-- **General Practice (Dr. Vitality/CMO)**: `#06B6D4` - Overall care
 
-### Semantic Colors
-- Success Green: `#10B981` - Normal ranges, positive outcomes
-- Warning Amber: `#F59E0B` - Attention needed, borderline values
-- Error Red: `#EF4444` - Critical values, urgent attention
-- Info Blue: `#3B82F6` - General information, tips
+- **Cardiology Red**: `#EF4444` (RGB: 239, 68, 68) - Dr. Heart
+- **Laboratory Green**: `#10B981` (RGB: 16, 185, 129) - Dr. Lab
+- **Endocrinology Purple**: `#8B5CF6` (RGB: 139, 92, 246) - Dr. Hormone
+- **Data Analysis Yellow**: `#F59E0B` (RGB: 245, 158, 11) - Dr. Analytics
+- **Preventive Orange**: `#F97316` (RGB: 249, 115, 22) - Dr. Prevention
+- **Pharmacy Orange**: `#FB923C` (RGB: 251, 146, 60) - Dr. Pharma
+- **Nutrition Lime**: `#84CC16` (RGB: 132, 204, 22) - Dr. Nutrition
+- **General Practice Cyan**: `#06B6D4` (RGB: 6, 182, 212) - Dr. Primary
 
 ### Neutral Colors
-- Background Gray: `#F9FAFB` - Page background
-- Surface Gray: `#F3F4F6` - Section backgrounds
-- Border Gray: `#E5E7EB` - Dividers, borders
-- Text Primary: `#111827` - Main content
-- Text Secondary: `#6B7280` - Supporting text
-- Text Muted: `#9CA3AF` - Timestamps, metadata
+- **Background Gray**: `#F9FAFB` (RGB: 249, 250, 251)
+- **Surface Gray**: `#F3F4F6` (RGB: 243, 244, 246)
+- **Border Gray**: `#E5E7EB` (RGB: 229, 231, 235)
+- **Text Primary**: `#111827` (RGB: 17, 24, 39)
+- **Text Secondary**: `#6B7280` (RGB: 107, 114, 128)
+- **Text Muted**: `#9CA3AF` (RGB: 156, 163, 175)
+
+### Semantic Colors
+- **Success Green**: `#10B981` (RGB: 16, 185, 129) - Normal health ranges
+- **Warning Amber**: `#F59E0B` (RGB: 245, 158, 11) - Borderline values
+- **Error Red**: `#EF4444` (RGB: 239, 68, 68) - Critical values
+- **Info Blue**: `#3B82F6` (RGB: 59, 130, 246) - General information
 
 ## Typography
 
 ### Font Families
-```css
-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, 
-             "Helvetica Neue", Arial, sans-serif;
-```
+- **Primary Font**: System UI stack
+  ```css
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, 
+               "Helvetica Neue", Arial, sans-serif;
+  ```
+- **Monospace Font**: For code and data
+  ```css
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, 
+               "Liberation Mono", Menlo, monospace;
+  ```
 
 ### Type Scale
-- **Display**: 32px / 40px line-height / 600 weight - Page titles
-- **Heading 1**: 24px / 32px line-height / 600 weight - Section headers
-- **Heading 2**: 20px / 28px line-height / 600 weight - Subsections
-- **Heading 3**: 18px / 24px line-height / 600 weight - Card titles
-- **Body Large**: 16px / 24px line-height / 400 weight - Emphasis text
-- **Body**: 14px / 20px line-height / 400 weight - Main content
-- **Small**: 12px / 16px line-height / 400 weight - Supporting info
-- **Micro**: 11px / 14px line-height / 400 weight - Timestamps
+- **Display**: 36px / 44px line-height / 700 weight
+- **Heading 1**: 30px / 38px line-height / 600 weight
+- **Heading 2**: 24px / 32px line-height / 600 weight
+- **Heading 3**: 20px / 28px line-height / 600 weight
+- **Heading 4**: 18px / 26px line-height / 600 weight
+- **Body Large**: 16px / 24px line-height / 400 weight
+- **Body**: 14px / 20px line-height / 400 weight
+- **Small**: 12px / 16px line-height / 400 weight
+- **Micro**: 11px / 14px line-height / 400 weight
 
 ## Spacing System
 8-point grid system for consistent spacing:
-- **xs**: 4px - Inline elements
-- **sm**: 8px - Tight spacing
-- **md**: 16px - Default spacing
-- **lg**: 24px - Section spacing
-- **xl**: 32px - Major sections
-- **2xl**: 48px - Page sections
-- **3xl**: 64px - Hero spacing
+- **xs**: 4px (0.25rem)
+- **sm**: 8px (0.5rem)
+- **md**: 16px (1rem)
+- **lg**: 24px (1.5rem)
+- **xl**: 32px (2rem)
+- **2xl**: 48px (3rem)
+- **3xl**: 64px (4rem)
+- **4xl**: 80px (5rem)
+
+## Glassmorphism Effects (CRITICAL for modern UI)
+```css
+/* Primary glass panel */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+}
+
+/* Dark glass variant for contrast */
+.glass-panel-dark {
+  background: rgba(17, 24, 39, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+}
+
+/* Colored glass for specialist cards */
+.glass-panel-colored {
+  background: rgba(var(--specialist-color-rgb), 0.1);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(var(--specialist-color-rgb), 0.2);
+  box-shadow: 0 4px 24px 0 rgba(var(--specialist-color-rgb), 0.15);
+}
+```
+
+## Gradient Backgrounds
+```css
+/* Primary gradient - health theme */
+.gradient-primary {
+  background: linear-gradient(135deg, #3B82F6 0%, #06B6D4 100%);
+}
+
+/* Health vitality gradient */
+.gradient-health {
+  background: linear-gradient(135deg, #10B981 0%, #06B6D4 100%);
+}
+
+/* Soft background gradient */
+.gradient-soft {
+  background: linear-gradient(180deg, #FFFFFF 0%, #F3F4F6 100%);
+}
+
+/* Specialist gradient overlays */
+.gradient-cardiology {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(239, 68, 68, 0.05) 100%);
+}
+```
 
 ## Elevation & Shadows
 ```css
-/* Elevation levels */
---shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
---shadow-base: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
---shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
---shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
---shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+/* Shadow levels for depth hierarchy */
+.shadow-xs {
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.shadow-sm {
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+}
+
+.shadow-md {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.shadow-lg {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.shadow-xl {
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+/* Colored shadows for specialists */
+.shadow-colored {
+  box-shadow: 0 4px 14px 0 rgba(var(--specialist-color-rgb), 0.25);
+}
 ```
 
 ## Border Radius
-- **Small**: 4px - Buttons, inputs
-- **Default**: 8px - Cards, containers
-- **Large**: 12px - Modal dialogs
-- **Full**: 9999px - Pills, badges
-- **Circle**: 50% - Avatar, status dots
-
-## Glassmorphism Effects
-For modern, premium feel:
-```css
-/* Glass card effect */
-background: rgba(255, 255, 255, 0.8);
-backdrop-filter: blur(10px);
--webkit-backdrop-filter: blur(10px);
-border: 1px solid rgba(255, 255, 255, 0.18);
-```
+- **Sharp**: 0px - Never used in this system
+- **Subtle**: 4px - Small UI elements
+- **Default**: 8px - Buttons, inputs, small cards
+- **Medium**: 12px - Cards, panels
+- **Large**: 16px - Large cards, modals
+- **XL**: 24px - Feature cards
+- **Full**: 9999px - Pills, avatars
 
 ## Animation Principles
-- **Duration values**:
-  - Fast: 150ms - Micro-interactions
-  - Normal: 300ms - Most transitions
-  - Slow: 500ms - Complex animations
-  - Very Slow: 1000ms - Page transitions
+### Timing Functions
+```css
+/* Standard easing */
+.ease-standard {
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
 
-- **Easing functions**:
-  - Default: `cubic-bezier(0.4, 0, 0.2, 1)` - ease-out feel
-  - Smooth: `cubic-bezier(0.25, 0.1, 0.25, 1)` - natural motion
-  - Spring: `cubic-bezier(0.68, -0.55, 0.265, 1.55)` - playful bounce
+/* Decelerate - for enter animations */
+.ease-out {
+  transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
+}
 
-## Medical Team Visual Hierarchy
-1. **CMO (Dr. Vitality)** - Central position, larger size
-2. **Active Specialists** - Connected with animated lines
-3. **Waiting Specialists** - Grayed out, dashed connections
-4. **Completed Specialists** - Check mark, solid color
+/* Accelerate - for exit animations */
+.ease-in {
+  transition-timing-function: cubic-bezier(0.4, 0, 1, 1);
+}
 
-## Component Design Tokens
+/* Spring effect - for delightful interactions */
+.ease-spring {
+  transition-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+```
+
+### Duration Values
+- **Instant**: 75ms - Hover states
+- **Fast**: 150ms - Small transitions
+- **Normal**: 300ms - Most UI transitions
+- **Slow**: 500ms - Complex animations
+- **Deliberate**: 700ms - Page transitions
+
+## Medical UI Patterns
+
+### Agent Status States
+```css
+/* Waiting state */
+.agent-waiting {
+  opacity: 0.5;
+  filter: grayscale(50%);
+}
+
+/* Active/Thinking state */
+.agent-active {
+  animation: pulse-thinking 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Complete state */
+.agent-complete {
+  position: relative;
+}
+
+.agent-complete::after {
+  content: '✓';
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  width: 20px;
+  height: 20px;
+  background: #10B981;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+}
+```
+
+### Progress Indicators
+```css
+/* Linear progress bar */
+.progress-bar {
+  height: 4px;
+  background: #E5E7EB;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--specialist-color) 0%, var(--specialist-color-light) 100%);
+  border-radius: 2px;
+  transition: width 300ms ease-out;
+}
+
+/* Circular progress for agents */
+.progress-circle {
+  stroke-dasharray: 283;
+  stroke-dashoffset: calc(283 - (283 * var(--progress)) / 100);
+  transition: stroke-dashoffset 300ms ease-out;
+}
+```
+
+## Health Data Visualization Patterns
+
+### Chart Color Sequences
+```javascript
+// Primary sequence for multi-series data
+const chartColors = [
+  '#3B82F6', // Primary blue
+  '#10B981', // Success green
+  '#F59E0B', // Warning amber
+  '#8B5CF6', // Purple
+  '#06B6D4', // Cyan
+  '#EF4444', // Error red
+  '#84CC16', // Lime
+  '#FB923C'  // Orange
+];
+
+// Health status colors
+const healthStatusColors = {
+  normal: '#10B981',
+  borderline: '#F59E0B',
+  abnormal: '#EF4444',
+  critical: '#7C3AED'
+};
+```
+
+### Reference Range Visualization
+```css
+/* Shaded reference range on charts */
+.reference-range {
+  fill: rgba(16, 185, 129, 0.1);
+  stroke: rgba(16, 185, 129, 0.3);
+  stroke-width: 1;
+  stroke-dasharray: 4 2;
+}
+
+/* Out of range indicator */
+.out-of-range {
+  fill: rgba(239, 68, 68, 0.1);
+  stroke: rgba(239, 68, 68, 0.3);
+}
+```
+
+## Component Tokens
+
+### Button Variations
+```css
+/* Primary button */
+.btn-primary {
+  background: #3B82F6;
+  color: white;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  transition: all 150ms ease-out;
+}
+
+.btn-primary:hover {
+  background: #2563EB;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+/* Glass button */
+.btn-glass {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(229, 231, 235, 0.5);
+  color: #111827;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+}
+```
+
+### Card Styles
+```css
+/* Standard card */
+.card {
+  background: white;
+  border: 1px solid #E5E7EB;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Glass card */
+.card-glass {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+}
+
+/* Specialist card */
+.card-specialist {
+  background: rgba(255, 255, 255, 0.95);
+  border: 2px solid var(--specialist-color);
+  border-radius: 12px;
+  padding: 16px;
+  position: relative;
+  transition: all 300ms ease-out;
+}
+```
+
+## Responsive Breakpoints
+- **Mobile**: 320px - 767px
+- **Tablet**: 768px - 1023px
+- **Desktop**: 1024px - 1439px
+- **Wide**: 1440px+
+
+## CSS Custom Properties
 ```css
 :root {
   /* Colors */
   --color-primary: #3B82F6;
-  --color-primary-light: #60A5FA;
-  --color-primary-dark: #2563EB;
+  --color-background: #FFFFFF;
+  --color-surface: #F9FAFB;
+  --color-border: #E5E7EB;
+  --color-text-primary: #111827;
+  --color-text-secondary: #6B7280;
   
-  /* Specialist Colors */
+  /* Specialist colors */
   --color-cardiology: #EF4444;
   --color-laboratory: #10B981;
   --color-endocrinology: #8B5CF6;
@@ -132,39 +399,27 @@ border: 1px solid rgba(255, 255, 255, 0.18);
   --color-general-practice: #06B6D4;
   
   /* Spacing */
-  --space-xs: 4px;
-  --space-sm: 8px;
-  --space-md: 16px;
-  --space-lg: 24px;
-  --space-xl: 32px;
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
   
-  /* Border Radius */
+  /* Border radius */
   --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
+  --radius-default: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
   
-  /* Transitions */
-  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-base: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+  
+  /* Animation */
+  --duration-fast: 150ms;
+  --duration-normal: 300ms;
+  --duration-slow: 500ms;
+  --easing-standard: cubic-bezier(0.4, 0, 0.2, 1);
 }
 ```
-
-## Iconography Guidelines
-- Use medical-appropriate icons from Lucide React
-- 24px base size for navigation and actions
-- 16px for inline icons
-- 48px for specialist avatars
-- Consistent 2px stroke weight
-
-## Loading States
-- **Skeleton screens** for initial content load
-- **Pulse animations** on specialist cards during analysis
-- **Progress bars** with percentage for transparency
-- **Shimmer effects** for data placeholders
-
-## Dark Mode Considerations (Future)
-While not in MVP, design with dark mode in mind:
-- Use CSS variables for all colors
-- Ensure sufficient contrast ratios
-- Consider reduced transparency in dark mode
-- Adjust shadows for dark backgrounds

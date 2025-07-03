@@ -1,277 +1,460 @@
-# Layout Guidelines: Multi-Agent Health Insight System
+# Layout Guidelines
 
 ## Desktop Layouts (1200px+)
 
-### Three-Panel Layout
-The primary layout for desktop consists of three distinct panels:
+### Three-Panel Layout (CRITICAL)
+The foundation of the Health Insight Assistant is the three-panel layout, each serving a specific purpose:
 
 ```
-┌─────────┬────────────────────────┬───────────┐
-│ Sidebar │    Center (Chat)       │   Right   │
-│  280px  │      Flexible          │   400px   │
-│         │    (min 600px)         │ (flexible)│
-└─────────┴────────────────────────┴───────────┘
+┌─────────────┬─────────────────────────┬─────────────┐
+│   Sidebar   │     Main Content        │   Context   │
+│   (300px)   │      (Flexible)         │   (400px)   │
+│             │      (min 600px)        │             │
+└─────────────┴─────────────────────────┴─────────────┘
 ```
 
-#### Panel Specifications
-- **Left Sidebar**: 280px fixed width
-  - Collapsible to 60px (icon-only mode)
-  - Contains: Conversation threads, search, navigation
-  - Resizable: No
+#### Left Sidebar: Conversation Management
+- **Width**: 300px fixed
+- **Purpose**: Navigation and conversation history
+- **Collapsible**: Animates to 60px icon-only mode
+- **Contents**:
+  - New conversation button (always visible)
+  - Search bar (hides when collapsed)
+  - Conversation list with auto-generated titles
+  - Timestamps and preview text
+- **Behavior**:
+  - Smooth slide animation (300ms)
+  - Maintains scroll position
+  - Active conversation highlighted
 
-- **Center Panel**: Flexible width
-  - Minimum: 600px
-  - Maximum: Fills available space
-  - Contains: Chat interface, query input
-  - Resizable: Automatic
+#### Center Panel: Main Interaction Area
+- **Width**: Flexible (min 600px, max 1200px)
+- **Purpose**: Primary chat interface and content display
+- **Contents**:
+  - Header with page context
+  - Message stream with proper spacing
+  - Input area fixed at bottom
+  - Tool call visualizations inline
+- **Behavior**:
+  - Auto-scrolls to new messages
+  - Maintains 80ch max width for readability
+  - Centers content with padding
 
-- **Right Panel**: 400px flexible
-  - Minimum: 300px
-  - Maximum: 600px
-  - Contains: Medical team status OR visualizations
-  - Resizable: Drag border to resize
+#### Right Panel: Context-Sensitive Content
+- **Width**: 400px flexible (can expand to 600px)
+- **Purpose**: Display agent status and visualizations
+- **Tab Navigation**:
+  - Medical Team (default)
+  - Visualization (appears when charts generated)
+  - Additional tabs as needed
+- **Contents per Tab**:
+  
+  **Medical Team Tab**:
+  - Query selector dropdown
+  - Team hierarchy visualization
+  - Real-time agent status
+  - Progress indicators
+  - Analysis results section
+  
+  **Visualization Tab**:
+  - Query selector (synced)
+  - Chart container
+  - Interactive controls
+  - Data summary
 
-#### Panel Behaviors
-- All panels maintain consistent height (100vh - header height)
-- Panels can be collapsed/expanded via toggle buttons
-- Smooth transitions (300ms) for panel state changes
-- Focus remains in center panel when side panels toggle
+### Multi-Agent Visualization Layout
+
+The medical team visualization follows a hierarchical layout:
+
+```
+         CMO (80px)
+         /   |   \
+       /     |     \
+  Spec1   Spec2   Spec3  (60px each)
+    |       |       |
+  Spec4   Spec5   Spec6
+    |       |       |
+  Spec7   Spec8   (...)
+```
+
+- **CMO Positioning**: Center-top, larger element (80px circle)
+- **Specialist Arrangement**: 
+  - Arc formation around CMO
+  - Maximum 4 per row
+  - 60px circles
+  - Connected by animated lines
+- **Status Visualization**:
+  - **Waiting**: Gray scale, 50% opacity
+  - **Thinking/Active**: Color with pulse animation
+  - **Complete**: Check mark overlay
+  - **Error**: Red border with X icon
 
 ## Tablet Layouts (768px - 1199px)
 
-### Adaptive Two-Panel Layout
+### Two-Panel Mode
 ```
-┌────┬──────────────────────────┐
-│ 60 │    Center + Right        │
-│ px │     (Combined)           │
-└────┴──────────────────────────┘
+┌─────────────────────────┬─────────────┐
+│     Main Content        │   Context   │
+│      (Flexible)         │   (350px)   │
+│      (min 400px)        │             │
+└─────────────────────────┴─────────────┘
 ```
 
-#### Tablet Adjustments
-- Left sidebar auto-collapses to icon-only (60px)
-- Right panel becomes a tabbed overlay
-- Center panel expands to use available space
-- Toggle button to show/hide right panel
+- **Sidebar**: Hidden by default, accessible via hamburger menu
+- **Main Content**: Takes primary focus
+- **Context Panel**: Slightly narrower (350px)
+- **Adaptations**:
+  - Larger touch targets (44px minimum)
+  - Simplified medical team visualization
+  - Stacked agent cards instead of arc
+
+### Portrait Orientation
+- Single column for message stream
+- Bottom sheet for agent status
+- Swipeable tabs for panels
 
 ## Mobile Layouts (<768px)
 
-### Stack Order and Behavior
+### Single Column Layout
 ```
-┌────────────────────┐
-│      Header        │
-├────────────────────┤
-│    Chat View       │
-│                    │
-│                    │
-├────────────────────┤
-│  Bottom Navigation │
-└────────────────────┘
+┌─────────────────┐
+│     Header      │
+├─────────────────┤
+│                 │
+│   Main Content  │
+│                 │
+├─────────────────┤
+│  Bottom Nav     │
+└─────────────────┘
 ```
 
-#### Mobile-Specific Changes
-1. **Navigation**: Bottom tab bar replaces sidebar
-2. **Right Panel**: Full-screen modal when activated
-3. **Chat**: Full width with reduced padding
-4. **Medical Team**: Simplified card view
-5. **Visualizations**: Optimized for touch and scroll
+- **Navigation**: Bottom tab bar
+- **Panel Access**: Full-screen overlays
+- **Adaptations**:
+  - Stack all content vertically
+  - Collapsible sections
+  - Swipe gestures for panel access
+  - Floating action button for new query
+
+### Mobile-Specific Components
+
+#### Condensed Medical Team View
+```
+┌─────────────────────────┐
+│ CMO: Complete ✓         │
+├─────────────────────────┤
+│ ❤️ Cardiology (85%)     │
+│ ████████████░░░         │
+├─────────────────────────┤
+│ 🧬 Endocrinology (45%)  │
+│ ██████░░░░░░░░         │
+├─────────────────────────┤
+│ 📊 Data Analysis (...)  │
+│ Waiting...              │
+└─────────────────────────┘
+```
+
+#### Mobile Navigation Pattern
+- **Tab Bar Items**:
+  1. Conversations
+  2. Current Chat
+  3. Medical Team
+  4. Visualizations
+  5. Menu
 
 ## Breakpoints
 
-### Core Breakpoints
 ```css
 /* Mobile First Approach */
---breakpoint-mobile: 320px;    /* Minimum supported */
---breakpoint-tablet: 768px;    /* iPad portrait */
---breakpoint-desktop: 1200px;  /* Standard desktop */
---breakpoint-large: 1920px;    /* Large monitors */
-```
-
-### Component-Specific Breakpoints
-- **Navigation**: Switches at 768px
-- **Medical Team**: Simplifies at 1024px
-- **Visualizations**: Stacks at 768px
-- **Typography**: Scales at each breakpoint
-
-## Grid System
-
-### 12-Column Grid
-```css
+/* Base: Mobile (320px - 767px) */
 .container {
-  display: grid;
-  grid-template-columns: repeat(12, 1fr);
-  gap: var(--space-lg);
-  padding: 0 var(--space-lg);
-  max-width: 1400px;
-  margin: 0 auto;
+  padding: 16px;
+  width: 100%;
+}
+
+/* Tablet (768px - 1023px) */
+@media (min-width: 768px) {
+  .container {
+    display: grid;
+    grid-template-columns: 1fr 350px;
+    gap: 0;
+  }
+}
+
+/* Desktop (1024px - 1439px) */
+@media (min-width: 1024px) {
+  .container {
+    grid-template-columns: 300px 1fr 400px;
+  }
+}
+
+/* Wide (1440px+) */
+@media (min-width: 1440px) {
+  .container {
+    max-width: 1920px;
+    margin: 0 auto;
+  }
+  
+  .main-content {
+    max-width: 1200px;
+  }
 }
 ```
 
-### Column Spans by Breakpoint
-| Component | Mobile | Tablet | Desktop |
-|-----------|--------|--------|---------|
-| Sidebar | Hidden | 1 col | 3 cols |
-| Chat | 12 cols | 8 cols | 6 cols |
-| Right Panel | Modal | 3 cols | 3 cols |
+## Streaming UI Patterns
+
+### Message Components
+Messages appear with slide-up animation and proper spacing:
+
+```html
+<div class="message-container">
+  <!-- User Message (right-aligned) -->
+  <div class="flex justify-end mb-6">
+    <div class="max-w-[70%]">
+      <div class="bg-blue-500 text-white rounded-lg p-4">
+        <p>[message content]</p>
+      </div>
+      <time class="text-xs text-gray-500 mt-1 block text-right">[time]</time>
+    </div>
+  </div>
+  
+  <!-- Assistant Message (left-aligned) -->
+  <div class="flex mb-6">
+    <div class="flex-shrink-0 w-10 h-10 rounded-full bg-gray-200 mr-3">
+      [avatar]
+    </div>
+    <div class="max-w-[70%]">
+      <div class="bg-white rounded-lg shadow-sm border p-4">
+        <p>[message content]</p>
+      </div>
+      <time class="text-xs text-gray-500 mt-1 block">[time]</time>
+    </div>
+  </div>
+</div>
+```
+
+### Tool Call Display
+Collapsible tool calls with clear visual hierarchy:
+
+```html
+<div class="tool-call bg-gradient-to-r from-blue-50 to-indigo-50 
+            border-l-3 border-blue-500 rounded-lg p-4 mb-4">
+  <button class="w-full flex items-center justify-between text-left">
+    <div class="flex items-center space-x-2">
+      <span class="text-blue-600">🔧</span>
+      <span class="font-medium text-blue-700">Tool: execute_health_query_v2</span>
+    </div>
+    <svg class="w-5 h-5 text-blue-600 transform transition-transform">
+      <!-- Chevron icon -->
+    </svg>
+  </button>
+  
+  <div class="mt-3 pl-7 text-sm text-gray-600 hidden">
+    <!-- Collapsed by default -->
+    <code class="block bg-white p-3 rounded border border-gray-200">
+      [tool details]
+    </code>
+  </div>
+</div>
+```
+
+### Thinking Indicators
+Show agent processing state:
+
+```html
+<!-- Inline thinking dots -->
+<span class="inline-flex items-center">
+  <span class="thinking-dots text-gray-500"></span>
+</span>
+
+<!-- Agent thinking card -->
+<div class="bg-gray-50 rounded-lg p-4 flex items-center space-x-3">
+  <div class="animate-pulse">
+    <div class="w-8 h-8 bg-blue-200 rounded-full"></div>
+  </div>
+  <p class="text-sm text-gray-600">
+    Dr. Heart is analyzing your cardiovascular data...
+  </p>
+</div>
+```
+
+## Grid Systems
+
+### 12-Column Grid (Desktop)
+```css
+.grid-container {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 24px;
+}
+
+/* Sidebar: 3 columns */
+.sidebar { grid-column: span 3; }
+
+/* Main: 6 columns */
+.main { grid-column: span 6; }
+
+/* Context: 3 columns */
+.context { grid-column: span 3; }
+```
+
+### 8-Column Grid (Tablet)
+```css
+@media (min-width: 768px) and (max-width: 1023px) {
+  .grid-container {
+    grid-template-columns: repeat(8, 1fr);
+    gap: 16px;
+  }
+  
+  .main { grid-column: span 5; }
+  .context { grid-column: span 3; }
+}
+```
+
+### 4-Column Grid (Mobile)
+```css
+@media (max-width: 767px) {
+  .grid-container {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+  }
+  
+  .full-width { grid-column: span 4; }
+}
+```
 
 ## Spacing Guidelines
 
-### Responsive Padding
-```css
-/* Mobile */
---padding-mobile: 16px;
-
-/* Tablet */
---padding-tablet: 24px;
-
-/* Desktop */
---padding-desktop: 32px;
-```
-
-### Safe Areas
-- Account for device notches and rounded corners
-- Minimum 16px padding on all sides
-- Extra padding for bottom navigation on mobile
-
-## Component Layout Rules
-
-### Chat Messages
-- **Desktop**: Max-width 800px, centered in panel
-- **Tablet**: Full panel width with 24px padding
-- **Mobile**: Full width with 16px padding
-
-### Medical Team Visualization
-- **Desktop**: Fixed 250px height circular layout
-- **Tablet**: 200px height, simplified connections
-- **Mobile**: Linear list view, no visualization
-
-### Specialist Cards
-- **Desktop**: Horizontal layout with all details
-- **Tablet**: Compressed horizontal layout
-- **Mobile**: Vertical stack with expandable details
-
-### Visualizations
-- **Desktop**: Full panel width, 400px+ height
-- **Tablet**: Responsive height, touch-optimized
-- **Mobile**: Full screen with pan/zoom
-
-## Scroll Behavior
-
-### Panel Scroll Rules
-1. **Sidebar**: Independent scroll for conversation list
-2. **Chat**: Main scroll area, auto-scroll on new messages
-3. **Right Panel**: Independent scroll for content
-4. **Mobile**: Page-level scroll with sticky headers
-
-### Scroll Indicators
-- Show scroll shadows at top/bottom of scrollable areas
-- Smooth scroll animations (300ms)
-- Scroll-to-top button appears after 200px scroll
-
-## Z-Index Hierarchy
+### Consistent Spacing Scale
+Use multiples of 8px for all spacing:
 
 ```css
---z-header: 100;
---z-sidebar: 90;
---z-modal: 200;
---z-dropdown: 110;
---z-tooltip: 300;
---z-notification: 400;
+/* Spacing variables */
+--space-1: 4px;   /* Tight spacing */
+--space-2: 8px;   /* Default small */
+--space-3: 12px;  /* Compact */
+--space-4: 16px;  /* Standard */
+--space-5: 20px;  /* Comfortable */
+--space-6: 24px;  /* Spacious */
+--space-8: 32px;  /* Section spacing */
+--space-10: 40px; /* Large sections */
+--space-12: 48px; /* Extra large */
+--space-16: 64px; /* Page sections */
 ```
+
+### Component Spacing Rules
+
+#### Cards
+- Padding: 24px (desktop), 16px (mobile)
+- Margin between cards: 16px
+- Internal element spacing: 12px
+
+#### Messages
+- Between messages: 24px
+- Avatar to content: 12px
+- Message padding: 16px
+
+#### Form Elements
+- Label to input: 4px
+- Between form fields: 16px
+- Button group spacing: 12px
+
+## Responsive Typography
+
+### Font Size Scaling
+```css
+/* Base (Mobile) */
+h1 { font-size: 24px; line-height: 32px; }
+h2 { font-size: 20px; line-height: 28px; }
+h3 { font-size: 18px; line-height: 26px; }
+body { font-size: 14px; line-height: 20px; }
+
+/* Tablet and up */
+@media (min-width: 768px) {
+  h1 { font-size: 30px; line-height: 38px; }
+  h2 { font-size: 24px; line-height: 32px; }
+  h3 { font-size: 20px; line-height: 28px; }
+  body { font-size: 16px; line-height: 24px; }
+}
+```
+
+### Line Length
+- Optimal: 45-75 characters
+- Maximum container: 80ch for readability
+- Adjust font size to maintain line length
 
 ## Touch Targets
 
 ### Minimum Sizes
-- **Buttons**: 44x44px minimum
-- **Links**: 44px height with adequate spacing
-- **Form inputs**: 44px height minimum
-- **Tab targets**: 48px height for bottom nav
+- Touch targets: 44x44px minimum
+- Spacing between targets: 8px minimum
+- Buttons: 48px height on mobile
+- Links: Add padding for larger hit area
 
-### Touch Gestures
-- **Swipe right**: Open sidebar (mobile)
-- **Swipe left**: Close sidebar (mobile)
-- **Pinch**: Zoom visualizations
-- **Long press**: Show context menu
+### Mobile Interactions
+```css
+/* Enhance touch targets on mobile */
+@media (max-width: 767px) {
+  button, a, .clickable {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 12px;
+  }
+  
+  /* Add tap highlight */
+  * {
+    -webkit-tap-highlight-color: rgba(59, 130, 246, 0.1);
+  }
+}
+```
 
 ## Performance Considerations
 
 ### Layout Optimization
-1. Use CSS Grid and Flexbox over absolute positioning
-2. Minimize reflows with fixed dimensions where possible
-3. Use `transform` for panel animations, not `width`
-4. Implement virtual scrolling for long conversation lists
+1. Use CSS Grid for major layout
+2. Flexbox for component layouts
+3. Avoid deep nesting
+4. Minimize reflows during updates
 
-### Responsive Images
+### Lazy Loading Patterns
 ```html
-<picture>
-  <source media="(max-width: 768px)" srcset="image-mobile.jpg">
-  <source media="(max-width: 1200px)" srcset="image-tablet.jpg">
-  <img src="image-desktop.jpg" alt="Description">
-</picture>
+<!-- Lazy load panels -->
+<div class="panel" data-lazy="true">
+  <div class="skeleton-loader">
+    <!-- Show while loading -->
+  </div>
+</div>
+
+<!-- Intersection Observer for charts -->
+<div class="chart-container" data-observe="true">
+  <!-- Load when visible -->
+</div>
 ```
 
-## Accessibility in Layouts
+### Animation Performance
+- Use `transform` and `opacity` for animations
+- Avoid animating `width`, `height`, `top`, `left`
+- Enable GPU acceleration with `will-change`
+- Limit concurrent animations
 
-### Focus Management
-- Trap focus in modals on mobile
-- Skip links for keyboard navigation
-- Logical tab order across panels
-- Return focus after panel toggles
+## Adaptive Loading
 
-### Screen Reader Considerations
-- Landmark regions for each panel
-- Announce panel state changes
-- Descriptive headings for sections
-- Hidden but accessible panel toggle labels
-
-## Print Layouts
-
-### Print-Specific Rules
-```css
-@media print {
-  /* Hide sidebars and navigation */
-  .sidebar, .right-panel { display: none; }
-  
-  /* Full width for content */
-  .center-panel { width: 100%; }
-  
-  /* Show all messages */
-  .chat-messages { height: auto; }
-  
-  /* Print-friendly colors */
-  * { background: white !important; }
+### Network-Aware Loading
+```javascript
+// Adjust based on connection
+if (navigator.connection?.effectiveType === '4g') {
+  // Load full experience
+} else {
+  // Simplified version
+  // Fewer animations
+  // Compressed assets
 }
 ```
 
-## Framework Integration
+### Progressive Enhancement
+1. Core content first
+2. Enhance with JavaScript
+3. Add animations last
+4. Provide fallbacks
 
-### React Considerations
-- Use React.memo for panel components
-- Implement ResizeObserver for dynamic layouts
-- Use CSS modules or styled-components for scoping
-- Lazy load right panel content
-
-### CSS Architecture
-```css
-/* Layout utilities */
-.layout-three-panel { }
-.layout-sidebar-collapsed { }
-.layout-right-panel-hidden { }
-.layout-mobile { }
-.layout-tablet { }
-.layout-desktop { }
-```
-
-## Testing Guidelines
-
-### Devices to Test
-1. **Mobile**: iPhone 12/13, Samsung Galaxy S21
-2. **Tablet**: iPad Air, iPad Pro 11"
-3. **Desktop**: 1366x768, 1920x1080, 2560x1440
-4. **Accessibility**: Test with zoom 200%
-
-### Key Test Scenarios
-- Panel collapse/expand at each breakpoint
-- Orientation changes on tablets
-- Keyboard navigation across panels
-- Long content in each panel
-- RTL language support
+This layout system ensures the Health Insight Assistant provides an optimal experience across all devices while maintaining the sophisticated multi-agent visualization that makes the system unique.

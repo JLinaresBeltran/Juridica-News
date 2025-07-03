@@ -2,501 +2,538 @@
 
 ## Overview
 
-The Multi-Agent Health Insight System comes with **pre-built tools** that abstract all health data storage and querying capabilities. These tools are already implemented in the `backend/tools/` directory and provide a standardized interface for AI agents to interact with health data without needing to know implementation details.
+The Multi-Agent Health Insight System uses pre-built tools that abstract all data storage and querying capabilities. These tools are already implemented in the `backend/tools/` directory and provide a standardized interface for AI agents to interact with health data without needing to know implementation details.
 
-**CRITICAL**: These tools are PROVIDED and should NOT be reimplemented. Simply import and use them.
+**CRITICAL**: These tools are PROVIDED and should NOT be reimplemented. They handle all data persistence, security, and query optimization internally.
+
+## Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────┐
+│                   AI Agents                         │
+│  (CMO, Specialists, Visualization)                  │
+└────────────────────┬───────────────────────────────┘
+                     │ Uses
+┌────────────────────┴───────────────────────────────┐
+│                Tool Registry                        │
+│  Unified interface for all tool access              │
+└────────────────────┬───────────────────────────────┘
+                     │ Delegates to
+┌────────────────────┴───────────────────────────────┐
+│              Pre-built Tools                        │
+│  • execute_health_query_v2                         │
+│  • snowflake_import_analyze_health_records_v2      │
+└────────────────────┬───────────────────────────────┘
+                     │ Accesses
+┌────────────────────┴───────────────────────────────┐
+│           Data Layer (Abstracted)                   │
+│  Snowflake, Cortex Analyst, etc.                   │
+└─────────────────────────────────────────────────────┘
+```
 
 ## Available Tools
 
-### 1. Health Data Import Tool
-
-**Tool Name**: `snowflake_import_analyze_health_records_v2`
-
-**Purpose**: Import health data from extracted JSON files into the data warehouse and return comprehensive statistics.
-
-**Location**: `backend/tools/import_tool.py` (PRE-BUILT)
-
-#### Input Parameters
-```json
-{
-  "file_directory": "string - Directory path containing extracted JSON health data files"
-}
-```
-
-#### Expected File Formats
-The tool expects these standardized JSON files in the directory:
-- `lab_results_*.json` - Laboratory test results
-- `medications_*.json` - Medication history and prescriptions  
-- `vitals_*.json` - Vital signs (blood pressure, heart rate, etc.)
-- `clinical_data_consolidated.json` - Consolidated clinical information
-
-#### Return Value Structure
-```json
-{
-  "success": true,
-  "message": "Successfully imported health data",
-  "import_id": "imp_20240115_abc123",
-  "total_records": 1234,
-  "records_by_category": {
-    "lab_results": 450,
-    "medications": 234,
-    "vitals": 550
-  },
-  "date_range": {
-    "start": "2013-01-15",
-    "end": "2025-06-30"
-  },
-  "data_quality": {
-    "completeness": 95.2,
-    "records_with_dates": 98.5,
-    "valid_reference_ranges": 89.1
-  },
-  "key_insights": [
-    "12 years of comprehensive health data available",
-    "Regular monitoring patterns detected (quarterly labs)",
-    "Complete medication history with good adherence data"
-  ],
-  "warnings": [
-    "3 lab results missing reference ranges",
-    "Some vital signs lack time of day"
-  ]
-}
-```
-
-#### Error Handling
-```json
-{
-  "success": false,
-  "error": "DIRECTORY_NOT_FOUND",
-  "message": "The specified directory does not exist",
-  "details": {
-    "directory": "/path/to/files",
-    "suggestion": "Verify the directory path and permissions"
-  }
-}
-```
-
-### 2. Health Query Executor Tool
+### 1. Health Query Executor Tool
 
 **Tool Name**: `execute_health_query_v2`
 
-**Purpose**: Execute natural language queries about health data using Snowflake Cortex's advanced NLP capabilities.
+**Purpose**: Execute natural language queries about health data using advanced NLP capabilities.
 
-**Location**: `backend/tools/health_query_tool.py` (PRE-BUILT)
-
-#### Input Parameters
+**Input Schema**:
 ```json
 {
-  "query": "string - Natural language query about health data"
-}
-```
-
-#### Query Examples and Expected Results
-
-##### Simple Queries
-```json
-// Input
-{"query": "What's my latest cholesterol?"}
-
-// Output
-{
-  "query": "What's my latest cholesterol?",
-  "query_successful": true,
-  "result": {
-    "data": [
-      {
-        "date": "2024-06-15",
-        "test_name": "Total Cholesterol",
-        "value": 185,
-        "unit": "mg/dL",
-        "reference_range": "< 200",
-        "status": "Normal"
-      },
-      {
-        "date": "2024-06-15",
-        "test_name": "LDL Cholesterol",
-        "value": 115,
-        "unit": "mg/dL",
-        "reference_range": "< 100",
-        "status": "Borderline High"
-      }
-    ],
-    "summary": "Your most recent cholesterol test from June 15, 2024 shows total cholesterol at 185 mg/dL (normal) and LDL at 115 mg/dL (borderline high)",
-    "visualization_hints": {
-      "chart_type": "bar",
-      "x_axis": "test_name",
-      "y_axis": "value",
-      "title": "Latest Cholesterol Panel"
-    }
-  },
-  "metadata": {
-    "query_confidence": 0.98,
-    "data_sources": ["lab_results"],
-    "record_count": 2,
-    "execution_time_ms": 145
-  }
-}
-```
-
-##### Trend Queries
-```json
-// Input  
-{"query": "Show my cholesterol trend over the past 5 years"}
-
-// Output
-{
-  "query": "Show my cholesterol trend over the past 5 years",
-  "query_successful": true,
-  "result": {
-    "data": [
-      {"date": "2020-01-15", "total": 165, "ldl": 95, "hdl": 55},
-      {"date": "2020-07-20", "total": 170, "ldl": 98, "hdl": 57},
-      // ... more data points
-      {"date": "2024-06-15", "total": 185, "ldl": 115, "hdl": 52}
-    ],
-    "summary": "Your cholesterol has gradually increased over the past 5 years, with total cholesterol rising from 165 to 185 mg/dL and LDL from 95 to 115 mg/dL",
-    "trend_analysis": {
-      "total_change_percent": 12.1,
-      "ldl_change_percent": 21.1,
-      "hdl_change_percent": -5.5,
-      "trend_direction": "increasing",
-      "clinical_significance": "moderate"
+  "type": "object",
+  "properties": {
+    "query": {
+      "type": "string",
+      "description": "Natural language query about health data",
+      "minLength": 3,
+      "maxLength": 500
     },
-    "visualization_hints": {
-      "chart_type": "line",
-      "x_axis": "date",
-      "y_axis": ["total", "ldl", "hdl"],
-      "title": "5-Year Cholesterol Trend",
-      "show_reference_lines": true
-    }
-  },
-  "metadata": {
-    "query_confidence": 0.95,
-    "data_sources": ["lab_results"],
-    "record_count": 20,
-    "date_range_analyzed": {
-      "start": "2020-01-15",
-      "end": "2024-06-15"
-    }
-  }
-}
-```
-
-##### Complex Correlation Queries
-```json
-// Input
-{"query": "How do my cholesterol levels correlate with my statin medication?"}
-
-// Output
-{
-  "query": "How do my cholesterol levels correlate with my statin medication?",
-  "query_successful": true,
-  "result": {
-    "data": {
-      "medication_periods": [
-        {
-          "medication": "Atorvastatin 20mg",
-          "start_date": "2022-03-15",
-          "end_date": "2023-06-30",
-          "avg_cholesterol_during": 175,
-          "avg_ldl_during": 105
+    "options": {
+      "type": "object",
+      "properties": {
+        "include_raw_data": {
+          "type": "boolean",
+          "default": false
         },
-        {
-          "medication": "Rosuvastatin 10mg",
-          "start_date": "2023-07-01",
-          "end_date": null,
-          "avg_cholesterol_during": 180,
-          "avg_ldl_during": 110
+        "max_results": {
+          "type": "integer",
+          "default": 100,
+          "minimum": 1,
+          "maximum": 1000
         }
-      ],
-      "pre_medication_baseline": {
-        "avg_cholesterol": 195,
-        "avg_ldl": 125
-      },
-      "correlation_metrics": {
-        "cholesterol_reduction_percent": -10.3,
-        "ldl_reduction_percent": -16.0,
-        "time_to_effect_days": 45
       }
-    },
-    "summary": "Your statin medications have correlated with a 10.3% reduction in total cholesterol and 16% reduction in LDL",
-    "visualization_hints": {
-      "chart_type": "timeline",
-      "overlay_data": ["cholesterol_values", "medication_periods"],
-      "highlight_changes": true
     }
   },
-  "metadata": {
-    "query_confidence": 0.92,
-    "data_sources": ["lab_results", "medications"],
-    "correlation_method": "temporal_analysis",
-    "statistical_significance": 0.89
+  "required": ["query"]
+}
+```
+
+**Query Examples by Complexity**:
+
+**Simple Queries** (Single data point retrieval):
+- "What's my latest cholesterol level?"
+- "Show my current medications"
+- "What's my blood pressure today?"
+
+**Standard Queries** (Trend analysis within single domain):
+- "How has my cholesterol changed over the past year?"
+- "Show my HbA1c trend for the last 6 months"
+- "Compare my blood pressure before and after medication"
+
+**Complex Queries** (Multi-domain correlation):
+- "How do my medications correlate with my lab results?"
+- "Analyze my cardiovascular risk factors"
+- "Show the relationship between my weight and blood pressure"
+
+**Return Schema**:
+```json
+{
+  "type": "object",
+  "properties": {
+    "query": {
+      "type": "string",
+      "description": "Original query text"
+    },
+    "query_successful": {
+      "type": "boolean"
+    },
+    "result": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "date": {"type": "string", "format": "date"},
+              "metric_name": {"type": "string"},
+              "value": {"type": "number"},
+              "unit": {"type": "string"},
+              "reference_range": {"type": "string"},
+              "status": {
+                "type": "string",
+                "enum": ["normal", "borderline", "abnormal", "critical"]
+              }
+            }
+          }
+        },
+        "summary": {
+          "type": "string",
+          "description": "Natural language summary of results"
+        },
+        "statistics": {
+          "type": "object",
+          "properties": {
+            "mean": {"type": "number"},
+            "min": {"type": "number"},
+            "max": {"type": "number"},
+            "trend": {
+              "type": "string",
+              "enum": ["increasing", "decreasing", "stable", "variable"]
+            }
+          }
+        },
+        "visualization_hints": {
+          "type": "object",
+          "properties": {
+            "chart_type": {
+              "type": "string",
+              "enum": ["line", "bar", "scatter", "area", "combo"]
+            },
+            "x_axis": {"type": "string"},
+            "y_axis": {"type": "string"},
+            "title": {"type": "string"},
+            "grouping": {"type": "string"}
+          }
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "query_confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "data_sources": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "record_count": {"type": "integer"},
+        "execution_time": {"type": "number"}
+      }
+    }
   }
 }
 ```
 
-#### Query Capabilities
+### 2. Health Data Import Tool
 
-The tool understands various query patterns:
+**Tool Name**: `snowflake_import_analyze_health_records_v2`
 
-1. **Point-in-time queries**: "What's my current...", "Latest...", "Most recent..."
-2. **Trend queries**: "Show trend...", "How has X changed...", "X over time"
-3. **Comparison queries**: "Compare X to Y", "X versus reference range"
-4. **Correlation queries**: "How does X affect Y", "Relationship between..."
-5. **Aggregation queries**: "Average X", "Highest/Lowest X", "X statistics"
-6. **Risk assessment**: "Am I at risk for...", "Evaluate my X risk"
+**Purpose**: Import and analyze health data from various sources.
+
+**Input Schema**:
+```json
+{
+  "type": "object",
+  "properties": {
+    "file_directory": {
+      "type": "string",
+      "description": "Directory path containing health data files"
+    },
+    "import_options": {
+      "type": "object",
+      "properties": {
+        "file_patterns": {
+          "type": "array",
+          "items": {"type": "string"},
+          "default": ["*.json", "*.csv"]
+        },
+        "validation_level": {
+          "type": "string",
+          "enum": ["strict", "moderate", "lenient"],
+          "default": "moderate"
+        },
+        "duplicate_handling": {
+          "type": "string",
+          "enum": ["skip", "update", "version"],
+          "default": "skip"
+        }
+      }
+    }
+  },
+  "required": ["file_directory"]
+}
+```
+
+**Expected File Formats**:
+- `lab_results_YYYY-MM-DD.json`
+- `medications_current.json`
+- `vitals_YYYY-MM.json`
+- `clinical_data_consolidated.json`
+
+**Return Schema**:
+```json
+{
+  "type": "object",
+  "properties": {
+    "success": {"type": "boolean"},
+    "import_id": {"type": "string", "format": "uuid"},
+    "summary": {
+      "type": "object",
+      "properties": {
+        "total_files_processed": {"type": "integer"},
+        "total_records_imported": {"type": "integer"},
+        "records_by_category": {
+          "type": "object",
+          "additionalProperties": {"type": "integer"}
+        },
+        "validation_errors": {"type": "integer"},
+        "warnings": {
+          "type": "array",
+          "items": {"type": "string"}
+        }
+      }
+    },
+    "data_quality": {
+      "type": "object",
+      "properties": {
+        "completeness_score": {"type": "number"},
+        "consistency_score": {"type": "number"},
+        "timeliness_score": {"type": "number"}
+      }
+    }
+  }
+}
+```
 
 ## Tool Registry Interface
 
-The `ToolRegistry` class provides a unified interface for tool management:
+The `ToolRegistry` class provides a unified interface for all tool operations:
 
-**Location**: `backend/tools/tool_registry.py` (PRE-BUILT)
-
-### Class Interface
 ```python
+from typing import List, Dict, Any, Optional
+from tools.base import ToolDefinition, ToolResult
+
 class ToolRegistry:
+    """Central registry for all available tools."""
+    
     def __init__(self):
-        """Initialize with all available tools"""
-        
-    def get_tool_definitions(self) -> List[Dict[str, Any]]:
+        """Initialize with all available tools."""
+        self._tools = self._load_tools()
+    
+    def get_tool_definitions(self) -> List[ToolDefinition]:
         """
-        Returns tool definitions in Anthropic's expected format
-        for use with the Claude API
-        """
+        Returns tool definitions in Anthropic's format.
         
+        Returns:
+            List of tool definitions for AI agent use.
+        """
+    
     async def execute_tool(
         self, 
         tool_name: str, 
-        tool_input: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        tool_input: Dict[str, Any],
+        timeout: Optional[float] = 30.0
+    ) -> ToolResult:
         """
-        Executes a tool by name with given input
-        Returns the tool's response
-        """
+        Executes a tool by name with given input.
         
+        Args:
+            tool_name: Name of the tool to execute
+            tool_input: Input parameters for the tool
+            timeout: Maximum execution time in seconds
+            
+        Returns:
+            ToolResult with success status and data
+            
+        Raises:
+            ToolNotFoundError: If tool doesn't exist
+            ToolExecutionError: If tool fails to execute
+        """
+    
     def get_tool_description(self, tool_name: str) -> str:
         """
-        Returns human-readable description for a specific tool
-        """
+        Returns detailed description for a specific tool.
         
-    def list_available_tools(self) -> List[str]:
+        Args:
+            tool_name: Name of the tool
+            
+        Returns:
+            Detailed description including usage examples
         """
-        Returns list of all available tool names
+    
+    def validate_tool_input(
+        self, 
+        tool_name: str, 
+        tool_input: Dict[str, Any]
+    ) -> List[str]:
         """
-```
-
-### Usage Example
-```python
-# DO NOT REIMPLEMENT - Just import and use!
-from tools.tool_registry import ToolRegistry
-
-# Initialize registry (happens once in service)
-tool_registry = ToolRegistry()
-
-# Get tool definitions for Claude API
-tools = tool_registry.get_tool_definitions()
-
-# Execute a tool
-result = await tool_registry.execute_tool(
-    "execute_health_query_v2",
-    {"query": "What's my cholesterol trend?"}
-)
+        Validates input against tool schema.
+        
+        Args:
+            tool_name: Name of the tool
+            tool_input: Input to validate
+            
+        Returns:
+            List of validation errors (empty if valid)
+        """
 ```
 
 ## Integration Patterns
 
-### For CMO Agent
+### 1. Direct Tool Usage in Agents
+
 ```python
-# In cmo_agent.py
-async def analyze_query_with_tools(self, query: str):
-    # Use tools for initial assessment
-    initial_data = await self.tool_registry.execute_tool(
-        "execute_health_query_v2",
-        {"query": f"Summarize available health data categories for: {query}"}
-    )
+from anthropic import Anthropic
+from tools.tool_registry import ToolRegistry
+
+class HealthAgent:
+    def __init__(self):
+        self.client = Anthropic()
+        self.tools = ToolRegistry()
     
-    # Process tool results
-    if initial_data["query_successful"]:
-        available_data = initial_data["result"]["data"]
-        # Determine complexity based on available data
+    async def analyze_health_query(self, query: str):
+        # Direct tool execution
+        result = await self.tools.execute_tool(
+            "execute_health_query_v2",
+            {"query": query}
+        )
+        
+        if result.success:
+            return self._process_health_data(result.data)
+        else:
+            return self._handle_error(result.error)
 ```
 
-### For Specialist Agents
+### 2. Tool Usage with Anthropic's Native Tool Calling
+
 ```python
-# In specialist_agent.py
-async def execute_cardiology_analysis(self, task: SpecialistTask):
-    # Query specific cardiology data
-    cardiac_data = await self.tool_registry.execute_tool(
+async def analyze_with_tools(self, user_query: str):
+    # Get tool definitions in Anthropic format
+    tools = self.tools.get_tool_definitions()
+    
+    # Let Claude decide which tools to use
+    response = await self.client.messages.create(
+        model="claude-3-sonnet-20240229",
+        messages=[{
+            "role": "user",
+            "content": user_query
+        }],
+        tools=tools,
+        max_tokens=4000
+    )
+    
+    # Process tool calls in response
+    for tool_call in response.tool_calls:
+        result = await self.tools.execute_tool(
+            tool_call.name,
+            tool_call.input
+        )
+        # Handle result...
+```
+
+### 3. Specialist-Specific Tool Usage
+
+```python
+# Cardiology Specialist
+async def analyze_cardiovascular_data(self, task: SpecialistTask):
+    # Query for cardiovascular-specific data
+    cardio_result = await self.tools.execute_tool(
         "execute_health_query_v2",
         {
-            "query": "Get all cardiovascular metrics including cholesterol, "
-                    "blood pressure, heart rate, and cardiac medications"
+            "query": "Get all cardiovascular metrics including cholesterol, blood pressure, and heart rate",
+            "options": {
+                "include_raw_data": True,
+                "max_results": 500
+            }
         }
     )
     
-    # Analyze the results
-    if cardiac_data["query_successful"]:
-        # Process cardiac-specific insights
-```
-
-### For Visualization Agent
-```python
-# In visualization_agent.py
-async def prepare_visualization_data(self, query: str, synthesis: str):
-    # Get data optimized for visualization
-    viz_data = await self.tool_registry.execute_tool(
+    # Additional targeted queries
+    medication_result = await self.tools.execute_tool(
         "execute_health_query_v2",
-        {
-            "query": f"Get time-series data for visualization: {query}"
-        }
+        {"query": "List all cardiovascular medications with adherence data"}
     )
     
-    # Use visualization_hints to generate appropriate chart
-    if viz_data["query_successful"]:
-        hints = viz_data["result"]["visualization_hints"]
-        # Generate React component based on hints
+    return self._synthesize_cardio_insights(cardio_result, medication_result)
+```
+
+### 4. Error Handling Pattern
+
+```python
+async def safe_tool_execution(self, tool_name: str, tool_input: dict):
+    try:
+        # Validate input first
+        errors = self.tools.validate_tool_input(tool_name, tool_input)
+        if errors:
+            return {"success": False, "errors": errors}
+        
+        # Execute with timeout
+        result = await self.tools.execute_tool(
+            tool_name, 
+            tool_input,
+            timeout=30.0
+        )
+        
+        return result
+        
+    except ToolNotFoundError:
+        return {"success": False, "error": "Tool not available"}
+    except ToolExecutionError as e:
+        return {"success": False, "error": str(e), "partial_data": e.partial_data}
+    except asyncio.TimeoutError:
+        return {"success": False, "error": "Tool execution timed out"}
 ```
 
 ## Best Practices
 
 ### 1. Query Construction
-- **Be Specific**: More specific queries return better results
-  ```python
-  # ❌ Too vague
-  {"query": "Show me my data"}
-  
-  # ✅ Specific
-  {"query": "Show my cholesterol levels from the past 6 months"}
-  ```
 
-### 2. Time Period Specification
-- Include explicit time periods for trends
-  ```python
-  {"query": "Blood pressure trend over the past year"}
-  {"query": "Medications taken between January and June 2024"}
-  {"query": "Lab results from the last 3 months"}
-  ```
+**DO:**
+- Use specific medical terminology
+- Include time ranges for trends
+- Specify units when asking for values
+- Use patient-friendly language alternatives
 
-### 3. Medical Terminology
-- Use standard medical terms for best results
-  - Cholesterol: "Total", "LDL", "HDL", "Triglycerides"
-  - Blood Pressure: "Systolic", "Diastolic"
-  - Diabetes: "HbA1c", "Glucose", "Fasting glucose"
-  - Kidney: "Creatinine", "eGFR", "BUN"
+**DON'T:**
+- Use ambiguous terms like "recent" without context
+- Combine too many concepts in one query
+- Assume data availability
 
-### 4. Error Handling
+**Examples:**
 ```python
-# Always check success status
-result = await tool_registry.execute_tool("execute_health_query_v2", input)
+# Good
+"Show my LDL cholesterol trend over the past 2 years"
+"What medications am I taking for hypertension?"
 
-if result.get("query_successful", False):
-    # Process successful result
-    data = result["result"]["data"]
-else:
-    # Handle error gracefully
-    error_msg = result.get("error", "Unknown error")
-    # Fallback behavior
+# Bad
+"Show all my data"
+"What's wrong with me?"
 ```
 
-### 5. Performance Optimization
-- Cache frequently used reference queries
+### 2. Result Processing
+
+Always check for:
+- Query success status
+- Data completeness
+- Confidence scores
+- Visualization hints
+
+```python
+if result.query_successful:
+    data = result.result.data
+    if len(data) > 0:
+        # Process data
+        if result.metadata.query_confidence > 0.8:
+            # High confidence processing
+        else:
+            # Include uncertainty in response
+```
+
+### 3. Performance Optimization
+
 - Batch related queries when possible
-- Use query confidence scores to determine if refinement needed
+- Cache frequently accessed data in agent memory
+- Use query options to limit data size
+- Implement progressive data loading
 
-## Data Schema Reference
+### 4. Security Considerations
 
-### Lab Results Schema
-```json
-{
-  "test_name": "string",
-  "value": "number|string",
-  "unit": "string",
-  "reference_range": "string|object",
-  "date": "YYYY-MM-DD",
-  "time": "HH:MM:SS",
-  "provider": "string",
-  "lab_name": "string",
-  "status": "normal|high|low|critical"
-}
-```
+- Never log full tool responses (may contain PHI)
+- Sanitize error messages before displaying
+- Use audit logging for compliance
+- Implement rate limiting per session
 
-### Medication Schema
-```json
-{
-  "name": "string",
-  "generic_name": "string",
-  "dosage": "string",
-  "frequency": "string",
-  "route": "string",
-  "start_date": "YYYY-MM-DD",
-  "end_date": "YYYY-MM-DD|null",
-  "prescriber": "string",
-  "indication": "string",
-  "adherence_data": {}
-}
-```
+## Tool Extension Points
 
-### Vital Signs Schema
-```json
-{
-  "type": "blood_pressure|heart_rate|temperature|weight|bmi",
-  "value": "number",
-  "systolic": "number",  // for BP
-  "diastolic": "number", // for BP
-  "unit": "string",
-  "date": "YYYY-MM-DD",
-  "time": "HH:MM:SS"
-}
-```
+While tools are pre-built, the system supports:
 
-## Security & Privacy
-
-- All data operations are logged for audit trails
-- Patient identifiers are handled securely within tools
-- No raw PHI is exposed outside the tool interface
-- Tools implement appropriate access controls
-- Query logs are sanitized of sensitive information
-
-## Extending Tool Capabilities
-
-While these tools are pre-built, the system supports extension through:
-
-1. **Query Pattern Library**: Add new query templates
-2. **Visualization Hints**: Enhance chart recommendations  
-3. **Clinical Rules**: Update reference ranges and thresholds
-4. **Data Enrichment**: Add calculated metrics
-
-**Note**: Extensions should be done through configuration, not by modifying tool code.
-
-## Common Integration Mistakes to Avoid
-
-### ❌ DON'T: Reimplement Tools
+### 1. New Tool Registration
 ```python
-# WRONG - Don't create your own data access
-class MyHealthDataAccess:
-    def query_snowflake(self, sql):
-        # Don't do this!
+# Future enhancement example
+tool_registry.register_tool(
+    name="analyze_genetic_data",
+    definition=GeneticAnalysisTool(),
+    category="advanced_diagnostics"
+)
 ```
 
-### ❌ DON'T: Access Data Directly
+### 2. Tool Composition
 ```python
-# WRONG - Don't bypass tools
-import snowflake.connector
-conn = snowflake.connector.connect(...)
+# Combining multiple tools
+async def complex_analysis(query):
+    # First get the data
+    data = await tools.execute_tool("execute_health_query_v2", {...})
+    
+    # Then get predictions
+    predictions = await tools.execute_tool("predict_health_trends", {
+        "historical_data": data.result
+    })
+    
+    return combine_results(data, predictions)
 ```
 
-### ❌ DON'T: Modify Tool Files
+### 3. Custom Tool Wrappers
 ```python
-# WRONG - Don't edit tool implementations
-# tools/health_query_tool.py should never be modified
-```
-
-### ✅ DO: Use Tools As Provided
-```python
-# CORRECT - Import and use
-from tools.tool_registry import ToolRegistry
-tools = ToolRegistry()
-result = await tools.execute_tool(...)
+class SpecialistToolWrapper:
+    """Wraps tools with specialist-specific logic."""
+    
+    def __init__(self, tool_registry, specialty):
+        self.tools = tool_registry
+        self.specialty = specialty
+    
+    async def query_specialty_data(self, condition):
+        # Add specialty context to queries
+        query = f"For {self.specialty} analysis: {condition}"
+        return await self.tools.execute_tool(
+            "execute_health_query_v2",
+            {"query": query}
+        )
 ```
 
 ## Troubleshooting
@@ -504,32 +541,32 @@ result = await tools.execute_tool(...)
 ### Common Issues
 
 1. **Tool Not Found**
-   - Ensure correct tool name (case-sensitive)
-   - Verify tools directory is in Python path
+   - Ensure tools are imported from `backend/tools/`
+   - Check tool name spelling
+   - Verify ToolRegistry initialization
 
-2. **Query Returns No Data**
-   - Check query specificity
-   - Verify data exists for time period
-   - Review query confidence score
+2. **Timeout Errors**
+   - Increase timeout for complex queries
+   - Break down complex queries
+   - Check data volume
 
-3. **Slow Query Performance**
-   - Complex queries may take 1-5 seconds
-   - Consider breaking into simpler queries
-   - Check for overly broad time ranges
+3. **Low Confidence Results**
+   - Refine query specificity
+   - Check data availability
+   - Use alternative phrasings
 
-4. **Unexpected Results**
-   - Review visualization_hints for context
-   - Check metadata for data sources used
-   - Verify query understood correctly
+4. **Validation Errors**
+   - Check input schema requirements
+   - Ensure required fields present
+   - Validate data types
 
 ## Summary
 
-Remember these key points:
-1. Tools are **PRE-BUILT** - just import and use them
-2. Two main tools: import and query execution
-3. Natural language queries are powerful - be specific
-4. Always check success status before using results
-5. Use visualization hints for chart generation
-6. Never bypass tools or access data directly
+The tool interface provides a powerful abstraction layer that:
+- Hides data complexity from agents
+- Ensures consistent data access patterns
+- Handles security and compliance internally
+- Enables natural language data queries
+- Supports future extensibility
 
-These tools abstract all the complexity of health data management, allowing agents to focus on providing intelligent analysis and insights.
+Remember: **NEVER reimplement these tools**. They are provided, tested, and optimized for the health domain.

@@ -1,235 +1,370 @@
-# Accessibility Guidelines: Multi-Agent Health Insight System
+# Accessibility Guidelines
 
 ## Overview
-The Health Insight Assistant must be accessible to all users, including those with disabilities. These guidelines ensure WCAG 2.1 AA compliance while providing an excellent experience for users with diverse abilities.
+
+The Health Insight Assistant is designed to be accessible to all users, including those with disabilities. We follow WCAG 2.1 AA standards as a minimum, with AAA compliance where possible. Given the medical nature of the application, accessibility is not just a legal requirement but a moral imperative to ensure health insights are available to everyone.
+
+## Core Principles
+
+1. **Perceivable**: Information must be presentable in ways users can perceive
+2. **Operable**: Interface components must be operable by all users
+3. **Understandable**: Information and UI operation must be understandable
+4. **Robust**: Content must be robust enough for various assistive technologies
 
 ## Color & Contrast
 
 ### Contrast Requirements
-All text and interactive elements must meet WCAG contrast ratios:
 
 #### Text Contrast
 - **Normal text**: 4.5:1 minimum against background
-- **Large text** (18pt+): 3:1 minimum
-- **Body text on white**: #111827 (15.3:1) ✓
-- **Secondary text on white**: #6B7280 (5.74:1) ✓
-
-#### Interactive Elements
-- **Buttons**: 3:1 minimum for boundaries
-- **Form inputs**: 3:1 minimum for borders
-- **Focus indicators**: 3:1 minimum against adjacent colors
-
-#### Medical Specialist Colors
-All specialist colors tested against white backgrounds:
-```
-Cardiology Red (#EF4444):    3.96:1 - Use only for icons/borders
-Laboratory Green (#10B981):  2.95:1 - Needs darker shade for text
-Endocrinology Purple (#8B5CF6): 3.52:1 - Borderline, use sparingly
-Data Analysis Yellow (#F59E0B): 2.81:1 - Icons only, never text
-```
-
-### Color Independence
-Never rely on color alone to convey information:
+- **Large text** (18pt+ or 14pt+ bold): 3:1 minimum
+- **Medical values**: 7:1 for critical health data
 
 ```css
-/* Bad - Color only */
-.error { color: red; }
+/* Contrast-compliant color combinations */
+.text-primary { color: #111827; }     /* On white: 19.97:1 ✓ */
+.text-secondary { color: #6B7280; }   /* On white: 5.31:1 ✓ */
+.text-on-blue { color: #FFFFFF; }     /* On #3B82F6: 6.42:1 ✓ */
+.text-on-red { color: #FFFFFF; }      /* On #EF4444: 4.54:1 ✓ */
 
-/* Good - Color + Icon + Text */
-.error {
-  color: #DC2626;
-  &::before {
-    content: "⚠️ Error: ";
-  }
+/* High contrast mode overrides */
+@media (prefers-contrast: high) {
+  .text-secondary { color: #374151; }  /* Darker gray */
+  .border { border-width: 2px; }       /* Thicker borders */
 }
 ```
 
-### Dark Mode Considerations
-- Maintain contrast ratios in dark mode
-- Adjust transparency values for overlays
-- Test medical visualizations in both modes
+### Color Usage Guidelines
 
-## Keyboard Navigation
+#### Never Rely on Color Alone
+```jsx
+// Bad: Color only
+<div className="text-red-600">Critical value</div>
 
-### Focus Management
-```javascript
-// Focus order must be logical
-tabindex="0"   // In tab order
-tabindex="-1"  // Programmatically focusable
-// Never use positive tabindex
-
-// Skip links
-<a href="#main" class="skip-link">Skip to main content</a>
-<a href="#medical-team" class="skip-link">Skip to medical team</a>
+// Good: Color + Icon + Text
+<div className="text-red-600 flex items-center">
+  <ExclamationTriangle className="w-4 h-4 mr-1" />
+  <span>Critical value</span>
+  <span className="sr-only">Warning: This value requires immediate attention</span>
+</div>
 ```
 
-### Keyboard Shortcuts
-```javascript
-const keyboardShortcuts = {
-  'Alt+N': 'New conversation',
-  'Alt+M': 'Toggle medical team panel',
-  'Alt+V': 'Toggle visualization panel',
-  'Ctrl+Enter': 'Submit query',
-  'Escape': 'Close modal/dropdown',
-  '/': 'Focus search',
-  '?': 'Show keyboard shortcuts'
+#### Health Status Indicators
+```jsx
+const HealthStatus = ({ value, range }) => {
+  const status = getStatus(value, range);
+  
+  return (
+    <div className="flex items-center space-x-2">
+      {/* Visual indicator */}
+      <div className={`w-3 h-3 rounded-full ${getStatusColor(status)}`} />
+      
+      {/* Text label */}
+      <span className="text-sm font-medium">
+        {status === 'normal' && 'Normal'}
+        {status === 'warning' && 'Borderline'}
+        {status === 'critical' && 'Critical'}
+      </span>
+      
+      {/* Icon for clarity */}
+      {status === 'critical' && <AlertCircle className="w-4 h-4" />}
+      
+      {/* Screen reader context */}
+      <span className="sr-only">
+        Your value of {value} is {status} compared to the normal range of {range.min}-{range.max}
+      </span>
+    </div>
+  );
 };
 ```
 
-### Focus Indicators
+### Medical Specialist Color Accessibility
+Each specialist has a unique color, but identification doesn't rely solely on color:
+
+```jsx
+const SpecialistCard = ({ specialist }) => (
+  <div className="specialist-card">
+    {/* Icon provides visual distinction beyond color */}
+    <div className={`icon-container bg-${specialist.color}-100`}>
+      <span className="text-2xl" role="img" aria-label={specialist.name}>
+        {specialist.emoji}
+      </span>
+    </div>
+    
+    {/* Text labels are always present */}
+    <h3 className="font-medium">{specialist.name}</h3>
+    <p className="text-sm text-gray-600">{specialist.specialty}</p>
+    
+    {/* Status uses multiple indicators */}
+    <div className="status-indicator">
+      {specialist.status === 'active' && (
+        <>
+          <div className="animate-pulse w-2 h-2 bg-blue-500 rounded-full" />
+          <span className="ml-2 text-sm">Analyzing...</span>
+        </>
+      )}
+    </div>
+  </div>
+);
+```
+
+## Keyboard Navigation
+
+### Navigation Order
+1. Skip links (hidden until focused)
+2. Header navigation
+3. Sidebar (if visible)
+4. Main content
+5. Context panel
+
+### Skip Links Implementation
+```html
+<a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 bg-blue-600 text-white px-4 py-2 rounded">
+  Skip to main content
+</a>
+<a href="#medical-team" className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-40 bg-blue-600 text-white px-4 py-2 rounded">
+  Skip to medical team
+</a>
+```
+
+### Focus Management
+
+#### Visible Focus Indicators
 ```css
-/* Custom focus styles */
-:focus {
+/* Custom focus styles that meet WCAG requirements */
+*:focus {
   outline: none;
-  box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 4px #3B82F6;
+}
+
+*:focus-visible {
+  outline: 2px solid #3B82F6;
+  outline-offset: 2px;
   border-radius: 4px;
 }
 
 /* High contrast mode */
 @media (prefers-contrast: high) {
-  :focus {
-    outline: 3px solid;
-    outline-offset: 2px;
+  *:focus-visible {
+    outline: 3px solid currentColor;
+    outline-offset: 3px;
   }
 }
 ```
 
-### Component-Specific Navigation
+#### Focus Trapping for Modals
+```jsx
+const Modal = ({ isOpen, onClose, children }) => {
+  const modalRef = useRef();
+  
+  useEffect(() => {
+    if (isOpen) {
+      // Save previous focus
+      const previousFocus = document.activeElement;
+      
+      // Focus first focusable element
+      const focusable = modalRef.current.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      focusable[0]?.focus();
+      
+      // Restore focus on close
+      return () => previousFocus?.focus();
+    }
+  }, [isOpen]);
+  
+  const handleKeyDown = (e) => {
+    if (e.key === 'Escape') onClose();
+    // Tab trapping logic...
+  };
+  
+  return (
+    <div ref={modalRef} onKeyDown={handleKeyDown} role="dialog" aria-modal="true">
+      {children}
+    </div>
+  );
+};
+```
 
-#### Three-Panel Layout
-- F6: Cycle between panels
-- Ctrl+[: Collapse left panel
-- Ctrl+]: Collapse right panel
+### Keyboard Shortcuts
 
-#### Medical Team Visualization
-- Tab: Navigate between specialists
-- Enter: View specialist details
-- Arrow keys: Navigate team hierarchy
+#### Global Shortcuts
+```javascript
+const keyboardShortcuts = {
+  'Ctrl+/': 'Show keyboard shortcuts',
+  'Ctrl+K': 'Quick search',
+  'Ctrl+N': 'New conversation',
+  'Ctrl+B': 'Toggle sidebar',
+  'Alt+M': 'Focus medical team panel',
+  'Alt+V': 'Focus visualization panel',
+  'Escape': 'Close current panel/modal'
+};
+```
 
-#### Chat Interface
-- Up/Down: Navigate message history
-- Page Up/Down: Scroll messages
-- Home/End: Jump to first/last message
+#### Implementation
+```jsx
+useEffect(() => {
+  const handleKeyboard = (e) => {
+    // Ctrl+K for search
+    if (e.ctrlKey && e.key === 'k') {
+      e.preventDefault();
+      focusSearch();
+    }
+    
+    // Alt+M for medical team
+    if (e.altKey && e.key === 'm') {
+      e.preventDefault();
+      focusMedicalTeam();
+    }
+  };
+  
+  document.addEventListener('keydown', handleKeyboard);
+  return () => document.removeEventListener('keydown', handleKeyboard);
+}, []);
+```
 
 ## Screen Reader Support
 
-### Semantic HTML
+### Semantic HTML Structure
 ```html
-<!-- Proper heading hierarchy -->
-<h1>Health Insight Assistant</h1>
-  <h2>Your Medical Team</h2>
-    <h3>Dr. Heart - Cardiology</h3>
-
-<!-- Landmark regions -->
-<nav role="navigation" aria-label="Conversations">
-<main role="main" aria-label="Chat">
-<aside role="complementary" aria-label="Medical Team Status">
-
-<!-- Lists for related items -->
-<ul role="list" aria-label="Active specialists">
-  <li>Dr. Heart - Analyzing...</li>
-</ul>
+<main role="main" aria-label="Health conversation">
+  <section aria-label="Chat messages">
+    <h2 className="sr-only">Conversation History</h2>
+    <!-- Messages -->
+  </section>
+  
+  <aside aria-label="Medical team status">
+    <h2>Medical Team</h2>
+    <!-- Team visualization -->
+  </aside>
+</main>
 ```
 
 ### ARIA Labels & Descriptions
-```html
-<!-- Descriptive labels -->
-<button aria-label="Start new health conversation">
-  <span aria-hidden="true">➕</span>
-  New Conversation
+
+#### Interactive Elements
+```jsx
+{/* Button with clear purpose */}
+<button 
+  aria-label="Start new health conversation"
+  aria-keyshortcuts="Control+N"
+>
+  <Plus className="w-4 h-4" />
+  <span>New Conversation</span>
 </button>
 
-<!-- Live regions for updates -->
-<div aria-live="polite" aria-atomic="true">
-  <p>Dr. Heart has completed analysis with 85% confidence</p>
+{/* Complex interactive element */}
+<div 
+  role="button"
+  tabIndex={0}
+  aria-label={`${specialist.name}, ${specialist.specialty} specialist, currently ${specialist.status}`}
+  aria-describedby={`specialist-${specialist.id}-description`}
+  onClick={handleSpecialistClick}
+  onKeyPress={(e) => e.key === 'Enter' && handleSpecialistClick()}
+>
+  {/* Specialist card content */}
 </div>
-
-<!-- Progress indicators -->
-<div role="progressbar" 
-     aria-valuenow="45" 
-     aria-valuemin="0" 
-     aria-valuemax="100"
-     aria-label="Dr. Heart analysis progress">
-  45%
+<div id={`specialist-${specialist.id}-description`} className="sr-only">
+  {specialist.status === 'active' 
+    ? `${specialist.name} is currently analyzing your health data. Progress: ${specialist.progress}%`
+    : `${specialist.name} has completed analysis with ${specialist.confidence}% confidence`
+  }
 </div>
 ```
 
-### Dynamic Content Announcements
-```javascript
-// Announce status changes
-function announceStatus(message) {
-  const liveRegion = document.getElementById('status-announcer');
-  liveRegion.textContent = message;
+### Live Regions for Updates
+
+#### Agent Status Updates
+```jsx
+{/* Announce status changes */}
+<div 
+  role="status" 
+  aria-live="polite" 
+  aria-atomic="true"
+  className="sr-only"
+>
+  {latestUpdate && `${latestUpdate.agent} is now ${latestUpdate.status}`}
+</div>
+
+{/* Critical alerts */}
+<div 
+  role="alert" 
+  aria-live="assertive"
+  className="sr-only"
+>
+  {criticalAlert && criticalAlert.message}
+</div>
+```
+
+#### Progress Announcements
+```jsx
+const ProgressAnnouncer = ({ specialists }) => {
+  const [announcement, setAnnouncement] = useState('');
   
-  // Clear after announcement
-  setTimeout(() => {
-    liveRegion.textContent = '';
-  }, 3000);
-}
-
-// Example usage
-announceStatus('Medical team assembled. 3 specialists are analyzing your query.');
+  useEffect(() => {
+    // Announce significant progress milestones
+    specialists.forEach(specialist => {
+      if (specialist.progress === 25 || 
+          specialist.progress === 50 || 
+          specialist.progress === 75 || 
+          specialist.progress === 100) {
+        setAnnouncement(
+          `${specialist.name} analysis is ${specialist.progress}% complete`
+        );
+      }
+    });
+  }, [specialists]);
+  
+  return (
+    <div role="status" aria-live="polite" className="sr-only">
+      {announcement}
+    </div>
+  );
+};
 ```
 
-### Screen Reader Optimizations
-```html
-<!-- Hide decorative elements -->
-<span aria-hidden="true">🏥</span>
+### Data Tables as Alternatives
 
-<!-- Provide text alternatives -->
-<img src="specialist-network.png" 
-     alt="Medical team network showing CMO connected to 6 specialists">
-
-<!-- Describe complex visualizations -->
-<div role="img" 
-     aria-label="Cholesterol trend chart showing decrease from 250 to 180 over 5 years">
-  <!-- Chart SVG -->
-</div>
-```
-
-## Form Accessibility
-
-### Input Labels & Instructions
-```html
-<!-- Associated labels -->
-<label for="health-query">
-  What health question can we help you with today?
-  <span class="optional">(optional)</span>
-</label>
-<textarea id="health-query" 
-          aria-describedby="query-help"
-          placeholder="Ask about labs, medications, or health trends...">
-</textarea>
-<p id="query-help" class="help-text">
-  You can ask complex questions involving multiple health topics
-</p>
-
-<!-- Error messages -->
-<input aria-invalid="true" 
-       aria-describedby="email-error">
-<p id="email-error" role="alert" class="error">
-  Please enter a valid email address
-</p>
-```
-
-### Fieldset Grouping
-```html
-<fieldset>
-  <legend>Select time range for analysis</legend>
-  <label>
-    <input type="radio" name="timerange" value="1y">
-    Last year
-  </label>
-  <label>
-    <input type="radio" name="timerange" value="5y" checked>
-    Last 5 years
-  </label>
-</fieldset>
+#### Chart Alternative
+```jsx
+const ChartWithTable = ({ data, type }) => (
+  <>
+    {/* Visual chart */}
+    <div aria-hidden="true">
+      <LineChart data={data} />
+    </div>
+    
+    {/* Accessible data table */}
+    <table className="sr-only" role="table" aria-label={`${type} data in table format`}>
+      <caption>
+        {type} data from {data[0].date} to {data[data.length - 1].date}
+      </caption>
+      <thead>
+        <tr>
+          <th scope="col">Date</th>
+          <th scope="col">Value</th>
+          <th scope="col">Unit</th>
+          <th scope="col">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {data.map((row, i) => (
+          <tr key={i}>
+            <th scope="row">{row.date}</th>
+            <td>{row.value}</td>
+            <td>{row.unit}</td>
+            <td>{row.status}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </>
+);
 ```
 
 ## Motion & Animation
 
 ### Respecting User Preferences
+
 ```css
 /* Reduce motion for users who prefer it */
 @media (prefers-reduced-motion: reduce) {
@@ -239,269 +374,233 @@ announceStatus('Medical team assembled. 3 specialists are analyzing your query.'
     transition-duration: 0.01ms !important;
   }
   
-  /* Keep essential animations */
-  .loading-spinner {
-    animation-duration: 1.5s !important;
+  /* Keep essential animations but make them instant */
+  .animate-pulse {
+    animation: none;
+    opacity: 0.8;
+  }
+  
+  .thinking-dots::after {
+    content: '...' !important;
+    animation: none;
   }
 }
 ```
 
-### Pause Controls
-```html
-<!-- Pauseable animations -->
-<div class="specialist-status">
-  <div class="analysis-animation" id="anim-1">
-    <!-- Animation content -->
-  </div>
-  <button onclick="toggleAnimation('anim-1')" 
-          aria-label="Pause animation">
-    ⏸️
-  </button>
-</div>
-```
-
 ### Safe Animation Patterns
-- No flashing more than 3 times per second
-- Smooth transitions under 5 seconds
-- User-initiated animations preferred
-- Progress indicators always visible
+```jsx
+const SafeAnimation = ({ children, type = 'fade' }) => {
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  
+  if (prefersReducedMotion) {
+    return <div className="transition-none">{children}</div>;
+  }
+  
+  const animations = {
+    fade: 'animate-fadeIn',
+    slide: 'animate-slideUp',
+    pulse: 'animate-pulse'
+  };
+  
+  return (
+    <div className={animations[type]}>
+      {children}
+    </div>
+  );
+};
+```
 
-## Text & Readability
+### Pause Controls for Continuous Animations
+```jsx
+const AnimatedSpecialist = ({ specialist }) => {
+  const [isPaused, setIsPaused] = useState(false);
+  
+  return (
+    <div className="relative">
+      <div className={isPaused ? '' : 'animate-pulse'}>
+        {/* Specialist content */}
+      </div>
+      
+      <button
+        onClick={() => setIsPaused(!isPaused)}
+        aria-label={isPaused ? 'Resume animation' : 'Pause animation'}
+        className="absolute top-0 right-0 p-1"
+      >
+        {isPaused ? <Play size={16} /> : <Pause size={16} />}
+      </button>
+    </div>
+  );
+};
+```
 
-### Font Sizing
+## Form Accessibility
+
+### Label Association
+```jsx
+{/* Visible labels */}
+<div className="form-group">
+  <label htmlFor="health-query" className="block text-sm font-medium mb-1">
+    What health question can we help you with today?
+  </label>
+  <textarea
+    id="health-query"
+    name="query"
+    aria-describedby="query-help query-error"
+    aria-invalid={hasError}
+    aria-required="true"
+    maxLength={500}
+  />
+  <p id="query-help" className="text-sm text-gray-600 mt-1">
+    Ask about labs, medications, or health trends
+  </p>
+  {hasError && (
+    <p id="query-error" role="alert" className="text-sm text-red-600 mt-1">
+      Please enter a health question
+    </p>
+  )}
+</div>
+
+{/* Screen reader only labels */}
+<button aria-label="Submit health question">
+  <Send className="w-5 h-5" />
+</button>
+```
+
+### Error Handling
+```jsx
+const FormError = ({ error, inputId }) => (
+  <div
+    id={`${inputId}-error`}
+    role="alert"
+    aria-live="assertive"
+    className="mt-2 text-sm text-red-600 flex items-center"
+  >
+    <AlertCircle className="w-4 h-4 mr-1" />
+    <span>{error}</span>
+  </div>
+);
+```
+
+### Required Fields
+```jsx
+<form>
+  <fieldset>
+    <legend className="text-lg font-medium mb-4">
+      Health Query Information
+      <span className="text-sm font-normal text-gray-600 ml-2">
+        * indicates required field
+      </span>
+    </legend>
+    
+    <div className="space-y-4">
+      <div>
+        <label htmlFor="query" className="block text-sm font-medium">
+          Your Question <span aria-label="required" className="text-red-500">*</span>
+        </label>
+        <input
+          type="text"
+          id="query"
+          required
+          aria-required="true"
+        />
+      </div>
+    </div>
+  </fieldset>
+</form>
+```
+
+## Touch Target Accessibility
+
+### Minimum Sizes
 ```css
-/* Base font size 16px minimum */
-html {
-  font-size: 100%; /* Respects user preferences */
-}
-
-/* Scalable units */
-body {
-  font-size: 1rem;    /* 16px */
-  line-height: 1.5;   /* 24px */
-}
-
-h1 { font-size: 1.5rem; }   /* 24px */
-h2 { font-size: 1.25rem; }  /* 20px */
-h3 { font-size: 1.125rem; } /* 18px */
-
-/* Allow zooming */
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-```
-
-### Content Structure
-- Use proper heading hierarchy
-- Keep paragraphs short (3-4 sentences)
-- Use lists for related items
-- Provide summaries for long content
-
-### Language & Clarity
-```html
-<!-- Specify language -->
-<html lang="en">
-
-<!-- Define abbreviations -->
-<abbr title="Low-Density Lipoprotein">LDL</abbr>
-
-<!-- Simple language for complex terms -->
-<span class="definition" 
-      data-tooltip="A blood test that measures your average blood sugar over 3 months">
-  HbA1c
-</span>
-```
-
-## Error Handling
-
-### Accessible Error Messages
-```javascript
-function showError(field, message) {
-  const errorId = `${field}-error`;
-  const errorEl = document.getElementById(errorId);
-  const fieldEl = document.getElementById(field);
-  
-  // Update error message
-  errorEl.textContent = message;
-  errorEl.setAttribute('role', 'alert');
-  
-  // Update field state
-  fieldEl.setAttribute('aria-invalid', 'true');
-  fieldEl.setAttribute('aria-describedby', errorId);
-  
-  // Announce to screen readers
-  announceStatus(`Error: ${message}`);
-  
-  // Focus management
-  fieldEl.focus();
-}
-```
-
-### Error Recovery
-- Clear instructions for fixing errors
-- Preserve user input during errors
-- Multiple ways to recover
-- Friendly, non-technical language
-
-## Touch & Mobile Accessibility
-
-### Touch Targets
-```css
-/* Minimum touch target size */
-.touch-target {
+/* Ensure all interactive elements meet minimum size */
+button, a, [role="button"] {
   min-width: 44px;
   min-height: 44px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  padding: 12px;
 }
 
-/* Spacing between targets */
-.button-group > * + * {
-  margin-left: 8px; /* Prevents accidental taps */
+/* Exception for inline text links */
+a:not(.button) {
+  min-height: auto;
+  padding: 4px 0;
+}
+
+/* Touch-friendly spacing */
+.touch-list > * + * {
+  margin-top: 8px; /* Minimum spacing between targets */
 }
 ```
 
-### Mobile Screen Reader Support
-- Test with TalkBack (Android) and VoiceOver (iOS)
-- Ensure gestures don't conflict
-- Provide alternative interactions
-- Label all interactive elements
+## Cognitive Accessibility
+
+### Clear Language
+- Use simple, clear language for medical terms
+- Provide glossary/tooltips for complex terms
+- Break complex information into steps
+- Use consistent terminology
+
+### Progressive Disclosure
+```jsx
+const MedicalTermTooltip = ({ term, definition, children }) => (
+  <span className="relative inline-block">
+    <button
+      className="underline decoration-dotted cursor-help"
+      aria-label={`Definition of ${term}`}
+      aria-describedby={`def-${term}`}
+    >
+      {children}
+    </button>
+    <span
+      id={`def-${term}`}
+      className="absolute bottom-full left-0 w-64 p-2 bg-gray-900 text-white text-sm rounded hidden hover:block"
+    >
+      {definition}
+    </span>
+  </span>
+);
+```
+
+### Consistent Navigation
+- Keep navigation in same location
+- Use consistent icons and labels
+- Provide breadcrumbs for context
+- Clear indication of current location
 
 ## Testing Checklist
 
 ### Automated Testing
-- [ ] axe DevTools scan passes
-- [ ] WAVE evaluation clear
+- [ ] axe-core validation passes
+- [ ] WAVE tool shows no errors
 - [ ] Lighthouse accessibility score > 95
-- [ ] Color contrast analyzer passes
+- [ ] Color contrast validation passes
 
 ### Manual Testing
-- [ ] Keyboard-only navigation works
-- [ ] Screen reader testing (NVDA/JAWS)
-- [ ] 200% zoom maintains usability
-- [ ] Focus indicators always visible
-- [ ] Error messages are accessible
-- [ ] Time-based content has controls
+- [ ] Full keyboard navigation works
+- [ ] Screen reader testing (NVDA/JAWS/VoiceOver)
+- [ ] 200% zoom doesn't break layout
+- [ ] Works without JavaScript
+- [ ] Forms are accessible
+- [ ] Error messages are clear
 
 ### User Testing
-- [ ] Test with users with disabilities
-- [ ] Various assistive technologies
-- [ ] Different disability types
-- [ ] Real health data scenarios
-
-## Implementation Examples
-
-### Accessible Medical Team Card
-```jsx
-const SpecialistCard = ({ specialist, status, progress }) => {
-  const statusLabel = {
-    waiting: 'Waiting to begin analysis',
-    active: `Analyzing - ${progress}% complete`,
-    complete: 'Analysis complete'
-  };
-
-  return (
-    <article 
-      className="specialist-card"
-      role="article"
-      aria-label={`${specialist.name} - ${specialist.role}`}
-    >
-      <div className="specialist-icon" aria-hidden="true">
-        {specialist.icon}
-      </div>
-      
-      <div className="specialist-info">
-        <h3 id={`specialist-${specialist.id}`}>
-          {specialist.name}
-        </h3>
-        <p className="specialist-role">
-          {specialist.role}
-        </p>
-        
-        <div 
-          role="progressbar"
-          aria-valuenow={progress}
-          aria-valuemin="0"
-          aria-valuemax="100"
-          aria-label={`Analysis progress for ${specialist.name}`}
-        >
-          <div className="progress-bar">
-            <div 
-              className="progress-fill" 
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-          <span className="sr-only">
-            {statusLabel[status]}
-          </span>
-        </div>
-      </div>
-      
-      <div className="specialist-status" aria-live="polite">
-        <span className={`status-badge ${status}`}>
-          {status}
-        </span>
-      </div>
-    </article>
-  );
-};
-```
-
-### Accessible Chart Component
-```jsx
-const AccessibleChart = ({ data, title, description }) => {
-  return (
-    <figure role="img" aria-labelledby="chart-title" aria-describedby="chart-desc">
-      <figcaption>
-        <h3 id="chart-title">{title}</h3>
-        <p id="chart-desc" className="sr-only">{description}</p>
-      </figcaption>
-      
-      <div className="chart-container">
-        {/* Visual chart */}
-        <LineChart data={data} />
-        
-        {/* Data table alternative */}
-        <details className="data-table-toggle">
-          <summary>View data as table</summary>
-          <table>
-            <caption className="sr-only">{title} data</caption>
-            <thead>
-              <tr>
-                <th scope="col">Date</th>
-                <th scope="col">Value</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.map(point => (
-                <tr key={point.date}>
-                  <th scope="row">{point.date}</th>
-                  <td>{point.value}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </details>
-      </div>
-    </figure>
-  );
-};
-```
+- [ ] Test with users who use assistive technology
+- [ ] Test with users with various disabilities
+- [ ] Gather feedback on medical term clarity
+- [ ] Validate emergency alert effectiveness
 
 ## Resources & Tools
 
-### Testing Tools
-- [axe DevTools](https://www.deque.com/axe/)
-- [WAVE](https://wave.webaim.org/)
-- [Lighthouse](https://developers.google.com/web/tools/lighthouse)
-- [NVDA Screen Reader](https://www.nvaccess.org/)
+### Development Tools
+- axe DevTools
+- WAVE Browser Extension
+- Stark (Figma/Sketch plugin)
+- Screen readers for testing
 
 ### References
-- [WCAG 2.1 Guidelines](https://www.w3.org/WAI/WCAG21/quickref/)
-- [ARIA Authoring Practices](https://www.w3.org/WAI/ARIA/apg/)
-- [WebAIM Resources](https://webaim.org/)
-- [Healthcare Accessibility](https://www.hhs.gov/web/section-508)
+- WCAG 2.1 Guidelines
+- ARIA Authoring Practices Guide
+- WebAIM Resources
+- A11y Project Checklist
 
-### Design Resources
-- [Inclusive Components](https://inclusive-components.design/)
-- [A11y Style Guide](https://a11y-style-guide.com/style-guide/)
-- [Stark (Figma Plugin)](https://www.getstark.co/)
+By following these guidelines, the Health Insight Assistant ensures that all users, regardless of ability, can access and understand their health insights effectively and independently.

@@ -2,417 +2,449 @@
 
 ## System Overview
 
-The Multi-Agent Health Insight System implements Anthropic's orchestrator-worker pattern for medical data analysis. The architecture prioritizes simplicity, real-time streaming, and extensibility while avoiding unnecessary complexity.
+The Multi-Agent Health Insight System implements a sophisticated orchestrator-worker pattern using a simple, direct technology stack. The architecture prioritizes clarity, maintainability, and real-time user feedback while avoiding unnecessary complexity.
 
 ## High-Level Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Frontend (React + Vite)                       │
-├─────────────────────────────────────────────────────────────────┤
-│  ┌─────────────┐  ┌──────────────┐  ┌────────────────────┐     │
-│  │  Chat Panel │  │ Medical Team │  │  Visualizations    │     │
-│  │             │  │   Status     │  │  (Dynamic React)   │     │
-│  └─────────────┘  └──────────────┘  └────────────────────┘     │
-│                                                                  │
-│                    EventSource (SSE Client)                      │
-└────────────────────────────┬────────────────────────────────────┘
-                             │ HTTP/SSE
-┌────────────────────────────┴────────────────────────────────────┐
-│                    Backend (FastAPI)                             │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │                 API Routes (SSE Endpoints)               │   │
-│  └────────────────────────┬─────────────────────────────────┘   │
-│                           │                                      │
-│  ┌────────────────────────┴─────────────────────────────────┐   │
-│  │              Health Analyst Service                       │   │
-│  │                  (Orchestrator)                          │   │
-│  └────────────────────────┬─────────────────────────────────┘   │
-│                           │                                      │
-│  ┌────────────────────────┴─────────────────────────────────┐   │
-│  │                    Agent Layer                            │   │
-│  │  ┌─────────┐  ┌──────────────┐  ┌──────────────────┐   │   │
-│  │  │   CMO   │  │  Specialist  │  │  Visualization  │   │   │
-│  │  │  Agent  │  │    Agent     │  │     Agent       │   │   │
-│  │  └─────────┘  └──────────────┘  └──────────────────┘   │   │
-│  └────────────────────────┬─────────────────────────────────┘   │
-│                           │                                      │
-│  ┌────────────────────────┴─────────────────────────────────┐   │
-│  │                Pre-built Tools (Imported)                 │   │
-│  │  • execute_health_query_v2                               │   │
-│  │  • snowflake_import_analyze_health_records_v2           │   │
-│  └──────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                        Frontend (React + Vite)                       │
+│  ┌─────────────┐  ┌──────────────────┐  ┌────────────────────┐    │
+│  │   Welcome   │  │   3-Panel Chat   │  │  Code Artifact     │    │
+│  │   Screen    │  │    Interface     │  │  Renderer          │    │
+│  └─────────────┘  └──────────────────┘  └────────────────────┘    │
+│                              │                                       │
+│                       EventSource (SSE)                             │
+└──────────────────────────────┼─────────────────────────────────────┘
+                               │ GET /api/chat/stream
+┌──────────────────────────────┼─────────────────────────────────────┐
+│                        Backend (FastAPI)                            │
+│                              │                                      │
+│  ┌───────────────────────────┴──────────────────────────────┐     │
+│  │                   API Routes (SSE endpoints)               │     │
+│  └───────────────────────────┬──────────────────────────────┘     │
+│                              │                                      │
+│  ┌───────────────────────────┴──────────────────────────────┐     │
+│  │              Health Analyst Service (Orchestrator)         │     │
+│  └───────────────────────────┬──────────────────────────────┘     │
+│         ┌────────────────────┼────────────────────┐                │
+│         │                    │                    │                 │
+│  ┌──────┴──────┐  ┌─────────┴─────────┐  ┌──────┴──────┐         │
+│  │ CMO Agent   │  │ Specialist Agent  │  │ Viz Agent   │         │
+│  │(Orchestrator)│  │   (Workers x8)    │  │ (Generator) │         │
+│  └──────┬──────┘  └─────────┬─────────┘  └─────────────┘         │
+│         │                    │                                      │
+│  ┌──────┴───────────────────┴──────────────────────────────┐      │
+│  │              Pre-built Tools (Tool Registry)              │      │
+│  │  • execute_health_query_v2                               │      │
+│  │  • snowflake_import_analyze_health_records_v2            │      │
+│  └──────────────────────────────────────────────────────────┘      │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
 ## Component Architecture
 
-### Frontend Components
-
-```
-frontend/src/
-├── App.tsx                          # Main application component
-├── components/
-│   ├── ChatPanel/
-│   │   ├── ChatPanel.tsx           # Main chat interface
-│   │   ├── MessageList.tsx         # Message display
-│   │   ├── QueryInput.tsx          # User input handling
-│   │   └── QuickQueries.tsx        # Example query selector
-│   ├── MedicalTeam/
-│   │   ├── TeamHierarchy.tsx       # Visual team display
-│   │   ├── SpecialistCard.tsx      # Individual specialist status
-│   │   ├── AnalysisResults.tsx     # Completed analysis display
-│   │   └── QuerySelector.tsx       # Navigate between queries
-│   ├── Visualization/
-│   │   ├── VisualizationPanel.tsx  # Container for charts
-│   │   ├── CodeArtifact.tsx        # Streaming code display
-│   │   └── DynamicChart.tsx        # Rendered visualizations
-│   └── common/
-│       ├── Layout.tsx              # 3-panel layout
-│       └── StreamingIndicator.tsx  # Connection status
-├── services/
-│   ├── api.ts                      # API client with SSE support
-│   └── messageParser.ts            # SSE message handling
-└── types/
-    ├── messages.ts                 # Message type definitions
-    └── medical.ts                  # Medical domain types
-```
-
-### Backend Service Architecture
+### Backend Services Structure
 
 ```
 backend/
-├── main.py                         # FastAPI application entry
+├── main.py                          # FastAPI app entry point
 ├── api/
-│   ├── chat.py                    # SSE chat endpoints
-│   └── health.py                  # Health check endpoints
+│   └── chat.py                     # SSE chat endpoints
 ├── services/
-│   ├── health_analyst_service.py  # Main orchestration service
-│   ├── agents/
-│   │   ├── cmo/
-│   │   │   ├── cmo_agent.py      # Chief Medical Officer
-│   │   │   └── prompts/          # CMO prompt templates
-│   │   │       ├── 1_initial_analysis.txt
-│   │   │       ├── 2_initial_analysis_summarize.txt
-│   │   │       ├── 3_task_creation.txt
-│   │   │       └── 4_synthesis.txt
-│   │   ├── specialist/
-│   │   │   ├── specialist_agent.py  # Single specialist class
-│   │   │   └── prompts/            # All specialist prompts
-│   │   │       ├── system_cardiology.txt
-│   │   │       ├── system_endocrinology.txt
-│   │   │       ├── system_general_practice.txt
-│   │   │       ├── system_laboratory_medicine.txt
-│   │   │       ├── system_nutrition.txt
-│   │   │       ├── system_pharmacy.txt
-│   │   │       ├── system_preventive_medicine.txt
-│   │   │       ├── system_data_analysis.txt
-│   │   │       ├── 1_task_execution.txt
-│   │   │       └── 2_final_analysis.txt
-│   │   └── visualization/
-│   │       ├── visualization_agent_v2.py
-│   │       └── prompts/
-│   │           └── examples/       # Chart generation examples
-│   └── streaming/
-│       └── sse_handler.py         # SSE utilities
+│   ├── health_analyst_service.py   # Main orchestration service
+│   └── agents/
+│       ├── cmo/
+│       │   ├── cmo_agent.py       # Chief Medical Officer
+│       │   └── prompts/           # CMO prompts
+│       │       ├── 1_initial_analysis.txt
+│       │       ├── 2_initial_analysis_summarize.txt
+│       │       ├── 3_task_creation.txt
+│       │       └── 4_synthesis.txt
+│       ├── specialist/
+│       │   ├── specialist_agent.py # Single specialist class
+│       │   └── prompts/           # All specialist prompts
+│       │       ├── system_cardiology.txt
+│       │       ├── system_endocrinology.txt
+│       │       ├── system_laboratory_medicine.txt
+│       │       ├── system_data_analysis.txt
+│       │       ├── system_preventive_medicine.txt
+│       │       ├── system_pharmacy.txt
+│       │       ├── system_nutrition.txt
+│       │       ├── system_general_practice.txt
+│       │       ├── 1_task_execution.txt
+│       │       └── 2_final_analysis.txt
+│       └── visualization/
+│           ├── visualization_agent_v2.py
+│           └── prompts/
+│               └── visualization_examples.txt
 ├── models/
 │   ├── agents.py                  # Agent data models
 │   └── health.py                  # Health domain models
-└── tools/                         # Pre-built (DO NOT MODIFY)
-    ├── tool_registry.py
-    ├── health_query_tool.py
-    └── import_tool.py
+├── tools/                         # PRE-BUILT - DO NOT MODIFY
+│   ├── tool_registry.py
+│   └── health_query_tool.py
+└── utils/
+    └── streaming.py              # SSE utilities
 ```
 
-## Key Design Patterns
+### Frontend Architecture
 
-### 1. Orchestrator-Worker Pattern
+```
+frontend/
+├── src/
+│   ├── App.tsx                   # Main app component
+│   ├── pages/
+│   │   ├── Welcome.tsx          # Welcome screen
+│   │   └── Chat.tsx             # 3-panel chat interface
+│   ├── components/
+│   │   ├── ChatPanel/           # Center chat panel
+│   │   ├── ConversationList/    # Left conversation panel
+│   │   ├── MedicalTeam/         # Right panel - team view
+│   │   ├── Visualization/       # Right panel - viz view
+│   │   └── CodeArtifact/        # Dynamic code renderer
+│   ├── services/
+│   │   └── api.ts               # API client with EventSource
+│   ├── hooks/
+│   │   ├── useSSE.ts           # SSE connection management
+│   │   └── useChat.ts          # Chat state management
+│   └── types/
+│       ├── agents.ts            # Agent type definitions
+│       └── health.ts            # Health data types
+└── public/
+    └── assets/                  # Static assets
+```
 
-The CMO (Chief Medical Officer) agent acts as the orchestrator:
+## Multi-Agent Orchestration Pattern
+
+### 1. CMO Agent (Orchestrator)
+
+The Chief Medical Officer serves as the orchestrator:
 
 ```python
 class CMOAgent:
-    async def analyze_query_with_tools(self, query: str):
-        # 1. Assess query complexity
-        # 2. Perform initial data gathering
-        # 3. Determine specialist needs
-        return ComplexityAssessment(
-            level="STANDARD",  # or SIMPLE, COMPLEX, CRITICAL
-            approach=["cardiology", "data_analysis"],
-            initial_findings={...}
-        )
+    def __init__(self, anthropic_client, tool_registry, model):
+        self.client = anthropic_client
+        self.tool_registry = tool_registry
+        self.model = model
+        self.prompts = CMOPrompts()  # Loads externalized prompts
     
-    async def create_specialist_tasks(self, query, complexity):
+    async def analyze_query_with_tools(self, query: str):
+        # 1. Initial assessment using tools
+        # 2. Determine complexity level
+        # 3. Return initial insights and approach
+    
+    async def create_specialist_tasks(self, query, complexity, approach):
         # Create specific tasks for each specialist
-        return [
-            SpecialistTask(
-                specialist="cardiology",
-                task="Analyze 15-year cholesterol trends"
-            ),
-            SpecialistTask(
-                specialist="data_analysis",
-                task="Create statistical analysis and visualizations"
-            )
-        ]
+        # Returns list of SpecialistTask objects
     
     async def synthesize_findings(self, specialist_results):
         # Combine all specialist insights
-        return ComprehensiveSynthesis(...)
+        # Create comprehensive summary
 ```
 
-### 2. Single Specialist Implementation
+### 2. Specialist Agent (Workers)
 
-All medical specialties use one class with different prompts:
+A single class handles all specialties through prompts:
 
 ```python
 class SpecialistAgent:
     def __init__(self, anthropic_client, tool_registry, model):
         self.client = anthropic_client
         self.tool_registry = tool_registry
+        self.model = model
         self.prompts = SpecialistPrompts()
     
     async def execute_task_with_tools(self, task: SpecialistTask):
         # Get specialty-specific system prompt
-        system_prompt = self._get_specialist_system_prompt(
-            task.specialist
-        )
+        system_prompt = self._get_specialist_system_prompt(task.specialist)
         
-        # Execute with Anthropic API and tools
-        response = await self.client.messages.create(
-            model=self.model,
-            system=system_prompt,
-            messages=[{
-                "role": "user",
-                "content": task.prompt
-            }],
-            tools=self.tool_registry.get_tool_definitions(),
-            max_tokens=4000
-        )
-        
-        return SpecialistResult(...)
+        # Execute task with appropriate tools
+        # Return SpecialistResult
 ```
 
-### 3. Streaming Architecture
-
-Real-time updates via Server-Sent Events:
+### 3. Medical Specialties
 
 ```python
-@router.post("/api/chat/message")
-async def chat_message(request: ChatRequest):
-    async def generate():
-        # Initial acknowledgment
-        yield f"data: {json.dumps({'type': 'start'})}\n\n"
-        
-        # Stream specialist updates
-        async for update in health_analyst_service.process_query(
-            request.message
-        ):
-            yield f"data: {json.dumps(update)}\n\n"
-        
-        # Completion signal
-        yield f"data: {json.dumps({'type': 'complete'})}\n\n"
-    
-    return StreamingResponse(
-        generate(),
-        media_type="text/event-stream"
-    )
-```
-
-### 4. Message Types for Streaming
-
-```typescript
-type StreamMessage = 
-  | { type: 'thinking'; agent: string; content: string }
-  | { type: 'tool_call'; agent: string; tool: string; input: any }
-  | { type: 'specialist_start'; specialist: string; task: string }
-  | { type: 'specialist_progress'; specialist: string; progress: number }
-  | { type: 'specialist_complete'; specialist: string; confidence: number }
-  | { type: 'text'; content: string }
-  | { type: 'visualization'; code: string }
-  | { type: 'error'; message: string }
-  | { type: 'complete' };
-```
-
-## Process Flow
-
-### 1. Simple Query Flow
-```
-User Query → CMO Assessment → Single Specialist → Direct Response
-    "What's my cholesterol?"     (SIMPLE)         (Lab Medicine)
-```
-
-### 2. Standard Query Flow
-```
-User Query → CMO Assessment → 2-3 Specialists → Synthesis → Visualization
-    "Cholesterol trend?"        (STANDARD)      (Cardio + Data)
-```
-
-### 3. Complex Query Flow
-```
-User Query → CMO Assessment → 4-6 Specialists → Deep Synthesis → Rich Viz
-    "Medication impact?"        (COMPLEX)       (Multiple domains)
+class MedicalSpecialty(Enum):
+    GENERAL_PRACTICE = "general_practice"      # Dr. Primary
+    ENDOCRINOLOGY = "endocrinology"           # Dr. Hormone
+    CARDIOLOGY = "cardiology"                 # Dr. Heart
+    NUTRITION = "nutrition"                   # Dr. Nutrition
+    PREVENTIVE_MEDICINE = "preventive_medicine" # Dr. Prevention
+    LABORATORY_MEDICINE = "laboratory_medicine" # Dr. Lab
+    PHARMACY = "pharmacy"                     # Dr. Pharma
+    DATA_ANALYSIS = "data_analysis"           # Dr. Analytics
 ```
 
 ## Data Flow
 
-### Tool Integration Pattern
+### 1. Query Submission Flow
+
+```
+User Input → Frontend Validation → API Call
+    ↓
+POST /api/chat/message
+    ↓
+EventSource Connection Established
+    ↓
+SSE Events Begin Streaming
+```
+
+### 2. Agent Orchestration Flow
+
+```
+Query Received
+    ↓
+CMO Initial Analysis (with tools)
+    ↓
+Complexity Assessment (Simple/Standard/Complex/Critical)
+    ↓
+Specialist Task Creation
+    ↓
+Parallel Specialist Execution
+    ↓
+CMO Synthesis
+    ↓
+Visualization Generation
+    ↓
+Stream Results to Frontend
+```
+
+### 3. SSE Event Flow
+
 ```python
-# Tools are pre-built and imported
+# Event Types
+{
+    "event": "connected",
+    "data": {"message": "Connection established"}
+}
+
+{
+    "event": "message", 
+    "data": {
+        "type": "thinking|text|tool_call|specialist_update",
+        "content": "..."
+    }
+}
+
+{
+    "event": "visualization",
+    "data": {
+        "code": "```javascript\n// React component code\n```"
+    }
+}
+
+{
+    "event": "done",
+    "data": {"message": "Analysis complete"}
+}
+```
+
+## Tool Integration Architecture
+
+### Tool Registry Pattern
+
+```python
+# Tools are PRE-BUILT and imported
 from tools.tool_registry import ToolRegistry
 from tools.health_query_tool import execute_health_query_v2
 
-# Agents use tools through registry
-tools = ToolRegistry()
-result = await tools.execute_tool(
+class HealthAnalystService:
+    def __init__(self):
+        self.tool_registry = ToolRegistry()
+        
+        # Agents receive tool registry
+        self.cmo_agent = CMOAgent(
+            self.client,
+            self.tool_registry,
+            model="claude-3-sonnet-20240229"
+        )
+```
+
+### Tool Usage in Agents
+
+```python
+# Direct tool usage
+result = await self.tool_registry.execute_tool(
     "execute_health_query_v2",
-    {"query": "Show cholesterol levels over time"}
+    {"query": "Show cholesterol trends"}
+)
+
+# Or via Anthropic's native tool calling
+response = await self.client.messages.create(
+    model=self.model,
+    messages=messages,
+    tools=self.tool_registry.get_tool_definitions(),
+    max_tokens=4000
 )
 ```
 
-### No Database Access
-- All data operations go through tools
-- Tools handle Snowflake integration internally
-- Agents work with tool responses only
-- No direct SQL or database connections
+## Streaming Architecture (SSE)
 
-## Configuration
+### Backend SSE Implementation
 
-### Environment Variables
-```bash
-# API Keys
-ANTHROPIC_API_KEY=your-key
-
-# Model Configuration
-CMO_MODEL=claude-3-sonnet-20240229
-SPECIALIST_MODEL=claude-3-sonnet-20240229
-VISUALIZATION_MODEL=claude-3-sonnet-20240229
-
-# Performance Settings
-MAX_TOOL_CALLS_PER_SPECIALIST=5
-SPECIALIST_TIMEOUT_SECONDS=30
-MAX_CONCURRENT_SPECIALISTS=4
-
-# Feature Flags
-ENABLE_DEMO_MODE=true
-SHOW_TOKEN_USAGE=true
+```python
+@router.get("/api/chat/stream")
+async def stream_chat(message: str = Query(...)):
+    async def generate():
+        # Anti-buffering headers
+        yield f"data: {json.dumps({'type': 'connected'})}\n\n"
+        await asyncio.sleep(0.001)  # Force flush
+        
+        # Process query
+        async for update in health_analyst_service.process_query(message):
+            yield f"data: {json.dumps(update)}\n\n"
+            await asyncio.sleep(0.001)  # Force flush
+            
+        yield f"data: {json.dumps({'type': 'done'})}\n\n"
+    
+    return EventSourceResponse(
+        generate(),
+        headers={
+            "X-Accel-Buffering": "no",
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive"
+        }
+    )
 ```
 
-### Prompt Management
-- All agent logic externalized to .txt files
-- Hot-reloadable in development
-- Version controlled separately
-- Domain-agnostic patterns
+### Frontend SSE Consumption
+
+```typescript
+const eventSource = new EventSource(
+    `/api/chat/stream?message=${encodeURIComponent(message)}`
+);
+
+eventSource.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    handleStreamUpdate(data);
+};
+
+eventSource.onerror = () => {
+    // Automatic reconnection
+};
+```
+
+## State Management
+
+### Frontend State Structure
+
+```typescript
+interface AppState {
+    conversations: Conversation[];
+    activeConversation: string;
+    messages: Message[];
+    agents: AgentStatus[];
+    visualizations: Visualization[];
+    activeQuery: number;
+    streamingStatus: StreamingStatus;
+}
+
+interface AgentStatus {
+    id: string;
+    name: string;
+    specialty: string;
+    status: 'waiting' | 'active' | 'complete' | 'error';
+    progress: number;
+    result?: SpecialistResult;
+}
+```
+
+### Backend State Management
+
+- Stateless service design
+- All state in frontend or passed via API
+- No session management required
+- Tools handle data persistence
 
 ## Security Architecture
 
 ### API Security
-- CORS configuration for frontend origin
+- HTTPS only in production
+- Input validation and sanitization
 - Rate limiting per IP
-- Request size limits
-- No authentication required (demo)
+- No PII in logs
 
 ### Data Security
-- No PII stored in application
-- Tools handle data security
-- Logs sanitized of health data
-- Encrypted transport (HTTPS)
+- Health data never stored in backend
+- Tools handle secure data access
+- No caching of sensitive data
+- Encrypted transmission
+
+## Performance Optimization
+
+### Backend Optimizations
+- Parallel specialist execution
+- Streaming results as available
+- Efficient prompt management
+- Token budget controls
+
+### Frontend Optimizations
+- Code splitting for visualizations
+- Lazy loading of components
+- Virtual scrolling for long chats
+- Debounced API calls
+
+## Error Handling Strategy
+
+### Backend Error Handling
+```python
+try:
+    result = await specialist.execute_task(task)
+except Exception as e:
+    # Log error, continue with other specialists
+    # Include partial results in synthesis
+```
+
+### Frontend Error Recovery
+- Automatic SSE reconnection
+- Graceful degradation
+- User-friendly error messages
+- Retry mechanisms
+
+## Deployment Architecture
+
+### Development
+```bash
+# Backend
+cd backend && uvicorn main:app --reload
+
+# Frontend  
+cd frontend && npm run dev
+```
+
+### Production
+- Backend: FastAPI with Uvicorn workers
+- Frontend: Static build served via CDN
+- No external services required
+- Environment-based configuration
+
+## Monitoring and Observability
+
+### Key Metrics
+- Query completion rates
+- Agent execution times
+- Token usage per query
+- SSE connection stability
+- Error rates by specialist
+
+### Logging Strategy
+- Structured JSON logging
+- Correlation IDs for request tracking
+- No PII in logs
+- Performance timing logs
 
 ## Scalability Considerations
 
 ### Horizontal Scaling
-- Stateless backend design
-- Load balancer compatible
-- Session affinity not required
-- Tool calls are idempotent
+- Stateless backend enables easy scaling
+- Load balancer with sticky sessions for SSE
+- Tool layer handles data scaling
 
-### Performance Optimization
-- Parallel specialist execution
-- Streaming responses (no buffering)
-- Efficient prompt templates
-- Token usage monitoring
+### Vertical Scaling
+- Async processing for all I/O
+- Efficient memory usage
+- Controlled concurrency
 
-## Monitoring & Observability
-
-### Metrics to Track
-- Query complexity distribution
-- Specialist execution times
-- Token usage per query type
-- Tool call success rates
-- SSE connection stability
-
-### Logging Strategy
-- Structured JSON logs
-- Correlation IDs for request tracking
-- Error aggregation
-- Performance profiling
-
-## Extension Points
-
-### Adding New Specialists
-1. Create new system prompt in `prompts/`
-2. Add to `MedicalSpecialty` enum
-3. Update CMO task creation logic
-4. No code changes to SpecialistAgent
-
-### Supporting New Domains
-1. Replace medical prompts with domain prompts
-2. Update visualization examples
-3. Modify tool interfaces if needed
-4. Frontend theming changes
-
-### Integration Opportunities
-- Webhook notifications
-- Export APIs
-- Third-party health apps
-- Provider portals
-
-## Development Workflow
-
-### Local Development
-```bash
-# Backend
-cd backend
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-python main.py
-
-# Frontend
-cd frontend
-npm install
-npm run dev
-```
-
-### Testing Strategy
-- Unit tests for individual agents
-- Integration tests for orchestration
-- E2E tests for critical user flows
-- Performance benchmarks
-
-## Deployment Architecture
-
-### Simple Cloud Deployment
-```
-┌─────────────────┐
-│   CloudFlare    │
-│      CDN        │
-└────────┬────────┘
-         │
-┌────────┴────────┐
-│   Application   │
-│  Load Balancer  │
-└────────┬────────┘
-         │
-┌────────┴────────┐
-│  FastAPI Apps   │
-│   (n instances) │
-└─────────────────┘
-```
-
-### No Additional Infrastructure
-- No Redis needed
-- No message queues
-- No databases
-- Simple and maintainable
+This architecture provides a robust foundation for multi-agent orchestration while maintaining simplicity and extensibility for adaptation to other domains.
