@@ -39,7 +39,7 @@
 - https://www.anthropic.com/engineering/built-multi-agent-research-system
 - Can be a link or downloaded text
 
-### For Claude Code Workspace (5 additional documents)
+### For Claude Code Workspace (7 additional documents)
 
 ✅ **8. implementation-guide.md** → Goes in `requirements/technical-patterns/`
 - Generic multi-agent implementation patterns
@@ -61,8 +61,18 @@
 - Code artifact streaming pattern
 - React component generation
 
-✅ **12. CLAUDE.md** → Goes in workspace root
-- The minimal 10-line file
+✅ **12. dependency-management-guide.md** → Goes in `requirements/technical-patterns/`
+- CRITICAL: Exact versions to prevent conflicts
+- Solutions for common dependency issues
+- Required for consistent builds
+
+✅ **13. sse-implementation-guide.md** → Goes in `requirements/technical-patterns/`
+- CRITICAL: Correct SSE patterns
+- GET vs POST endpoints
+- Headers and delay requirements
+
+✅ **14. CLAUDE.md** → Goes in workspace root
+- Updated with common issues & solutions
 - Points to requirements folder
 - First thing Claude Code sees
 
@@ -101,7 +111,7 @@ Step 4: UX Agent Creates
 
 Step 5: Prepare Claude Code Workspace
 workspace/
-├── CLAUDE.md (minimal pointer file)
+├── CLAUDE.md (updated with common issues)
 ├── backend/
 │   └── tools/ (4 provided tool files)
 ├── frontend/ (empty)
@@ -109,7 +119,10 @@ workspace/
     ├── technical-patterns/
     │   ├── implementation-guide.md
     │   ├── multi-agent-patterns.md
-    │   └── streaming-patterns.md
+    │   ├── streaming-patterns.md
+    │   ├── visualization-agent-pattern.md
+    │   ├── dependency-management-guide.md  # NEW
+    │   └── sse-implementation-guide.md     # NEW
     ├── pm-outputs/
     │   ├── PRD.md
     │   ├── user-stories.md
@@ -122,6 +135,8 @@ workspace/
     ├── ux-outputs/
     │   ├── design-system.md
     │   ├── component-specs.md
+    │   ├── layout-guidelines.md
+    │   ├── animation-specs.md
     │   └── prototypes/
     └── po-inputs/
         ├── multi-agent-architecture-brief.md
@@ -133,10 +148,11 @@ workspace/
 
 ## Key Points for Demo
 
-1. **Technical docs (6-8) are reusable** - Same files work for finance, legal, etc.
-2. **Domain docs (1-5) are specific** - Change these for different use cases
-3. **CLAUDE.md (9) is minimal** - Just points to the real documentation
-4. **Tools are pre-built** - Already in backend/tools/, don't recreate
+1. **Technical docs are reusable** - Same files work for finance, legal, etc.
+2. **Domain docs are specific** - Change these for different use cases
+3. **New guides prevent common issues** - Dependency versions, SSE patterns
+4. **CLAUDE.md includes troubleshooting** - Common issues & solutions
+5. **Tools are pre-built** - Already in backend/tools/, don't recreate
 
 ## Demo Script Note
 

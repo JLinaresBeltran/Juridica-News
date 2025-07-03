@@ -3,43 +3,50 @@
 ## Overview
 Server-Sent Events (SSE) enable real-time communication from server to client, crucial for multi-agent systems where analysis can take time and users need feedback.
 
+**CRITICAL**: Also review `sse-implementation-guide.md` for detailed implementation patterns and common issues.
+
 ## Core SSE Implementation
 
 ### Backend Pattern (FastAPI)
 ```python
 from fastapi import FastAPI
-from fastapi.responses import StreamingResponse
-from typing import AsyncGenerator
+from sse_starlette.sse import EventSourceResponse
+import asyncio
 import json
 
-async def event_generator(request_data) -> AsyncGenerator[str, None]:
-    """Generate SSE events for client consumption"""
+# CORRECT: Use GET endpoint for EventSource
+@app.get("/api/chat/stream")
+async def stream_endpoint(message: str):
+    async def event_generator():
+        # CRITICAL: Add delay to prevent buffering
+        await asyncio.sleep(0.001)
+        
+        # Send initial connection event
+        yield {
+            "event": "connected",
+            "data": json.dumps({"status": "connected"})
+        }
+        
+        # Process and stream updates
+        async for update in process_request(message):
+            yield {
+                "event": "message", 
+                "data": json.dumps(update)
+            }
+            await asyncio.sleep(0.001)  # Force flush
+        
+        # Send completion
+        yield {
+            "event": "done",
+            "data": json.dumps({"status": "complete"})
+        }
     
-    def format_sse(data: dict, event: str = None) -> str:
-        """Format data as SSE event"""
-        message = f"data: {json.dumps(data)}\n"
-        if event:
-            message = f"event: {event}\n{message}"
-        return f"{message}\n"
-    
-    # Send initial acknowledgment
-    yield format_sse({"type": "connected", "message": "Processing started"})
-    
-    # Stream analysis updates
-    async for update in process_request(request_data):
-        yield format_sse(update)
-    
-    # Send completion
-    yield format_sse({"type": "complete", "message": "Analysis complete"})
-
-@app.post("/api/stream")
-async def stream_endpoint(request: RequestModel):
-    return StreamingResponse(
-        event_generator(request),
-        media_type="text/event-stream",
+    return EventSourceResponse(
+        event_generator(),
         headers={
             "Cache-Control": "no-cache",
             "X-Accel-Buffering": "no",  # Disable Nginx buffering
+            "Connection": "keep-alive"
         }
     )
 ```
@@ -51,20 +58,29 @@ interface SSEMessage {
     [key: string]: any;
 }
 
-const useSSEConnection = (url: string) => {
+const useSSEConnection = (message: string) => {
     const [messages, setMessages] = useState<SSEMessage[]>([]);
     const [status, setStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
     
     useEffect(() => {
+        // CORRECT: Use GET with query parameter
+        const url = `/api/chat/stream?message=${encodeURIComponent(message)}`;
         const eventSource = new EventSource(url);
         
-        eventSource.onopen = () => setStatus('connected');
+        eventSource.addEventListener('connected', (event) => {
+            setStatus('connected');
+        });
         
-        eventSource.onmessage = (event) => {
+        eventSource.addEventListener('message', (event) => {
             const data = JSON.parse(event.data);
             setMessages(prev => [...prev, data]);
             handleMessageType(data);
-        };
+        });
+        
+        eventSource.addEventListener('done', (event) => {
+            eventSource.close();
+            setStatus('completed');
+        });
         
         eventSource.onerror = () => {
             setStatus('error');
@@ -72,7 +88,7 @@ const useSSEConnection = (url: string) => {
         };
         
         return () => eventSource.close();
-    }, [url]);
+    }, [message]);
     
     return { messages, status };
 };

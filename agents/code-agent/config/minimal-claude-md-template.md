@@ -22,10 +22,20 @@ Before starting, ensure you understand:
 ## Technology Stack (REQUIRED)
 
 **Backend**: FastAPI (Python) - NOT Next.js, NOT Django, NOT Flask
+- fastapi==0.104.1
+- anthropic==0.39.0
+- sse-starlette==1.8.2
 
 **Frontend**: React with Vite - NOT Next.js, NOT Create React App
+- react@^18.2.0
+- tailwindcss@^3.3.0 (NOT v4)
+- recharts@^2.10.0
+- @babel/standalone@^7.23.0
 
 **Streaming**: Direct SSE from FastAPI - NO Redis, NO queues
+- Use GET endpoints with EventSource
+- Add X-Accel-Buffering: no header
+- Include 0.001s delays for proper flushing
 
 **Data Access**: Import pre-built tools from `backend/tools/` - DO NOT reimplement
 
@@ -201,14 +211,60 @@ class SpecialistAgent:
 3. Component streamed as ```javascript code block
 4. Frontend CodeArtifact renders it dynamically
 
-### SSE Streaming Pattern
+### SSE Streaming Pattern (CRITICAL)
 ```python
-@router.post("/api/chat/message")
-async def chat_message(request):
+# Correct GET endpoint for EventSource
+@router.get("/api/chat/stream")
+async def chat_stream(message: str):
     async def generate():
-        async for update in orchestrator.process(request):
-            yield f"data: {json.dumps(update)}\n\n"
-    return StreamingResponse(generate(), media_type="text/event-stream")
+        # Critical delay to prevent buffering
+        await asyncio.sleep(0.001)
+        
+        async for update in orchestrator.process(message):
+            yield {
+                "event": "message",
+                "data": json.dumps(update)
+            }
+            await asyncio.sleep(0.001)  # Force flush
+    
+    return EventSourceResponse(
+        generate(),
+        headers={
+            'X-Accel-Buffering': 'no',  # Critical header
+            'Cache-Control': 'no-cache'
+        }
+    )
+
+# Frontend usage
+const eventSource = new EventSource(`/api/chat/stream?message=${encodeURIComponent(message)}`);
+```
+
+## Common Issues & Solutions
+
+### TypeScript Import Errors
+```typescript
+// Wrong - causes "does not provide export" errors
+import { SpecialistStatus, COLORS } from './types';
+
+// Correct - use type imports
+import type { SpecialistStatus } from './types';
+import { COLORS } from './types';
+```
+
+### Tailwind CSS Version Issues
+```json
+// package.json - Use v3, NOT v4
+"tailwindcss": "^3.3.0"  // ✅ Correct
+"tailwindcss": "^4.0.0"  // ❌ Wrong - breaking changes
+```
+
+### SSE Connection Issues
+```typescript
+// Wrong - POST with EventSource
+new EventSource('/api/chat/message', { method: 'POST' }); // ❌
+
+// Correct - GET with query params
+new EventSource(`/api/chat/stream?message=${encodeURIComponent(msg)}`); // ✅
 ```
 
 ## Important Notes
@@ -216,6 +272,8 @@ async def chat_message(request):
 - No duplicate presentation (todos ARE the plan once approved)
 - Tools are PRE-BUILT - import and use them directly
 - Match UI components to UX prototypes exactly
+- Follow dependency versions EXACTLY
+- Test SSE streaming before marking complete
 - Final deliverable must include:
   ```bash
   # Backend

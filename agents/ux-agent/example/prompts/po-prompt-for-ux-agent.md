@@ -2,44 +2,44 @@
 
 ## Prompt to Submit:
 
-I need you to design the user interface for a Multi-Agent Health Insight System. This is a sophisticated health analysis application that uses an AI medical team (CMO + specialists) to provide comprehensive health insights.
+I need you to design the user interface for a Multi-Agent System. This is a sophisticated application that uses an AI team (orchestrator + specialist agents) to provide comprehensive insights.
 
 I have attached the Product Manager's outputs (PRD, user stories, architecture) along with visual mockups showing the exact UI we want to achieve. The key UI/UX requirements are:
 
 1. **3-Panel Layout**:
    - Left: Conversation threads sidebar
-   - Center: Chat interface with health query input
-   - Right: Context-sensitive panels (Medical Team status, Visualizations)
+   - Center: Main interface with query input
+   - Right: Context-sensitive panels (Agent Team status, Visualizations)
 
 2. **Welcome Experience**: 
-   - Health command center overview
+   - System overview and capabilities
    - Example queries to get started
-   - Medical team architecture visualization
+   - Agent team architecture visualization
 
-3. **Real-time Medical Team Display**:
-   - Show CMO and active specialists
-   - Live progress indicators for each specialist
+3. **Real-time Agent Team Display**:
+   - Show orchestrator and active agents
+   - Live progress indicators for each agent
    - Analysis results as they complete
 
 4. **Dynamic Visualizations**:
-   - Multiple chart types (time series, comparisons, correlations)
+   - Multiple chart types appropriate to the domain
    - Query selector to switch between visualizations
    - Interactive, responsive charts
 
 5. **Design Theme**:
-   - Medical/healthcare appropriate
+   - Domain-appropriate styling (details in attached docs)
    - Professional yet approachable
-   - Use of medical iconography
+   - Use of relevant iconography
    - Glassmorphism and modern effects
    - Progressive disclosure of information
 
-The design should feel premium and trustworthy, appropriate for health data. Users should immediately understand:
-- How to ask health questions
-- Which specialists are analyzing their data
-- The progress of their analysis
+The design should feel premium and trustworthy. Users should immediately understand:
+- How to interact with the system
+- Which agents are working on their request
+- The progress of the analysis
 - How to interpret the results
 
-The multi-agent architecture (CMO + specialists) should be visualized in an intuitive way that builds confidence in the system's comprehensiveness.
+The multi-agent architecture (orchestrator + specialists) should be visualized in an intuitive way that builds confidence in the system's capabilities.
 
 Please create:
 1. Complete Design System documentation (design-system.md)
@@ -52,7 +52,22 @@ Please create:
 
 Focus on creating a design that builds user trust while handling complex medical information in an approachable way.
 
-**Technology Context**: The implementation will use React with Vite for the frontend, so design components that work well with React's component model. No authentication screens are needed.
+**Technology Context**: 
+- Frontend: React 18.2.0 with Vite 5.0.8
+- Styling: Tailwind CSS 3.3.0 (CRITICAL: NOT v4) 
+- Visualizations: Recharts 2.10.0
+- Icons: Lucide React 0.294.0
+- Design components that work well with React's component model
+- Include glassmorphism effects (backdrop-blur, semi-transparent panels)
+- No authentication screens are needed
+
+**Critical Design Requirements**:
+- 3-panel layout with collapsible thread sidebar (300px)
+- Agent team visualization with animated status indicators
+- Streaming UI patterns for real-time updates
+- Tool call displays that are collapsible
+- Real-time connection status indicator
+- Gradient backgrounds for premium feel
 
 ## I have attached the following documents:
 
@@ -66,13 +81,19 @@ Focus on creating a design that builds user trust while handling complex medical
 8. **User Stories, User Flows, and Mockups** (User Stories User Flows Mocks.pdf)
    - Screenshots showing the exact UI we want to achieve
    - 3-panel layout examples
-   - Medical team visualization
+   - Agent team visualization
    - Real-time progress indicators
-   - Health data visualizations
-9.  **Brand Guidelines** (health-insight-brand-guidelines.md)
+   - Data visualizations
+9. **Brand Guidelines** (health-insight-brand-guidelines.md)
    - Complete visual identity system
-   - Color palette with medical specialist colors
+   - Domain-specific color palette
    - Typography and spacing system
    - Component specifications
    - Voice and tone guidelines
+10. **Health UI Customization Guide** (health-ui-customization-guide.md) 
+   - Medical specialist colors and icons
+   - Health-specific UI components
+   - Medical team visualization details
+   - Trust-building elements for health data
+   - Health-appropriate animations
 

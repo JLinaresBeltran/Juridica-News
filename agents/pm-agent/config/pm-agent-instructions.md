@@ -149,15 +149,25 @@ Document all endpoints with:
 - **Example**: [Request/response examples]
 ```
 
-**Required SSE Endpoint Pattern**:
+**Required SSE Endpoint Pattern (CRITICAL)**:
 ```markdown
 ## Endpoint: Stream Analysis
-- **Method**: POST
-- **Path**: /api/chat/message
-- **Description**: Streams analysis with real-time updates
+- **Method**: GET (for EventSource compatibility)
+- **Path**: /api/chat/stream?message={encoded_message}
+- **Description**: Streams analysis with real-time updates via SSE
+- **Headers Required**:
+  - X-Accel-Buffering: no
+  - Cache-Control: no-cache
+  - Connection: keep-alive
 - **Response**: Server-Sent Events stream
-  - Event types: thinking, text, tool_call, visualization
+  - Format: event: {type}\ndata: {json}\n\n
+  - Event types: connected, message, done, error
+  - Message data types: text, tool_call, tool_result, specialist_update, visualization, thinking
   - Visualization events contain ```javascript code blocks
+- **Implementation Notes**:
+  - Add 0.001s delays between events for proper flushing
+  - Use EventSourceResponse from sse-starlette
+  - Frontend uses: new EventSource(`/api/chat/stream?message=${encodeURIComponent(msg)}`)
 ```
 
 ### 5. Data Model Documentation (data-models.md)
@@ -215,6 +225,14 @@ When working on multi-agent systems, ensure you reference Anthropic's patterns f
 - Document parallel vs. sequential execution decisions
 - Define caching strategies
 
+### 4. Streaming Implementation Details
+Document these critical SSE requirements:
+- Use GET endpoints for EventSource compatibility
+- Include anti-buffering headers (X-Accel-Buffering: no)
+- Add small delays (0.001s) between events
+- Define all event types and their payloads
+- Specify reconnection strategies
+
 ## Best Practices
 
 ### 1. Clarity & Precision
@@ -271,21 +289,42 @@ Note: Technical implementation patterns (multi-agent orchestration, SSE streamin
 
 ## Technology Stack Specifications
 
-When creating architecture documents, specify these exact technologies:
+When creating architecture documents, specify these exact technologies and versions:
 
 ### Backend Stack
-- **Framework**: FastAPI (Python)
-- **Streaming**: Server-Sent Events (SSE) - direct implementation
-- **AI Integration**: Anthropic Claude API with native client
+- **Framework**: FastAPI (Python) - Version 0.104.1
+- **AI Integration**: Anthropic Claude API - Version 0.39.0
+- **Streaming**: Server-Sent Events (SSE) - sse-starlette==1.8.2
 - **Data Access**: Pre-built tools provided in `backend/tools/` directory
 - **No External Services**: No Redis, no databases, no message queues
+- **Python**: Version 3.11+
 
 ### Frontend Stack  
-- **Framework**: React with Vite
+- **Framework**: React 18.2.0 with Vite 5.0.8
 - **State Management**: React component state (no Redux/Zustand)
-- **Styling**: Tailwind CSS
-- **Real-time Updates**: EventSource API for SSE
-- **Visualizations**: Recharts or similar React-native libraries
+- **Styling**: Tailwind CSS 3.3.0 (CRITICAL: NOT v4)
+- **Visualizations**: Recharts 2.10.0
+- **Dynamic Code**: @babel/standalone 7.23.0 for runtime compilation
+- **Icons**: lucide-react 0.294.0
+- **TypeScript**: Version 5.2.2
+
+### Critical Dependencies to Specify
+Include these in your technical documentation:
+```json
+// Backend requirements.txt
+fastapi==0.104.1
+anthropic==0.39.0
+sse-starlette==1.8.2
+uvicorn[standard]==0.25.0
+python-dotenv==1.0.0
+pydantic==2.5.3
+
+// Frontend package.json
+"react": "^18.2.0",
+"tailwindcss": "^3.3.0",  // NOT v4
+"recharts": "^2.10.0",
+"@babel/standalone": "^7.23.0"
+```
 
 ### Architecture Principles
 - **Simplicity First**: Direct implementations over abstractions

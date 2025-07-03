@@ -2,30 +2,34 @@
 
 ## Prompt to Submit:
 
-I need to build a Multi-Agent Health Insight System that uses Anthropic's orchestrator-worker pattern (as described in their blog post: https://www.anthropic.com/engineering/built-multi-agent-research-system) to analyze health data and provide comprehensive medical insights. The system should have a Chief Medical Officer (CMO) agent that coordinates multiple medical specialist agents, each with deep domain expertise.
+I need to build a Multi-Agent System that uses Anthropic's orchestrator-worker pattern (as described in their blog post: https://www.anthropic.com/engineering/built-multi-agent-research-system). The system should have an orchestrator agent that coordinates multiple specialist agents, each with deep domain expertise.
 
 I have attached comprehensive documentation that includes our architecture approach, domain requirements, available tools, and visual examples of the desired system.
 
 Key requirements:
-1. Implement real-time streaming updates showing specialist progress
-2. Create a beautiful, medical-themed UI with 3-panel layout
-3. Generate dynamic visualizations from health data
-4. Support simple to complex health queries with appropriate specialist activation
+1. Implement real-time streaming updates showing agent progress
+2. Create a beautiful, professional UI with 3-panel layout
+3. Generate dynamic visualizations from data
+4. Support simple to complex queries with appropriate agent activation
 5. Use the provided data access tools (no direct database integration needed)
 
 The system will showcase best practices for multi-agent AI systems, including:
-- Parallel specialist execution for complex queries
-- Graceful degradation when specialists fail
+- Parallel agent execution for complex queries
+- Graceful degradation when agents fail
 - Clear coordination and synthesis of multiple perspectives
 - Production-ready error handling and monitoring
 
-The system uses pre-built tools that abstract data storage and querying. All agents will access health data through two main tools:
-- `snowflake_import_analyze_health_records_v2` - for importing health data
-- `execute_health_query_v2` - for natural language queries
+The system uses pre-built tools that abstract data storage and querying. All agents will access data through the provided domain-specific tools documented in the attached files.
 
-The target users are health-conscious individuals who want to understand their health data through natural language queries, getting insights that would typically require consulting multiple medical specialists.
+The target users and specific domain requirements are detailed in the attached documentation.
 
-**Technology Requirements**: Use FastAPI for backend and React with Vite for frontend. The pre-built data access tools will be provided - do not design database schemas or data persistence.
+**Technology Requirements**: 
+- Backend: FastAPI 0.104.1 with Python 3.11+
+- Frontend: React 18.2.0 with Vite 5.0.8
+- Styling: Tailwind CSS 3.3.0 (NOT v4)
+- Streaming: SSE via GET endpoints with EventSource
+- Visualizations: Recharts 2.10.0 with @babel/standalone for dynamic rendering
+- The pre-built data access tools will be provided - do not design database schemas or data persistence.
 
 Please create:
 1. A comprehensive Product Requirements Document (PRD.md)
@@ -44,6 +48,13 @@ Focus on making this system extensible so the pattern can be applied to other mu
 - No external services (Redis, databases, message queues)
 - Pre-built tools handle all data access
 - Simple, direct implementation patterns
+
+**Critical Implementation Notes**:
+- SSE must use GET endpoints with X-Accel-Buffering: no header
+- Add 0.001s delays between streaming events for proper flushing
+- TypeScript imports must use `import type` for type-only imports
+- Include visualization agent that generates self-contained React components
+- All specialist prompts must be externalized in .txt files
 
 ## I have attached the following documents:
 
@@ -64,27 +75,33 @@ Focus on making this system extensible so the pattern can be applied to other mu
 - Shows expected 90.2% performance improvement over single agents
 - Defines the CMO + specialist pattern we want to implement
 
-### 4. **Health Domain Requirements** (health-domain-requirements.md)
-- Details all health data types (lab results, medications, vitals)
-- Lists the 8 medical specialties needed (Cardiology, Endocrinology, etc.)
-- Provides example health queries from simple to complex
-- Defines visualization requirements for health data
+### 4. **Domain Requirements** (health-domain-requirements.md)
+- Details all domain-specific data types 
+- Lists the specialist agents needed for this domain
+- Provides example queries from simple to complex
+- Defines visualization requirements for the domain
 
 ### 5. **Tool Interface Documentation** (tool-interface.md)
-- Documents the two pre-built data access tools
+- Documents the pre-built data access tools
 - Shows input/output schemas for each tool
-- Provides usage examples for health data queries
+- Provides usage examples for domain queries
 - Explains how agents should integrate with these tools
 
 ### 6. **User Stories, User Flows, and Mockups** (User Stories User Flows Mocks.pdf)
 - Screenshots of the actual working system showing:
-  - 3-panel layout with chat interface
-  - Medical team visualization with real-time status
-  - Dynamic health visualizations
+  - 3-panel layout with interaction interface
+  - Agent team visualization with real-time status
+  - Dynamic data visualizations
   - User flow from welcome screen through analysis
 - These mockups show the exact UI/UX we want to achieve
 
 ### 7. **Anthropic's Multi-Agent Blog Post** 
 - Link: https://www.anthropic.com/engineering/built-multi-agent-research-system
-- Or provide as PDF/text file
 - This is the reference architecture pattern we're following
+
+### 8. **Health Technical Customization Guide** (health-technical-customization-guide.md)
+- Health-specific agent configurations (CMO + 8 specialists)
+- Medical data models and schemas
+- Health query complexity rules
+- Health-specific API endpoints
+- Compliance and security considerations

@@ -64,10 +64,12 @@ This creates a seamless flow where human vision is amplified by AI expertise at 
 │   └── code-agent/               # Claude Code configuration
 │       └── config/               # CLAUDE.md template
 │
-├── 📚 technical-guides/          # Domain-agnostic patterns
+├── 📚 technical-patterns/        # Domain-agnostic patterns
 │   ├── implementation-guide.md   # Multi-agent implementation
 │   ├── multi-agent-patterns-doc.md   # Orchestrator-worker patterns
-│   └── streaming-patterns-doc.md     # Real-time SSE updates
+│   ├── streaming-patterns-doc.md     # Real-time SSE updates
+│   ├── dependency-management-guide.md  # Critical version requirements
+│   └── sse-implementation-guide.md     # SSE best practices
 │
 ├── 🏥 use-cases/                 # Domain-specific examples
 │   └── multi-agent-health-insight-system/
@@ -95,6 +97,8 @@ This creates a seamless flow where human vision is amplified by AI expertise at 
 - **Claude Desktop** or **Claude.ai** account (for PM and UX agents)
 - **Claude Code** installed ([Get it here](https://claude.ai/code))
 - **VSCode** or preferred editor
+- **Python 3.11+** for backend
+- **Node.js 18+** for frontend
 - Basic understanding of multi-agent systems ([Read Anthropic's blog](https://www.anthropic.com/engineering/built-multi-agent-research-system))
 
 ### 30-Second Overview
@@ -201,15 +205,21 @@ mkdir -p requirements/{technical-patterns,pm-outputs/architecture,ux-outputs/pro
 #### 4.2 Copy Technical Guides (Reusable)
 
 ```bash
-# Copy from this repo's technical-guides/
-cp path/to/3-AMIGO-AGENTS/technical-guides/* requirements/technical-patterns/
+# Copy from this repo's technical-patterns/
+cp path/to/3-AMIGO-AGENTS/technical-patterns/* requirements/technical-patterns/
 ```
+
+**Critical**: Include these new guides:
+- `dependency-management-guide.md` - Exact versions to prevent conflicts
+- `sse-implementation-guide.md` - Correct SSE patterns
 
 #### 4.3 Add PM Outputs
 
 Place in `requirements/pm-outputs/`:
 - PRD.md, user-stories.md, feature-priority.md (root level)
 - architecture/ → PM's technical documents (api-specification.md, data-models.md, system-architecture.md, tool-interface.md)
+
+**Important**: Check api-specification.md for correct SSE endpoint (should be GET, not POST)
 
 #### 4.4 Add UX Outputs
 
@@ -279,9 +289,15 @@ A sophisticated multi-agent health analysis system featuring:
    └── Anthropic-Blog-[...].txt
    ```
 
-2. **Follow Phases 1-5** above with health documents
+2. **Copy Technical Patterns** (CRITICAL)
+   ```bash
+   cp technical-patterns/* your-workspace/requirements/technical-patterns/
+   ```
+   Especially: dependency-management-guide.md, sse-implementation-guide.md
 
-3. **Expected Output Structure**
+3. **Follow Phases 1-5** above with health documents
+
+4. **Expected Output Structure**
    ```
    health-insight-system/
    ├── backend/
@@ -297,12 +313,12 @@ A sophisticated multi-agent health analysis system featuring:
    └── requirements/            # All specifications
    ```
 
-4. **Run the System**
+5. **Run the System**
    ```bash
    # Backend
    cd backend
    pip install -r requirements.txt
-   uvicorn main:app --reload
+   python main.py  # or uvicorn main:app --reload
    
    # Frontend (new terminal)
    cd frontend
@@ -310,7 +326,12 @@ A sophisticated multi-agent health analysis system featuring:
    npm run dev
    ```
 
-5. **Access at** http://localhost:3000
+6. **Access at** http://localhost:5173 (Vite default)
+
+7. **Common Issues**:
+   - If Tailwind CSS errors: Ensure v3.3.0, not v4
+   - If SSE not streaming: Check for GET endpoint and headers
+   - If TypeScript errors: Use `import type` for type imports
 
 ## 🎯 Creating Your Own Use Case
 
@@ -368,9 +389,10 @@ Orchestrator (CMO/CIO/Senior Counsel)
 
 ### Key Technologies
 
-- **Backend**: FastAPI, Anthropic SDK, SSE
-- **Frontend**: React, TypeScript, Tailwind CSS
+- **Backend**: FastAPI 0.104.1, Anthropic SDK 0.39.0, SSE (sse-starlette 1.8.2)
+- **Frontend**: React 18.2.0, TypeScript 5.2.2, Tailwind CSS 3.3.0 (NOT v4)
 - **Patterns**: Orchestrator-Worker, Progressive Disclosure
+- **Streaming**: GET endpoints with EventSource, X-Accel-Buffering headers
 - **Based on**: [Anthropic's Research](https://www.anthropic.com/engineering/built-multi-agent-research-system)
 
 ## ❓ FAQ

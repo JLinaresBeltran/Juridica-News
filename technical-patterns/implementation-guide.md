@@ -4,6 +4,10 @@
 
 You are implementing a Multi-Agent System following Anthropic's orchestrator-worker pattern as described in ["How we built our multi-agent research system"](https://www.anthropic.com/engineering/built-multi-agent-research-system). This guide provides the exact implementation approach using FastAPI and React with direct tool integration.
 
+**CRITICAL**: Review these companion guides:
+- `dependency-management-guide.md` - Exact versions to prevent library conflicts
+- `sse-implementation-guide.md` - Correct SSE patterns for streaming
+
 ## Project Structure
 
 Your workspace should follow this structure:
@@ -22,7 +26,7 @@ workspace/
     ├── pm-outputs/            # Product Manager outputs
     │   └── architecture/      # Technical architecture
     ├── ux-outputs/           # UX Designer outputs
-    └── po-inputs/            # Product Owner inputs
+    └── po-inputs/            # Product Owner inputs (includes customization guides)
 ```
 
 ## Implementation Phases
@@ -35,6 +39,9 @@ Before writing any code:
 3. Study the API contracts in `requirements/pm-outputs/architecture/api-specification.md`
 4. Review UX prototypes in `requirements/ux-outputs/prototypes/`
 5. Identify any pre-built tools in `backend/tools/`
+6. **CRITICAL**: Check for domain-specific customization guides in `requirements/po-inputs/`:
+   - Look for `*-technical-customization-guide.md` - Domain-specific agent configs, data models, API endpoints
+   - Look for `*-ui-customization-guide.md` - Domain-specific colors, icons, UI components
 
 ### Phase 2: Backend Foundation
 
@@ -56,6 +63,11 @@ Create main.py with FastAPI:
 ```python
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
+
+# Load environment variables BEFORE imports
+load_dotenv()
+
 from api import chat
 
 app = FastAPI()
@@ -69,6 +81,10 @@ app.add_middleware(
 )
 
 app.include_router(chat.router)
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
 ```
 
 #### Step 2: Multi-Agent Architecture
@@ -113,6 +129,11 @@ class OrchestratorAgent:
         # 5. Generate visualizations if needed
         visualizations = await self.create_visualizations(synthesis)
 ```
+
+**Domain Customization**: 
+- The orchestrator name, specialist types, and complexity rules come from technical customization guide in `requirements/po-inputs/`
+- For example, a health system might have "CMO" as orchestrator with 8 medical specialists
+- A finance system might have "CFO" as orchestrator with financial analysts
 
 #### Step 3: Specialist Implementation
 
@@ -196,9 +217,12 @@ Implement endpoints defined in `requirements/pm-outputs/architecture/api-specifi
 npm create vite@latest frontend -- --template react-ts
 cd frontend
 npm install
-npm install -D tailwindcss postcss autoprefixer
+npm install -D tailwindcss@^3.3.0 postcss autoprefixer
+npm install recharts@^2.10.0 lucide-react@^0.294.0 @babel/standalone@^7.23.0
 npx tailwindcss init -p
 ```
+
+**CRITICAL**: See `dependency-management-guide.md` for exact versions
 
 #### Core Components Structure
 ```
@@ -220,6 +244,14 @@ frontend/
 │   └── types/
 │       └── index.ts            # TypeScript types
 ```
+
+**Domain-Specific UI Customization**:
+Check for UI customization guide in `requirements/po-inputs/` for:
+- Color palette for agents and semantic states
+- Agent icons and imagery
+- Domain-specific UI components
+- Animation patterns appropriate to the domain
+- Trust-building elements specific to the industry
 
 #### Key Implementation Points
 
@@ -351,6 +383,7 @@ Before starting, ensure you have:
 - [ ] Reviewed API specifications
 - [ ] Examined UX prototypes
 - [ ] Identified pre-built tools
+- [ ] Reviewed domain-specific customization guides (if provided)
 
 During implementation:
 - [ ] Follow the phased approach
@@ -492,9 +525,10 @@ Your implementation succeeds when:
 3. Examine `requirements/ux-outputs/prototypes/`
 4. Check for any provided tools in `backend/tools/`
 5. Review `visualization-agent-pattern.md` for visualization requirements
-6. Begin with Phase 1 and progress systematically
+6. **Check for customization guides**: Look for domain-specific technical and UI customization guides in `requirements/po-inputs/`
+7. Begin with Phase 1 and progress systematically
 
-Remember: The domain-specific details are in the requirements directory. This guide provides the technical patterns that work across all domains.
+Remember: The domain-specific details are in the requirements directory. This guide provides the technical patterns that work across all domains. Domain customization guides in po-inputs bridge the gap between generic patterns and specific implementations.
 
 ## Related Patterns
 
