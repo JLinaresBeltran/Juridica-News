@@ -1,327 +1,277 @@
-# Layout Guidelines: Health Insight Assistant
+# Layout Guidelines: Multi-Agent Health Insight System
 
 ## Desktop Layouts (1200px+)
 
 ### Three-Panel Layout
-The primary interface uses a sophisticated three-panel layout optimized for comprehensive health analysis.
+The primary layout for desktop consists of three distinct panels:
 
-#### Panel Dimensions
+```
+┌─────────┬────────────────────────┬───────────┐
+│ Sidebar │    Center (Chat)       │   Right   │
+│  280px  │      Flexible          │   400px   │
+│         │    (min 600px)         │ (flexible)│
+└─────────┴────────────────────────┴───────────┘
+```
+
+#### Panel Specifications
 - **Left Sidebar**: 280px fixed width
-  - Min-width: 240px (when resizable)
-  - Max-width: 360px (when resizable)
-- **Center Panel**: Flexible (min 600px)
-  - Ideal: 720px - 960px
-  - Takes remaining space after sidebars
+  - Collapsible to 60px (icon-only mode)
+  - Contains: Conversation threads, search, navigation
+  - Resizable: No
+
+- **Center Panel**: Flexible width
+  - Minimum: 600px
+  - Maximum: Fills available space
+  - Contains: Chat interface, query input
+  - Resizable: Automatic
+
 - **Right Panel**: 400px flexible
-  - Min-width: 360px
-  - Max-width: 480px
-  - Can expand to 600px for complex visualizations
+  - Minimum: 300px
+  - Maximum: 600px
+  - Contains: Medical team status OR visualizations
+  - Resizable: Drag border to resize
 
-#### Panel Hierarchy
-1. **Left Panel (Navigation)**
-   - Always visible on desktop
-   - Houses conversation threads
-   - Quick access to health topics
-
-2. **Center Panel (Primary Content)**
-   - Main interaction area
-   - Chat interface
-   - Query responses
-
-3. **Right Panel (Context)**
-   - Dynamic content based on query
-   - Medical team status
-   - Visualizations
-   - Analysis results
-
-### Header Layout
-- **Height**: 64px fixed
-- **Z-index**: 100 (above panels)
-- **Position**: Sticky top
-- **Content**: Logo | Title | Status | User Info
-
-### Welcome Page Layout
-- **Single Column**: Max-width 1200px, centered
-- **Three Columns**: For feature cards (400px each)
-- **Hero Section**: 480px height with CMO introduction
-- **Example Queries**: 2-column grid on sides
+#### Panel Behaviors
+- All panels maintain consistent height (100vh - header height)
+- Panels can be collapsed/expanded via toggle buttons
+- Smooth transitions (300ms) for panel state changes
+- Focus remains in center panel when side panels toggle
 
 ## Tablet Layouts (768px - 1199px)
 
-### Adaptive Three-Panel
-- **Left Panel**: Collapsed to icon-only mode (64px)
-- **Center Panel**: Dominant, takes most space
-- **Right Panel**: Overlay/modal when activated
+### Adaptive Two-Panel Layout
+```
+┌────┬──────────────────────────┐
+│ 60 │    Center + Right        │
+│ px │     (Combined)           │
+└────┴──────────────────────────┘
+```
 
-### Alternative Two-Panel Mode
-- **Left Panel**: Hidden, accessible via hamburger
-- **Main Area**: Combined center + right as tabs
-
-### Touch Optimizations
-- **Minimum Touch Target**: 44x44px
-- **Swipe Gestures**: 
-  - Left edge: Open navigation
-  - Right edge: Open context panel
-- **Panel Transitions**: Slide animations
+#### Tablet Adjustments
+- Left sidebar auto-collapses to icon-only (60px)
+- Right panel becomes a tabbed overlay
+- Center panel expands to use available space
+- Toggle button to show/hide right panel
 
 ## Mobile Layouts (<768px)
 
-### Stack Order (Top to Bottom)
-1. **Header**: Condensed to 56px
-2. **Active Panel**: Full width
-3. **Bottom Navigation**: Tab bar for panel switching
+### Stack Order and Behavior
+```
+┌────────────────────┐
+│      Header        │
+├────────────────────┤
+│    Chat View       │
+│                    │
+│                    │
+├────────────────────┤
+│  Bottom Navigation │
+└────────────────────┘
+```
 
-### Mobile-Specific Changes
-- **Panels**: Full-screen with transitions
-- **Navigation**: Bottom tab bar
-- **Chat Input**: Fixed bottom position
-- **Visualizations**: Scroll horizontally
-
-### Panel States
-- **Default**: Show center panel (chat)
-- **Navigation**: Slide in from left
-- **Context**: Slide in from right
-- **Transitions**: 300ms ease-out
+#### Mobile-Specific Changes
+1. **Navigation**: Bottom tab bar replaces sidebar
+2. **Right Panel**: Full-screen modal when activated
+3. **Chat**: Full width with reduced padding
+4. **Medical Team**: Simplified card view
+5. **Visualizations**: Optimized for touch and scroll
 
 ## Breakpoints
 
-### Mobile First Approach
+### Core Breakpoints
 ```css
-/* Base (Mobile) */
-@media (min-width: 0px) {
-  /* Stack all panels */
-  /* Bottom navigation */
-  /* Condensed header */
-}
-
-/* Tablet */
-@media (min-width: 768px) {
-  /* Two-panel layout */
-  /* Collapsible sidebar */
-  /* Modal overlays */
-}
-
-/* Desktop */
-@media (min-width: 1024px) {
-  /* Three-panel layout */
-  /* Fixed sidebars */
-  /* Full header */
-}
-
-/* Large Desktop */
-@media (min-width: 1440px) {
-  /* Wider panels */
-  /* Additional breathing room */
-  /* Enhanced visualizations */
-}
-
-/* Extra Large */
-@media (min-width: 1920px) {
-  /* Maximum content width */
-  /* Centered with margins */
-  /* Luxury spacing */
-}
+/* Mobile First Approach */
+--breakpoint-mobile: 320px;    /* Minimum supported */
+--breakpoint-tablet: 768px;    /* iPad portrait */
+--breakpoint-desktop: 1200px;  /* Standard desktop */
+--breakpoint-large: 1920px;    /* Large monitors */
 ```
 
-## Grid Systems
+### Component-Specific Breakpoints
+- **Navigation**: Switches at 768px
+- **Medical Team**: Simplifies at 1024px
+- **Visualizations**: Stacks at 768px
+- **Typography**: Scales at each breakpoint
+
+## Grid System
 
 ### 12-Column Grid
-- **Mobile**: 1 column
-- **Tablet**: 6 columns
-- **Desktop**: 12 columns
-- **Gutter**: 16px (mobile), 24px (desktop)
-
-### Component Grids
-- **Specialist Cards**: 2x2 grid (desktop), 2x1 (tablet), 1x1 (mobile)
-- **Example Queries**: 2 columns (desktop), 1 column (mobile)
-- **Metric Cards**: 4 columns (desktop), 2 columns (tablet/mobile)
-- **Feature Cards**: 3 columns (desktop), 1 column (mobile)
-
-## Flexible Components
-
-### Responsive Tables
-- **Desktop**: Full table display
-- **Tablet**: Reduce columns, horizontal scroll
-- **Mobile**: Card-based layout
-
-### Charts and Visualizations
-- **Desktop**: Full interactive features
-- **Tablet**: Touch-optimized, slightly condensed
-- **Mobile**: Simplified, swipeable
-
-### Form Elements
-- **Desktop**: Inline labels, multi-column
-- **Mobile**: Stacked labels, full-width inputs
-
-## Layout Patterns
-
-### Progressive Disclosure
-1. **Mobile**: Essential information only
-2. **Tablet**: Add secondary details
-3. **Desktop**: Full information hierarchy
-
-### Content Priority
-1. **Primary**: Always visible
-2. **Secondary**: Visible on tablet+
-3. **Tertiary**: Desktop only
-
-### Navigation Patterns
-- **Mobile**: Bottom tabs + hamburger
-- **Tablet**: Collapsed sidebar + icons
-- **Desktop**: Full sidebar + labels
-
-## Panel Behaviors
-
-### Resizing
-- **Desktop Only**: Drag borders to resize
-- **Constraints**: Respect min/max widths
-- **Persistence**: Remember user preferences
-
-### Collapsing
-- **Left Panel**: Collapse to icons (64px)
-- **Right Panel**: Hide completely or minimize
-- **Keyboard**: Shortcuts for panel toggling
-
-### Focus Management
-- **Tab Order**: Left → Center → Right
-- **Panel Switch**: Maintain focus position
-- **Escape Key**: Return to main content
-
-## Special Layouts
-
-### Full-Screen Mode
-- **Visualizations**: Expand to viewport
-- **Hide Panels**: Temporary full-screen
-- **Exit**: Escape key or close button
-
-### Comparison View
-- **Split Center**: Two columns for before/after
-- **Synced Scroll**: Coordinate scrolling
-- **Mobile**: Stack vertically with tabs
-
-### Print Layout
-- **Hide Navigation**: Remove interactive elements
-- **Single Column**: Optimize for paper
-- **Page Breaks**: Logical content sections
-
-## Performance Considerations
-
-### Lazy Loading
-- **Off-screen Panels**: Don't render until needed
-- **Virtualization**: Long conversation lists
-- **Progressive Enhancement**: Core functionality first
-
-### Responsive Images
-```html
-<img srcset="chart-mobile.png 320w,
-             chart-tablet.png 768w,
-             chart-desktop.png 1200w"
-     sizes="(max-width: 767px) 100vw,
-            (max-width: 1199px) 50vw,
-            400px"
-     src="chart-desktop.png"
-     alt="Health trend chart">
-```
-
-### CSS Grid vs Flexbox
-- **Grid**: Complex layouts, panel systems
-- **Flexbox**: Component layouts, alignment
-- **Combination**: Best of both approaches
-
-## Accessibility in Layouts
-
-### Landmark Regions
-```html
-<header role="banner">...</header>
-<nav role="navigation">...</nav>
-<main role="main">...</main>
-<aside role="complementary">...</aside>
-```
-
-### Skip Links
-```html
-<a href="#main" class="skip-link">Skip to main content</a>
-<a href="#nav" class="skip-link">Skip to navigation</a>
-```
-
-### Responsive Text
 ```css
-/* Fluid typography */
-font-size: clamp(14px, 2vw, 18px);
-line-height: clamp(1.4, 1.5, 1.6);
-```
-
-## Implementation Examples
-
-### Three-Panel CSS Grid
-```css
-.app-layout {
+.container {
   display: grid;
-  grid-template-columns: 280px 1fr 400px;
-  height: calc(100vh - 64px);
-  gap: 0;
-}
-
-@media (max-width: 1199px) {
-  .app-layout {
-    grid-template-columns: 64px 1fr;
-  }
-  
-  .right-panel {
-    position: fixed;
-    right: 0;
-    transform: translateX(100%);
-    transition: transform 0.3s ease-out;
-  }
-  
-  .right-panel.open {
-    transform: translateX(0);
-  }
-}
-
-@media (max-width: 767px) {
-  .app-layout {
-    grid-template-columns: 1fr;
-  }
-  
-  .panel {
-    position: fixed;
-    width: 100%;
-    height: 100%;
-  }
+  grid-template-columns: repeat(12, 1fr);
+  gap: var(--space-lg);
+  padding: 0 var(--space-lg);
+  max-width: 1400px;
+  margin: 0 auto;
 }
 ```
+
+### Column Spans by Breakpoint
+| Component | Mobile | Tablet | Desktop |
+|-----------|--------|--------|---------|
+| Sidebar | Hidden | 1 col | 3 cols |
+| Chat | 12 cols | 8 cols | 6 cols |
+| Right Panel | Modal | 3 cols | 3 cols |
+
+## Spacing Guidelines
 
 ### Responsive Padding
 ```css
-.panel {
-  padding: 24px;
-}
+/* Mobile */
+--padding-mobile: 16px;
 
-@media (max-width: 767px) {
-  .panel {
-    padding: 16px;
-  }
-}
+/* Tablet */
+--padding-tablet: 24px;
 
-.card {
-  padding: clamp(16px, 3vw, 24px);
+/* Desktop */
+--padding-desktop: 32px;
+```
+
+### Safe Areas
+- Account for device notches and rounded corners
+- Minimum 16px padding on all sides
+- Extra padding for bottom navigation on mobile
+
+## Component Layout Rules
+
+### Chat Messages
+- **Desktop**: Max-width 800px, centered in panel
+- **Tablet**: Full panel width with 24px padding
+- **Mobile**: Full width with 16px padding
+
+### Medical Team Visualization
+- **Desktop**: Fixed 250px height circular layout
+- **Tablet**: 200px height, simplified connections
+- **Mobile**: Linear list view, no visualization
+
+### Specialist Cards
+- **Desktop**: Horizontal layout with all details
+- **Tablet**: Compressed horizontal layout
+- **Mobile**: Vertical stack with expandable details
+
+### Visualizations
+- **Desktop**: Full panel width, 400px+ height
+- **Tablet**: Responsive height, touch-optimized
+- **Mobile**: Full screen with pan/zoom
+
+## Scroll Behavior
+
+### Panel Scroll Rules
+1. **Sidebar**: Independent scroll for conversation list
+2. **Chat**: Main scroll area, auto-scroll on new messages
+3. **Right Panel**: Independent scroll for content
+4. **Mobile**: Page-level scroll with sticky headers
+
+### Scroll Indicators
+- Show scroll shadows at top/bottom of scrollable areas
+- Smooth scroll animations (300ms)
+- Scroll-to-top button appears after 200px scroll
+
+## Z-Index Hierarchy
+
+```css
+--z-header: 100;
+--z-sidebar: 90;
+--z-modal: 200;
+--z-dropdown: 110;
+--z-tooltip: 300;
+--z-notification: 400;
+```
+
+## Touch Targets
+
+### Minimum Sizes
+- **Buttons**: 44x44px minimum
+- **Links**: 44px height with adequate spacing
+- **Form inputs**: 44px height minimum
+- **Tab targets**: 48px height for bottom nav
+
+### Touch Gestures
+- **Swipe right**: Open sidebar (mobile)
+- **Swipe left**: Close sidebar (mobile)
+- **Pinch**: Zoom visualizations
+- **Long press**: Show context menu
+
+## Performance Considerations
+
+### Layout Optimization
+1. Use CSS Grid and Flexbox over absolute positioning
+2. Minimize reflows with fixed dimensions where possible
+3. Use `transform` for panel animations, not `width`
+4. Implement virtual scrolling for long conversation lists
+
+### Responsive Images
+```html
+<picture>
+  <source media="(max-width: 768px)" srcset="image-mobile.jpg">
+  <source media="(max-width: 1200px)" srcset="image-tablet.jpg">
+  <img src="image-desktop.jpg" alt="Description">
+</picture>
+```
+
+## Accessibility in Layouts
+
+### Focus Management
+- Trap focus in modals on mobile
+- Skip links for keyboard navigation
+- Logical tab order across panels
+- Return focus after panel toggles
+
+### Screen Reader Considerations
+- Landmark regions for each panel
+- Announce panel state changes
+- Descriptive headings for sections
+- Hidden but accessible panel toggle labels
+
+## Print Layouts
+
+### Print-Specific Rules
+```css
+@media print {
+  /* Hide sidebars and navigation */
+  .sidebar, .right-panel { display: none; }
+  
+  /* Full width for content */
+  .center-panel { width: 100%; }
+  
+  /* Show all messages */
+  .chat-messages { height: auto; }
+  
+  /* Print-friendly colors */
+  * { background: white !important; }
 }
+```
+
+## Framework Integration
+
+### React Considerations
+- Use React.memo for panel components
+- Implement ResizeObserver for dynamic layouts
+- Use CSS modules or styled-components for scoping
+- Lazy load right panel content
+
+### CSS Architecture
+```css
+/* Layout utilities */
+.layout-three-panel { }
+.layout-sidebar-collapsed { }
+.layout-right-panel-hidden { }
+.layout-mobile { }
+.layout-tablet { }
+.layout-desktop { }
 ```
 
 ## Testing Guidelines
 
-### Device Testing
-1. **Mobile**: iPhone SE (375px) to Pro Max (430px)
-2. **Tablet**: iPad Mini (768px) to Pro (1024px)
-3. **Desktop**: 1280px, 1440px, 1920px monitors
+### Devices to Test
+1. **Mobile**: iPhone 12/13, Samsung Galaxy S21
+2. **Tablet**: iPad Air, iPad Pro 11"
+3. **Desktop**: 1366x768, 1920x1080, 2560x1440
+4. **Accessibility**: Test with zoom 200%
 
-### Orientation Testing
-- Portrait and landscape modes
-- Orientation change handling
-- Maintain state during rotation
-
-### Browser Testing
-- Chrome, Safari, Firefox, Edge
-- Mobile browsers
-- PWA considerations
+### Key Test Scenarios
+- Panel collapse/expand at each breakpoint
+- Orientation changes on tablets
+- Keyboard navigation across panels
+- Long content in each panel
+- RTL language support

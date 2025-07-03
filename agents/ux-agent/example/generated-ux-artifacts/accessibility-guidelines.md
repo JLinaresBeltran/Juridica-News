@@ -1,211 +1,230 @@
-# Accessibility Guidelines: Health Insight Assistant
+# Accessibility Guidelines: Multi-Agent Health Insight System
 
 ## Overview
-
-The Health Insight Assistant is committed to providing an inclusive experience for all users, including those with disabilities. These guidelines ensure our application meets WCAG 2.1 AA standards while exceeding expectations for usability in healthcare contexts.
+The Health Insight Assistant must be accessible to all users, including those with disabilities. These guidelines ensure WCAG 2.1 AA compliance while providing an excellent experience for users with diverse abilities.
 
 ## Color & Contrast
 
 ### Contrast Requirements
+All text and interactive elements must meet WCAG contrast ratios:
 
 #### Text Contrast
-- **Normal Text** (< 18pt): Minimum 4.5:1 contrast ratio
-- **Large Text** (≥ 18pt or ≥ 14pt bold): Minimum 3:1 contrast ratio
-- **Body Text on White**: #374151 (Gray-700) = 8.3:1 ✓
-- **Secondary Text on White**: #6B7280 (Gray-500) = 4.5:1 ✓
+- **Normal text**: 4.5:1 minimum against background
+- **Large text** (18pt+): 3:1 minimum
+- **Body text on white**: #111827 (15.3:1) ✓
+- **Secondary text on white**: #6B7280 (5.74:1) ✓
 
-#### UI Component Contrast
-- **Interactive Elements**: Minimum 3:1 against background
-- **Focus Indicators**: Minimum 3:1 against all backgrounds
-- **Borders & Dividers**: Minimum 3:1 for essential boundaries
+#### Interactive Elements
+- **Buttons**: 3:1 minimum for boundaries
+- **Form inputs**: 3:1 minimum for borders
+- **Focus indicators**: 3:1 minimum against adjacent colors
 
-#### Medical Status Colors
-All status colors maintain proper contrast:
-- **Success** (#10B981 on white): 3.5:1 ✓
-- **Warning** (#F59E0B on white): 3:1 ✓
-- **Error** (#EF4444 on white): 3.9:1 ✓
+#### Medical Specialist Colors
+All specialist colors tested against white backgrounds:
+```
+Cardiology Red (#EF4444):    3.96:1 - Use only for icons/borders
+Laboratory Green (#10B981):  2.95:1 - Needs darker shade for text
+Endocrinology Purple (#8B5CF6): 3.52:1 - Borderline, use sparingly
+Data Analysis Yellow (#F59E0B): 2.81:1 - Icons only, never text
+```
 
 ### Color Independence
-
 Never rely on color alone to convey information:
-```html
-<!-- Bad -->
-<div class="status-red">Critical</div>
 
-<!-- Good -->
-<div class="status-critical">
-  <span class="icon">⚠️</span>
-  <span class="text">Critical</span>
-</div>
-```
-
-### Specialist Color Accessibility
-Each medical specialist has both color and icon identification:
-- Cardiology: Red + ❤️ icon
-- Laboratory: Green + 🔬 icon
-- Endocrinology: Purple + 💊 icon
-
-## Keyboard Navigation
-
-### Tab Order
-Logical flow through the interface:
-1. Header navigation
-2. Left panel (conversations)
-3. Center panel (chat)
-4. Right panel (medical team/visualizations)
-
-### Keyboard Shortcuts
-```
-Ctrl/Cmd + K: Quick search
-Ctrl/Cmd + N: New conversation
-Ctrl/Cmd + Enter: Send message
-Escape: Close modal/panel
-Arrow Keys: Navigate lists
-Tab/Shift+Tab: Move focus
-Enter/Space: Activate buttons
-```
-
-### Focus Management
 ```css
-/* Clear focus indicators */
-:focus {
-  outline: 2px solid var(--primary);
-  outline-offset: 2px;
-}
+/* Bad - Color only */
+.error { color: red; }
 
-/* High contrast focus for Windows High Contrast Mode */
-@media (prefers-contrast: high) {
-  :focus {
-    outline: 3px solid;
-    outline-offset: 3px;
+/* Good - Color + Icon + Text */
+.error {
+  color: #DC2626;
+  &::before {
+    content: "⚠️ Error: ";
   }
 }
 ```
 
-### Skip Links
-```html
-<div class="skip-links">
-  <a href="#main-content">Skip to main content</a>
-  <a href="#conversations">Skip to conversations</a>
-  <a href="#chat">Skip to chat</a>
-  <a href="#medical-team">Skip to medical team</a>
-</div>
+### Dark Mode Considerations
+- Maintain contrast ratios in dark mode
+- Adjust transparency values for overlays
+- Test medical visualizations in both modes
+
+## Keyboard Navigation
+
+### Focus Management
+```javascript
+// Focus order must be logical
+tabindex="0"   // In tab order
+tabindex="-1"  // Programmatically focusable
+// Never use positive tabindex
+
+// Skip links
+<a href="#main" class="skip-link">Skip to main content</a>
+<a href="#medical-team" class="skip-link">Skip to medical team</a>
 ```
+
+### Keyboard Shortcuts
+```javascript
+const keyboardShortcuts = {
+  'Alt+N': 'New conversation',
+  'Alt+M': 'Toggle medical team panel',
+  'Alt+V': 'Toggle visualization panel',
+  'Ctrl+Enter': 'Submit query',
+  'Escape': 'Close modal/dropdown',
+  '/': 'Focus search',
+  '?': 'Show keyboard shortcuts'
+};
+```
+
+### Focus Indicators
+```css
+/* Custom focus styles */
+:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 4px #3B82F6;
+  border-radius: 4px;
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  :focus {
+    outline: 3px solid;
+    outline-offset: 2px;
+  }
+}
+```
+
+### Component-Specific Navigation
+
+#### Three-Panel Layout
+- F6: Cycle between panels
+- Ctrl+[: Collapse left panel
+- Ctrl+]: Collapse right panel
+
+#### Medical Team Visualization
+- Tab: Navigate between specialists
+- Enter: View specialist details
+- Arrow keys: Navigate team hierarchy
+
+#### Chat Interface
+- Up/Down: Navigate message history
+- Page Up/Down: Scroll messages
+- Home/End: Jump to first/last message
 
 ## Screen Reader Support
 
-### Semantic HTML Structure
+### Semantic HTML
 ```html
-<header role="banner">
-  <nav role="navigation" aria-label="Main">...</nav>
-</header>
+<!-- Proper heading hierarchy -->
+<h1>Health Insight Assistant</h1>
+  <h2>Your Medical Team</h2>
+    <h3>Dr. Heart - Cardiology</h3>
 
-<main role="main" id="main-content">
-  <section aria-labelledby="chat-heading">
-    <h1 id="chat-heading" class="sr-only">Health Consultation Chat</h1>
-    ...
-  </section>
-</main>
-
+<!-- Landmark regions -->
+<nav role="navigation" aria-label="Conversations">
+<main role="main" aria-label="Chat">
 <aside role="complementary" aria-label="Medical Team Status">
-  ...
-</aside>
+
+<!-- Lists for related items -->
+<ul role="list" aria-label="Active specialists">
+  <li>Dr. Heart - Analyzing...</li>
+</ul>
 ```
 
 ### ARIA Labels & Descriptions
 ```html
-<!-- Specialist Status -->
-<div role="status" 
-     aria-label="Dr. Heart - Cardiology" 
-     aria-describedby="heart-status">
-  <span id="heart-status" class="sr-only">
-    Currently analyzing cardiovascular data, 45% complete
-  </span>
+<!-- Descriptive labels -->
+<button aria-label="Start new health conversation">
+  <span aria-hidden="true">➕</span>
+  New Conversation
+</button>
+
+<!-- Live regions for updates -->
+<div aria-live="polite" aria-atomic="true">
+  <p>Dr. Heart has completed analysis with 85% confidence</p>
 </div>
 
-<!-- Progress Bar -->
+<!-- Progress indicators -->
 <div role="progressbar" 
      aria-valuenow="45" 
      aria-valuemin="0" 
      aria-valuemax="100"
-     aria-label="Analysis progress">
-  <div class="progress-fill" style="width: 45%"></div>
+     aria-label="Dr. Heart analysis progress">
+  45%
 </div>
 ```
 
-### Live Regions
-```html
-<!-- Chat messages -->
-<div role="log" aria-live="polite" aria-label="Conversation">
-  <!-- New messages announced automatically -->
-</div>
-
-<!-- Status updates -->
-<div role="status" aria-live="polite" aria-atomic="true">
-  <!-- Important updates announced -->
-</div>
-
-<!-- Urgent alerts -->
-<div role="alert" aria-live="assertive">
-  <!-- Critical health alerts announced immediately -->
-</div>
-```
-
-### Screen Reader Only Content
-```css
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
+### Dynamic Content Announcements
+```javascript
+// Announce status changes
+function announceStatus(message) {
+  const liveRegion = document.getElementById('status-announcer');
+  liveRegion.textContent = message;
+  
+  // Clear after announcement
+  setTimeout(() => {
+    liveRegion.textContent = '';
+  }, 3000);
 }
+
+// Example usage
+announceStatus('Medical team assembled. 3 specialists are analyzing your query.');
+```
+
+### Screen Reader Optimizations
+```html
+<!-- Hide decorative elements -->
+<span aria-hidden="true">🏥</span>
+
+<!-- Provide text alternatives -->
+<img src="specialist-network.png" 
+     alt="Medical team network showing CMO connected to 6 specialists">
+
+<!-- Describe complex visualizations -->
+<div role="img" 
+     aria-label="Cholesterol trend chart showing decrease from 250 to 180 over 5 years">
+  <!-- Chart SVG -->
+</div>
 ```
 
 ## Form Accessibility
 
-### Label Association
+### Input Labels & Instructions
 ```html
-<!-- Explicit labeling -->
-<label for="health-query">Ask a health question</label>
-<input type="text" id="health-query" name="query">
+<!-- Associated labels -->
+<label for="health-query">
+  What health question can we help you with today?
+  <span class="optional">(optional)</span>
+</label>
+<textarea id="health-query" 
+          aria-describedby="query-help"
+          placeholder="Ask about labs, medications, or health trends...">
+</textarea>
+<p id="query-help" class="help-text">
+  You can ask complex questions involving multiple health topics
+</p>
 
-<!-- Grouped inputs -->
+<!-- Error messages -->
+<input aria-invalid="true" 
+       aria-describedby="email-error">
+<p id="email-error" role="alert" class="error">
+  Please enter a valid email address
+</p>
+```
+
+### Fieldset Grouping
+```html
 <fieldset>
   <legend>Select time range for analysis</legend>
-  <input type="radio" id="range-1year" name="range" value="1year">
-  <label for="range-1year">Past year</label>
-  <!-- More options -->
+  <label>
+    <input type="radio" name="timerange" value="1y">
+    Last year
+  </label>
+  <label>
+    <input type="radio" name="timerange" value="5y" checked>
+    Last 5 years
+  </label>
 </fieldset>
-```
-
-### Error Handling
-```html
-<div class="form-field">
-  <label for="query">Health Question</label>
-  <input type="text" 
-         id="query" 
-         aria-invalid="true"
-         aria-describedby="query-error">
-  <div id="query-error" role="alert" class="error-message">
-    Please enter a health question
-  </div>
-</div>
-```
-
-### Required Fields
-```html
-<label for="health-query">
-  Health Question <span aria-label="required">*</span>
-</label>
-<input type="text" 
-       id="health-query" 
-       required 
-       aria-required="true">
 ```
 
 ## Motion & Animation
@@ -214,88 +233,120 @@ Enter/Space: Activate buttons
 ```css
 /* Reduce motion for users who prefer it */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  * {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
   }
   
-  /* Keep essential motion indicators */
+  /* Keep essential animations */
   .loading-spinner {
-    animation: spin 2s linear infinite;
+    animation-duration: 1.5s !important;
   }
-}
-
-/* Safe animations that don't trigger vestibular issues */
-.fade-in {
-  animation: fadeIn 300ms ease-out;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
 }
 ```
 
 ### Pause Controls
 ```html
-<!-- Animated content with pause control -->
-<div class="animated-chart">
-  <button aria-label="Pause animation" 
-          onClick="toggleAnimation()">
-    <span class="pause-icon">⏸️</span>
+<!-- Pauseable animations -->
+<div class="specialist-status">
+  <div class="analysis-animation" id="anim-1">
+    <!-- Animation content -->
+  </div>
+  <button onclick="toggleAnimation('anim-1')" 
+          aria-label="Pause animation">
+    ⏸️
   </button>
-  <!-- Chart content -->
 </div>
 ```
 
-## Responsive Text
+### Safe Animation Patterns
+- No flashing more than 3 times per second
+- Smooth transitions under 5 seconds
+- User-initiated animations preferred
+- Progress indicators always visible
 
-### Scalable Font Sizes
+## Text & Readability
+
+### Font Sizing
 ```css
-/* Base font size respects user preferences */
+/* Base font size 16px minimum */
 html {
-  font-size: 100%; /* 16px default, scales with user settings */
+  font-size: 100%; /* Respects user preferences */
 }
 
-/* Use rem units for scalability */
+/* Scalable units */
 body {
-  font-size: 0.875rem; /* 14px */
-  line-height: 1.5;
+  font-size: 1rem;    /* 16px */
+  line-height: 1.5;   /* 24px */
 }
 
-h1 { font-size: 1.5rem; }  /* 24px */
-h2 { font-size: 1.25rem; } /* 20px */
+h1 { font-size: 1.5rem; }   /* 24px */
+h2 { font-size: 1.25rem; }  /* 20px */
 h3 { font-size: 1.125rem; } /* 18px */
 
-/* Minimum font sizes */
-small { font-size: max(0.75rem, 12px); }
+/* Allow zooming */
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 ```
 
-### Readable Line Lengths
-```css
-.content {
-  max-width: 70ch; /* Optimal reading length */
-  margin: 0 auto;
-}
+### Content Structure
+- Use proper heading hierarchy
+- Keep paragraphs short (3-4 sentences)
+- Use lists for related items
+- Provide summaries for long content
 
-.chat-message {
-  max-width: 45ch; /* Shorter for chat bubbles */
+### Language & Clarity
+```html
+<!-- Specify language -->
+<html lang="en">
+
+<!-- Define abbreviations -->
+<abbr title="Low-Density Lipoprotein">LDL</abbr>
+
+<!-- Simple language for complex terms -->
+<span class="definition" 
+      data-tooltip="A blood test that measures your average blood sugar over 3 months">
+  HbA1c
+</span>
+```
+
+## Error Handling
+
+### Accessible Error Messages
+```javascript
+function showError(field, message) {
+  const errorId = `${field}-error`;
+  const errorEl = document.getElementById(errorId);
+  const fieldEl = document.getElementById(field);
+  
+  // Update error message
+  errorEl.textContent = message;
+  errorEl.setAttribute('role', 'alert');
+  
+  // Update field state
+  fieldEl.setAttribute('aria-invalid', 'true');
+  fieldEl.setAttribute('aria-describedby', errorId);
+  
+  // Announce to screen readers
+  announceStatus(`Error: ${message}`);
+  
+  // Focus management
+  fieldEl.focus();
 }
 ```
 
-## Interactive Elements
+### Error Recovery
+- Clear instructions for fixing errors
+- Preserve user input during errors
+- Multiple ways to recover
+- Friendly, non-technical language
+
+## Touch & Mobile Accessibility
 
 ### Touch Targets
 ```css
-/* Minimum 44x44px touch targets */
-button,
-a,
-input[type="checkbox"],
-input[type="radio"] {
+/* Minimum touch target size */
+.touch-target {
   min-width: 44px;
   min-height: 44px;
   display: inline-flex;
@@ -305,190 +356,152 @@ input[type="radio"] {
 
 /* Spacing between targets */
 .button-group > * + * {
-  margin-left: 8px;
+  margin-left: 8px; /* Prevents accidental taps */
 }
 ```
 
-### Hover and Focus States
-```css
-/* Clear interaction states */
-.interactive-element {
-  transition: all 150ms ease-out;
-}
-
-.interactive-element:hover {
-  background-color: var(--gray-100);
-  transform: translateY(-1px);
-}
-
-.interactive-element:focus {
-  outline: 2px solid var(--primary);
-  outline-offset: 2px;
-}
-
-.interactive-element:active {
-  transform: translateY(0);
-}
-```
-
-## Data Visualization Accessibility
-
-### Chart Alternatives
-```html
-<!-- Visual chart with data table alternative -->
-<div class="chart-container">
-  <div class="chart" role="img" aria-labelledby="chart-title chart-desc">
-    <h3 id="chart-title">Cholesterol Trend Over 15 Years</h3>
-    <p id="chart-desc" class="sr-only">
-      Line chart showing cholesterol levels from 2010 to 2025,
-      with values ranging from 140 to 220 mg/dL
-    </p>
-    <!-- Chart visualization -->
-  </div>
-  
-  <details>
-    <summary>View data table</summary>
-    <table>
-      <caption>Cholesterol values by year</caption>
-      <thead>
-        <tr>
-          <th>Year</th>
-          <th>Total Cholesterol (mg/dL)</th>
-          <th>Status</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>2010</td>
-          <td>185</td>
-          <td>Normal</td>
-        </tr>
-        <!-- More rows -->
-      </tbody>
-    </table>
-  </details>
-</div>
-```
-
-### Color-Blind Safe Palettes
-```css
-/* Use patterns in addition to colors */
-.chart-series-1 { stroke: #2563EB; stroke-dasharray: 0; }
-.chart-series-2 { stroke: #DC2626; stroke-dasharray: 5,5; }
-.chart-series-3 { stroke: #059669; stroke-dasharray: 10,5; }
-.chart-series-4 { stroke: #7C3AED; stroke-dasharray: 2,2; }
-```
-
-## Error Prevention & Recovery
-
-### Clear Instructions
-```html
-<div class="help-text" id="query-help">
-  <p>Ask questions like:</p>
-  <ul>
-    <li>"What's my cholesterol trend?"</li>
-    <li>"Show my medication history"</li>
-    <li>"Analyze my blood pressure patterns"</li>
-  </ul>
-</div>
-<input type="text" 
-       aria-describedby="query-help"
-       placeholder="Ask about your health...">
-```
-
-### Confirmation Dialogs
-```html
-<div role="dialog" 
-     aria-labelledby="dialog-title" 
-     aria-describedby="dialog-desc">
-  <h2 id="dialog-title">Delete Conversation?</h2>
-  <p id="dialog-desc">
-    This will permanently delete all messages in this conversation.
-  </p>
-  <button onClick="confirmDelete()">Delete</button>
-  <button onClick="closeDialog()" aria-label="Cancel deletion">Cancel</button>
-</div>
-```
-
-## Mobile Accessibility
-
-### Viewport Settings
-```html
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5">
-```
-
-### Touch Gestures
-- Provide alternatives to complex gestures
-- Support both tap and swipe navigation
-- Ensure gesture areas are large enough
-
-### Orientation Support
-```css
-/* Support both orientations */
-@media (orientation: portrait) {
-  .layout { flex-direction: column; }
-}
-
-@media (orientation: landscape) {
-  .layout { flex-direction: row; }
-}
-```
+### Mobile Screen Reader Support
+- Test with TalkBack (Android) and VoiceOver (iOS)
+- Ensure gestures don't conflict
+- Provide alternative interactions
+- Label all interactive elements
 
 ## Testing Checklist
 
 ### Automated Testing
-- [ ] Axe DevTools scan passes
-- [ ] WAVE evaluation complete
+- [ ] axe DevTools scan passes
+- [ ] WAVE evaluation clear
 - [ ] Lighthouse accessibility score > 95
-- [ ] Color contrast analyzer passed
+- [ ] Color contrast analyzer passes
 
 ### Manual Testing
 - [ ] Keyboard-only navigation works
-- [ ] Screen reader testing (NVDA/JAWS/VoiceOver)
-- [ ] Voice control testing
-- [ ] Mobile screen reader testing
-- [ ] Browser zoom to 200% maintains usability
-- [ ] Windows High Contrast Mode supported
+- [ ] Screen reader testing (NVDA/JAWS)
+- [ ] 200% zoom maintains usability
+- [ ] Focus indicators always visible
+- [ ] Error messages are accessible
+- [ ] Time-based content has controls
 
 ### User Testing
-- [ ] Test with users who have disabilities
-- [ ] Gather feedback on pain points
-- [ ] Iterate based on real usage
-- [ ] Document accessibility features
+- [ ] Test with users with disabilities
+- [ ] Various assistive technologies
+- [ ] Different disability types
+- [ ] Real health data scenarios
 
-## Implementation Priority
+## Implementation Examples
 
-### Phase 1: Critical (Launch Required)
-- Color contrast compliance
-- Keyboard navigation
-- Screen reader basic support
-- Focus indicators
-- Form accessibility
+### Accessible Medical Team Card
+```jsx
+const SpecialistCard = ({ specialist, status, progress }) => {
+  const statusLabel = {
+    waiting: 'Waiting to begin analysis',
+    active: `Analyzing - ${progress}% complete`,
+    complete: 'Analysis complete'
+  };
 
-### Phase 2: Important (Post-Launch)
-- Enhanced screen reader experience
-- Keyboard shortcuts
-- Animation controls
-- Advanced ARIA patterns
-- Mobile accessibility optimizations
+  return (
+    <article 
+      className="specialist-card"
+      role="article"
+      aria-label={`${specialist.name} - ${specialist.role}`}
+    >
+      <div className="specialist-icon" aria-hidden="true">
+        {specialist.icon}
+      </div>
+      
+      <div className="specialist-info">
+        <h3 id={`specialist-${specialist.id}`}>
+          {specialist.name}
+        </h3>
+        <p className="specialist-role">
+          {specialist.role}
+        </p>
+        
+        <div 
+          role="progressbar"
+          aria-valuenow={progress}
+          aria-valuemin="0"
+          aria-valuemax="100"
+          aria-label={`Analysis progress for ${specialist.name}`}
+        >
+          <div className="progress-bar">
+            <div 
+              className="progress-fill" 
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <span className="sr-only">
+            {statusLabel[status]}
+          </span>
+        </div>
+      </div>
+      
+      <div className="specialist-status" aria-live="polite">
+        <span className={`status-badge ${status}`}>
+          {status}
+        </span>
+      </div>
+    </article>
+  );
+};
+```
 
-### Phase 3: Enhancement
-- Voice control optimization
-- Alternative input methods
-- Cognitive accessibility features
-- Internationalization support
-- User preference persistence
+### Accessible Chart Component
+```jsx
+const AccessibleChart = ({ data, title, description }) => {
+  return (
+    <figure role="img" aria-labelledby="chart-title" aria-describedby="chart-desc">
+      <figcaption>
+        <h3 id="chart-title">{title}</h3>
+        <p id="chart-desc" className="sr-only">{description}</p>
+      </figcaption>
+      
+      <div className="chart-container">
+        {/* Visual chart */}
+        <LineChart data={data} />
+        
+        {/* Data table alternative */}
+        <details className="data-table-toggle">
+          <summary>View data as table</summary>
+          <table>
+            <caption className="sr-only">{title} data</caption>
+            <thead>
+              <tr>
+                <th scope="col">Date</th>
+                <th scope="col">Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.map(point => (
+                <tr key={point.date}>
+                  <th scope="row">{point.date}</th>
+                  <td>{point.value}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </details>
+      </div>
+    </figure>
+  );
+};
+```
 
-## Resources
+## Resources & Tools
 
-### Tools
-- [Axe DevTools](https://www.deque.com/axe/)
+### Testing Tools
+- [axe DevTools](https://www.deque.com/axe/)
 - [WAVE](https://wave.webaim.org/)
-- [Color Contrast Analyzer](https://www.tpgi.com/color-contrast-checker/)
+- [Lighthouse](https://developers.google.com/web/tools/lighthouse)
 - [NVDA Screen Reader](https://www.nvaccess.org/)
 
 ### References
 - [WCAG 2.1 Guidelines](https://www.w3.org/WAI/WCAG21/quickref/)
 - [ARIA Authoring Practices](https://www.w3.org/WAI/ARIA/apg/)
-- [WebAIM Resources](https://webaim.org/resources/)
-- [A11y Project Checklist](https://www.a11yproject.com/checklist/)
+- [WebAIM Resources](https://webaim.org/)
+- [Healthcare Accessibility](https://www.hhs.gov/web/section-508)
+
+### Design Resources
+- [Inclusive Components](https://inclusive-components.design/)
+- [A11y Style Guide](https://a11y-style-guide.com/style-guide/)
+- [Stark (Figma Plugin)](https://www.getstark.co/)

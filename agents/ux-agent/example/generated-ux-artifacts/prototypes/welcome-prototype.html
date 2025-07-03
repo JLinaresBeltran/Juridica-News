@@ -5,859 +5,939 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Health Insight Assistant - Welcome</title>
     <style>
+        :root {
+            /* Primary Colors */
+            --color-primary: #3B82F6;
+            --color-primary-light: #60A5FA;
+            --color-primary-dark: #2563EB;
+            
+            /* Specialist Colors */
+            --color-cardiology: #EF4444;
+            --color-laboratory: #10B981;
+            --color-endocrinology: #8B5CF6;
+            --color-data-analysis: #F59E0B;
+            --color-preventive: #F97316;
+            --color-pharmacy: #FB923C;
+            --color-nutrition: #84CC16;
+            --color-general-practice: #06B6D4;
+            
+            /* Neutrals */
+            --color-background: #F9FAFB;
+            --color-surface: #FFFFFF;
+            --color-border: #E5E7EB;
+            --color-text-primary: #111827;
+            --color-text-secondary: #6B7280;
+            --color-text-muted: #9CA3AF;
+            
+            /* Spacing */
+            --space-xs: 4px;
+            --space-sm: 8px;
+            --space-md: 16px;
+            --space-lg: 24px;
+            --space-xl: 32px;
+            --space-2xl: 48px;
+            
+            /* Shadows */
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-base: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-
-        :root {
-            /* Colors */
-            --primary: #3B82F6;
-            --primary-light: #60A5FA;
-            --primary-dark: #2563EB;
-            --white: #FFFFFF;
-            --gray-50: #F9FAFB;
-            --gray-100: #F3F4F6;
-            --gray-200: #E5E7EB;
-            --gray-300: #D1D5DB;
-            --gray-400: #9CA3AF;
-            --gray-500: #6B7280;
-            --gray-700: #374151;
-            --gray-800: #1F2937;
-            --gray-900: #111827;
-            
-            /* Specialist Colors */
-            --cardiology: #EF4444;
-            --laboratory: #10B981;
-            --endocrinology: #8B5CF6;
-            --analytics: #F59E0B;
-            --preventive: #F97316;
-            --pharmacy: #FB923C;
-            --nutrition: #84CC16;
-            --cmo: #06B6D4;
-            
-            /* Effects */
-            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
-            --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
-            --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
-        }
-
+        
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background-color: var(--gray-50);
-            color: var(--gray-900);
+            background: var(--color-background);
+            color: var(--color-text-primary);
             line-height: 1.5;
         }
-
+        
         /* Header */
         .header {
-            background: var(--white);
-            border-bottom: 1px solid var(--gray-200);
-            padding: 16px 24px;
+            background: var(--color-surface);
+            border-bottom: 1px solid var(--color-border);
+            padding: var(--space-md) 0;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.9);
+        }
+        
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 var(--space-lg);
             display: flex;
             align-items: center;
             justify-content: space-between;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            box-shadow: var(--shadow-sm);
         }
-
-        .header-left {
+        
+        .logo {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: var(--space-sm);
+            text-decoration: none;
+            color: var(--color-text-primary);
         }
-
-        .logo {
-            width: 40px;
-            height: 40px;
-            background: var(--primary);
+        
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--color-primary);
             border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: var(--white);
-            font-weight: bold;
+            color: white;
         }
-
-        .header-title {
+        
+        .logo-text {
             font-size: 18px;
             font-weight: 600;
         }
-
-        .header-subtitle {
+        
+        .logo-subtitle {
             font-size: 12px;
-            color: var(--gray-500);
+            color: var(--color-text-secondary);
+            font-weight: 400;
         }
-
-        .header-right {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-        }
-
+        
         .user-info {
             display: flex;
             align-items: center;
-            gap: 8px;
-            font-size: 12px;
-            color: var(--gray-500);
+            gap: var(--space-lg);
         }
-
+        
+        .checkup-info {
+            text-align: right;
+            font-size: 12px;
+            color: var(--color-text-secondary);
+        }
+        
         .user-avatar {
-            width: 32px;
-            height: 32px;
-            background: var(--primary);
-            color: var(--white);
+            width: 40px;
+            height: 40px;
             border-radius: 50%;
+            background: var(--color-primary-light);
             display: flex;
             align-items: center;
             justify-content: center;
+            color: white;
             font-weight: 600;
         }
-
-        /* Main Layout */
-        .container {
-            display: flex;
-            height: calc(100vh - 73px);
+        
+        /* Main Content */
+        .main {
+            margin-top: 80px;
+            max-width: 1400px;
+            margin-left: auto;
+            margin-right: auto;
+            padding: var(--space-2xl) var(--space-lg);
+            display: grid;
+            grid-template-columns: 1fr 1.2fr 1fr;
+            gap: var(--space-xl);
+            min-height: calc(100vh - 80px);
+            align-items: start;
         }
-
-        /* Panels */
-        .panel {
-            background: var(--white);
-            border-right: 1px solid var(--gray-200);
-            overflow-y: auto;
-        }
-
+        
+        /* Left Panel */
         .left-panel {
-            width: 280px;
-            padding: 24px;
+            background: var(--color-surface);
+            border-radius: 12px;
+            padding: var(--space-lg);
+            box-shadow: var(--shadow-base);
         }
-
-        .center-panel {
-            flex: 1;
-            padding: 32px;
-            background: var(--gray-50);
-        }
-
-        .right-panel {
-            width: 400px;
-            padding: 24px;
-            background: var(--white);
-            border-left: 1px solid var(--gray-200);
-        }
-
-        /* Welcome Content */
-        .welcome-header {
-            text-align: center;
-            margin-bottom: 48px;
-        }
-
-        .welcome-title {
-            font-size: 24px;
+        
+        .panel-title {
+            font-size: 18px;
             font-weight: 600;
-            margin-bottom: 16px;
+            margin-bottom: var(--space-md);
         }
-
-        .status-ready {
-            display: inline-flex;
+        
+        .status-indicator {
+            display: flex;
             align-items: center;
-            gap: 8px;
-            color: var(--laboratory);
-            font-size: 14px;
-            margin-bottom: 24px;
+            gap: var(--space-sm);
+            margin-bottom: var(--space-lg);
+            color: var(--color-laboratory);
         }
-
+        
         .status-dot {
             width: 8px;
             height: 8px;
-            background: currentColor;
+            background: var(--color-laboratory);
             border-radius: 50%;
             animation: pulse 2s infinite;
         }
-
+        
         @keyframes pulse {
-            0%, 100% { opacity: 1; }
+            0% { opacity: 1; }
             50% { opacity: 0.5; }
+            100% { opacity: 1; }
         }
-
-        /* Meet Your Team */
+        
         .team-intro {
-            background: var(--white);
-            border: 1px solid var(--gray-200);
-            border-radius: 12px;
-            padding: 24px;
-            margin-bottom: 32px;
+            background: var(--color-background);
+            border-radius: 8px;
+            padding: var(--space-md);
+            margin-bottom: var(--space-lg);
         }
-
-        .team-intro-header {
+        
+        .team-intro-title {
             display: flex;
             align-items: center;
-            gap: 12px;
-            margin-bottom: 16px;
-        }
-
-        .team-intro-title {
-            font-size: 18px;
+            gap: var(--space-sm);
             font-weight: 600;
+            margin-bottom: var(--space-sm);
         }
-
-        .team-intro-description {
-            color: var(--gray-600);
-            margin-bottom: 16px;
-        }
-
+        
         .specialist-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
+            gap: var(--space-sm);
+            margin-top: var(--space-md);
         }
-
+        
         .specialist-item {
             display: flex;
             align-items: center;
-            gap: 8px;
-            font-size: 14px;
+            gap: var(--space-xs);
+            font-size: 12px;
         }
-
+        
         .specialist-dot {
             width: 8px;
             height: 8px;
             border-radius: 50%;
         }
-
-        /* CMO Introduction */
-        .cmo-intro {
-            text-align: center;
-            margin-bottom: 32px;
-        }
-
-        .cmo-avatar {
-            width: 120px;
-            height: 120px;
-            background: var(--cmo);
-            color: var(--white);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 16px;
-            font-size: 48px;
-            box-shadow: 0 8px 24px rgba(6, 182, 212, 0.2);
-        }
-
-        .cmo-name {
-            font-size: 20px;
-            font-weight: 600;
-            margin-bottom: 4px;
-        }
-
-        .cmo-title {
-            color: var(--gray-500);
-            margin-bottom: 16px;
-        }
-
-        .cmo-message {
-            max-width: 500px;
-            margin: 0 auto;
-            color: var(--gray-700);
-            line-height: 1.6;
-        }
-
-        /* How it Works */
-        .how-it-works {
-            margin-bottom: 32px;
-        }
-
-        .how-it-works-title {
-            font-size: 16px;
-            font-weight: 600;
-            margin-bottom: 16px;
-        }
-
-        .step-list {
-            list-style: none;
-            counter-reset: step-counter;
-        }
-
-        .step-item {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 12px;
-            counter-increment: step-counter;
-        }
-
-        .step-item::before {
-            content: counter(step-counter);
-            width: 24px;
-            height: 24px;
-            background: var(--primary);
-            color: var(--white);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            font-weight: 600;
-            flex-shrink: 0;
-        }
-
-        .step-text {
-            font-size: 14px;
-            color: var(--gray-700);
-            padding-top: 2px;
-        }
-
-        /* Example Queries */
+        
         .example-queries {
-            margin-bottom: 32px;
+            margin-top: var(--space-lg);
         }
-
-        .example-queries-title {
-            font-size: 16px;
+        
+        .example-title {
             font-weight: 600;
-            margin-bottom: 16px;
+            margin-bottom: var(--space-md);
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: var(--space-sm);
         }
-
-        .query-card {
-            background: var(--white);
-            border: 1px solid var(--gray-200);
+        
+        .example-card {
+            background: var(--color-background);
+            border: 1px solid var(--color-border);
             border-radius: 8px;
-            padding: 16px;
-            margin-bottom: 12px;
+            padding: var(--space-md);
+            margin-bottom: var(--space-sm);
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.3s ease;
         }
-
-        .query-card:hover {
-            border-color: var(--primary);
+        
+        .example-card:hover {
+            border-color: var(--color-primary);
             box-shadow: var(--shadow-md);
-            transform: translateY(-1px);
+            transform: translateY(-2px);
         }
-
-        .query-card.selected {
-            background: #EFF6FF;
-            border-color: var(--primary);
+        
+        .example-icon {
+            font-size: 20px;
+            margin-bottom: var(--space-xs);
         }
-
-        .query-icon {
-            width: 24px;
-            height: 24px;
-            margin-right: 12px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .query-text {
+        
+        .example-text {
             font-size: 14px;
-            color: var(--gray-700);
-            margin-bottom: 4px;
+            color: var(--color-text-primary);
+            margin-bottom: var(--space-xs);
         }
-
-        .query-complexity {
+        
+        .example-meta {
             font-size: 12px;
-            color: var(--gray-500);
+            color: var(--color-text-secondary);
         }
-
-        /* Input Area */
-        .input-area {
-            background: var(--white);
-            border: 1px solid var(--gray-300);
-            border-radius: 8px;
-            padding: 16px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
+        
+        /* Center Panel */
+        .center-panel {
+            background: var(--color-surface);
+            border-radius: 12px;
+            padding: var(--space-xl);
+            box-shadow: var(--shadow-base);
         }
-
-        .input-field {
-            flex: 1;
-            border: none;
-            outline: none;
-            font-size: 16px;
-            font-family: inherit;
-        }
-
-        .input-field::placeholder {
-            color: var(--gray-400);
-        }
-
-        .send-button {
-            background: var(--primary);
-            color: var(--white);
-            border: none;
-            border-radius: 6px;
-            padding: 8px 16px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            transition: background 0.2s ease;
-        }
-
-        .send-button:hover {
-            background: var(--primary-dark);
-        }
-
-        /* Medical Team Visualization */
-        .team-architecture {
-            padding: 24px;
-        }
-
-        .team-title {
-            font-size: 16px;
-            font-weight: 600;
-            margin-bottom: 24px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .team-diagram {
-            position: relative;
-            height: 400px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-        }
-
-        /* CMO Node */
-        .cmo-node {
+        
+        .hero-section {
             text-align: center;
-            margin-bottom: 80px;
+            margin-bottom: var(--space-xl);
         }
-
-        .node-avatar {
+        
+        .hero-icon {
             width: 80px;
             height: 80px;
+            background: var(--color-primary);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: var(--white);
-            font-size: 32px;
-            margin: 0 auto 8px;
-            position: relative;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            animation: float 3s ease-in-out infinite;
+            margin: 0 auto var(--space-lg);
+            font-size: 40px;
+            color: white;
         }
-
-        @keyframes float {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-5px); }
+        
+        .hero-title {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: var(--space-sm);
         }
-
-        .node-name {
+        
+        .hero-subtitle {
+            color: var(--color-text-secondary);
+            margin-bottom: var(--space-lg);
+        }
+        
+        .how-it-works {
+            background: var(--color-background);
+            border-radius: 8px;
+            padding: var(--space-lg);
+            margin-bottom: var(--space-xl);
+        }
+        
+        .work-step {
+            display: flex;
+            align-items: flex-start;
+            gap: var(--space-md);
+            margin-bottom: var(--space-md);
+        }
+        
+        .step-icon {
+            width: 24px;
+            height: 24px;
+            background: var(--color-primary);
+            color: white;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+        
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--space-md);
+            margin-bottom: var(--space-xl);
+        }
+        
+        .feature-card {
+            background: var(--color-background);
+            border-radius: 8px;
+            padding: var(--space-md);
+            text-align: center;
+        }
+        
+        .feature-icon {
+            font-size: 24px;
+            margin-bottom: var(--space-sm);
+        }
+        
+        .feature-title {
             font-size: 14px;
             font-weight: 600;
-            margin-bottom: 2px;
+            margin-bottom: var(--space-xs);
         }
-
-        .node-title {
+        
+        .feature-desc {
             font-size: 12px;
-            color: var(--gray-500);
+            color: var(--color-text-secondary);
         }
-
-        /* Specialist Nodes */
-        .specialists-row {
+        
+        .query-input-section {
+            background: var(--color-background);
+            border-radius: 8px;
+            padding: var(--space-lg);
+        }
+        
+        .input-label {
+            font-weight: 600;
+            margin-bottom: var(--space-md);
+        }
+        
+        .query-input {
+            width: 100%;
+            padding: var(--space-md);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            resize: vertical;
+            min-height: 60px;
+        }
+        
+        .query-input:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        
+        .submit-button {
+            width: 100%;
+            padding: var(--space-md);
+            background: var(--color-primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: var(--space-md);
+            transition: all 0.3s ease;
             display: flex;
-            gap: 48px;
+            align-items: center;
+            justify-content: center;
+            gap: var(--space-sm);
+        }
+        
+        .submit-button:hover:not(:disabled) {
+            background: var(--color-primary-dark);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+        
+        .submit-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        /* Right Panel */
+        .right-panel {
+            background: var(--color-surface);
+            border-radius: 12px;
+            padding: var(--space-lg);
+            box-shadow: var(--shadow-base);
+        }
+        
+        .team-visualization {
             position: relative;
+            height: 300px;
+            margin-bottom: var(--space-xl);
         }
-
-        .specialist-node {
-            text-align: center;
-            animation: float 3s ease-in-out infinite;
-        }
-
-        .specialist-node:nth-child(2) { animation-delay: 0.5s; }
-        .specialist-node:nth-child(3) { animation-delay: 1s; }
-
-        .node-avatar.cardiology { background: var(--cardiology); }
-        .node-avatar.laboratory { background: var(--laboratory); }
-        .node-avatar.endocrinology { background: var(--endocrinology); }
-        .node-avatar.cmo { background: var(--cmo); }
-
-        .node-status {
-            font-size: 12px;
-            color: var(--laboratory);
-            margin-top: 8px;
-        }
-
-        /* Connection Lines */
-        .connection-lines {
+        
+        .cmo-node {
             position: absolute;
-            top: 120px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80px;
+            height: 80px;
+            background: var(--color-general-practice);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+            box-shadow: var(--shadow-lg);
+            z-index: 10;
+        }
+        
+        .specialist-node {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+            box-shadow: var(--shadow-md);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .specialist-node:hover {
+            transform: scale(1.1);
+            box-shadow: var(--shadow-lg);
+        }
+        
+        .specialist-node.cardiology {
+            background: var(--color-cardiology);
+            top: 10%;
             left: 50%;
             transform: translateX(-50%);
         }
-
+        
+        .specialist-node.laboratory {
+            background: var(--color-laboratory);
+            top: 30%;
+            right: 10%;
+        }
+        
+        .specialist-node.endocrinology {
+            background: var(--color-endocrinology);
+            bottom: 30%;
+            right: 10%;
+        }
+        
+        .specialist-node.data-analysis {
+            background: var(--color-data-analysis);
+            bottom: 10%;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        
+        .specialist-node.preventive {
+            background: var(--color-preventive);
+            bottom: 30%;
+            left: 10%;
+        }
+        
+        .specialist-node.pharmacy {
+            background: var(--color-pharmacy);
+            top: 30%;
+            left: 10%;
+        }
+        
         .connection-line {
             position: absolute;
-            width: 2px;
-            height: 60px;
-            background: var(--gray-300);
-            transform-origin: top;
+            height: 1px;
+            background: var(--color-border);
+            transform-origin: left center;
+            z-index: 1;
         }
-
-        .connection-line.left { transform: rotate(-30deg) translateX(-60px); }
-        .connection-line.center { transform: translateX(0); }
-        .connection-line.right { transform: rotate(30deg) translateX(60px); }
-
-        /* Powered By */
-        .powered-by {
-            text-align: center;
-            margin-top: 32px;
-            padding-top: 24px;
-            border-top: 1px solid var(--gray-200);
+        
+        .specialist-list {
+            margin-top: var(--space-xl);
         }
-
-        .powered-by-title {
-            font-size: 14px;
-            font-weight: 600;
-            margin-bottom: 16px;
-        }
-
-        .powered-by-items {
+        
+        .specialist-list-item {
             display: flex;
+            align-items: center;
+            gap: var(--space-md);
+            padding: var(--space-sm) 0;
+            border-bottom: 1px solid var(--color-border);
+        }
+        
+        .specialist-list-item:last-child {
+            border-bottom: none;
+        }
+        
+        .specialist-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
             justify-content: center;
-            gap: 24px;
+            color: white;
+            font-size: 20px;
+        }
+        
+        .specialist-info {
+            flex: 1;
+        }
+        
+        .specialist-name {
+            font-weight: 600;
             font-size: 14px;
-            color: var(--gray-600);
         }
-
-        /* Demo Tip */
-        .demo-tip {
-            background: #FEF3C7;
-            border: 1px solid #FCD34D;
-            border-radius: 8px;
-            padding: 12px 16px;
-            margin-top: 24px;
+        
+        .specialist-role {
             font-size: 12px;
-            color: #92400E;
-            text-align: center;
+            color: var(--color-text-secondary);
         }
-
+        
+        .ready-badge {
+            font-size: 12px;
+            color: var(--color-laboratory);
+            font-weight: 500;
+        }
+        
+        /* Powered By Section */
+        .powered-by {
+            margin-top: var(--space-xl);
+            padding-top: var(--space-lg);
+            border-top: 1px solid var(--color-border);
+        }
+        
+        .powered-title {
+            font-weight: 600;
+            margin-bottom: var(--space-md);
+        }
+        
+        .powered-item {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            margin-bottom: var(--space-sm);
+            font-size: 14px;
+            color: var(--color-text-secondary);
+        }
+        
         /* Responsive */
-        @media (max-width: 1024px) {
-            .left-panel { display: none; }
-            .right-panel { display: none; }
-            .center-panel { padding: 24px; }
-            .specialist-grid { grid-template-columns: 1fr; }
+        @media (max-width: 1200px) {
+            .main {
+                grid-template-columns: 1fr;
+                gap: var(--space-lg);
+            }
+            
+            .team-visualization {
+                max-width: 400px;
+                margin: 0 auto var(--space-xl);
+            }
+        }
+        
+        /* Loading Animation */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid var(--color-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
 <body>
     <!-- Header -->
     <header class="header">
-        <div class="header-left">
-            <div class="logo">HI</div>
-            <div>
-                <div class="header-title">Health Insight Assistant</div>
-                <div class="header-subtitle">Powered by Multi-Agent AI • Snowflake Cortex</div>
-            </div>
-        </div>
-        <div class="header-right">
+        <div class="header-content">
+            <a href="#" class="logo">
+                <div class="logo-icon">🏥</div>
+                <div>
+                    <div class="logo-text">Health Insight Assistant</div>
+                    <div class="logo-subtitle">Powered by Multi-Agent AI • Snowflake Cortex</div>
+                </div>
+            </a>
             <div class="user-info">
-                <span>Last checkup: 2 weeks ago</span>
+                <div class="checkup-info">
+                    <div>George Vetticaden</div>
+                    <div>Last checkup: 2 weeks ago</div>
+                </div>
+                <div class="user-avatar">GV</div>
+                <button style="background: none; border: none; cursor: pointer; font-size: 20px;">⚙️</button>
             </div>
-            <div class="user-avatar">GV</div>
-            <button style="background: none; border: none; cursor: pointer;">⚙️</button>
         </div>
     </header>
 
-    <!-- Main Container -->
-    <div class="container">
-        <!-- Left Panel - Command Center -->
-        <div class="panel left-panel">
-            <h2 style="font-size: 18px; font-weight: 600; margin-bottom: 24px;">
-                Welcome to Your Health<br>Command Center
-            </h2>
+    <!-- Main Content -->
+    <main class="main">
+        <!-- Left Panel -->
+        <div class="left-panel">
+            <h2 class="panel-title">Welcome to Your Health Command Center</h2>
             
-            <div class="status-ready">
-                <span class="status-dot"></span>
-                Medical Team Status: Ready
+            <div class="status-indicator">
+                <div class="status-dot"></div>
+                <span>Medical Team Status: Ready</span>
             </div>
-
-            <!-- Meet Your Medical Team -->
+            
             <div class="team-intro">
-                <div class="team-intro-header">
-                    <span style="font-size: 24px;">👋</span>
-                    <h3 class="team-intro-title">Meet Your Medical Team</h3>
+                <div class="team-intro-title">
+                    👋 <span>Meet Your Medical Team</span>
                 </div>
-                <p class="team-intro-description">
+                <p style="font-size: 14px; color: var(--color-text-secondary); margin-bottom: var(--space-sm);">
                     "I coordinate your entire care team to ensure comprehensive health insights."
                 </p>
-                <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px;">
-                    🩺 Your Specialist Network:
+                <div style="font-size: 12px; color: var(--color-text-secondary); margin-bottom: var(--space-md);">
+                    📊 Your Specialist Network:
                 </div>
                 <div class="specialist-grid">
                     <div class="specialist-item">
-                        <span class="specialist-dot" style="background: var(--cardiology);"></span>
+                        <div class="specialist-dot" style="background: var(--color-cardiology);"></div>
                         <span>Cardiology</span>
                     </div>
                     <div class="specialist-item">
-                        <span class="specialist-dot" style="background: var(--endocrinology);"></span>
+                        <div class="specialist-dot" style="background: var(--color-endocrinology);"></div>
                         <span>Endocrinology</span>
                     </div>
                     <div class="specialist-item">
-                        <span class="specialist-dot" style="background: var(--laboratory);"></span>
+                        <div class="specialist-dot" style="background: var(--color-laboratory);"></div>
                         <span>Laboratory Medicine</span>
                     </div>
                     <div class="specialist-item">
-                        <span class="specialist-dot" style="background: var(--preventive);"></span>
+                        <div class="specialist-dot" style="background: var(--color-preventive);"></div>
                         <span>Preventive Medicine</span>
                     </div>
                     <div class="specialist-item">
-                        <span class="specialist-dot" style="background: var(--analytics);"></span>
+                        <div class="specialist-dot" style="background: var(--color-data-analysis);"></div>
                         <span>Data Analysis</span>
                     </div>
                     <div class="specialist-item">
-                        <span class="specialist-dot" style="background: var(--nutrition);"></span>
-                        <span>+ 3 more specialists</span>
+                        <div class="specialist-dot" style="background: var(--color-pharmacy);"></div>
+                        <span>Pharmacy</span>
                     </div>
                 </div>
+                <div style="font-size: 12px; color: var(--color-text-secondary); margin-top: var(--space-md);">
+                    • + 3 more specialists
+                </div>
             </div>
-
-            <!-- Try These Examples -->
+            
             <div class="example-queries">
-                <h3 class="example-queries-title">
-                    🚀 Try These Example Questions:
-                </h3>
-                <div class="query-card" onclick="submitQuery('What\'s my 15-year cholesterol trend?')">
-                    <span class="query-icon">❤️</span>
-                    <div class="query-text">What's my 15-year cholesterol trend?</div>
-                    <div class="query-complexity">Complexity: Standard</div>
+                <div class="example-title">
+                    🚀 <span>Try These Example Questions:</span>
                 </div>
-                <div class="query-card" onclick="submitQuery('Medication adherence vs cholesterol correlation')">
-                    <span class="query-icon">💊</span>
-                    <div class="query-text">Medication adherence vs cholesterol correlation</div>
-                    <div class="query-complexity">Complexity: Complex</div>
+                
+                <div class="example-card" onclick="submitQuery('What\'s my 15-year cholesterol trend?')">
+                    <div class="example-icon">❤️</div>
+                    <div class="example-text">What's my 15-year cholesterol trend?</div>
+                    <div class="example-meta">Complexity: Standard</div>
                 </div>
-                <div class="query-card" onclick="submitQuery('Show my abnormal lab results this year')">
-                    <span class="query-icon">🔬</span>
-                    <div class="query-text">Show my abnormal lab results this year</div>
-                    <div class="query-complexity">Complexity: Standard</div>
+                
+                <div class="example-card" onclick="submitQuery('Medication adherence vs cholesterol correlation')">
+                    <div class="example-icon">💊</div>
+                    <div class="example-text">Medication adherence vs cholesterol correlation</div>
+                    <div class="example-meta">Complexity: Complex</div>
                 </div>
-                <div class="query-card" onclick="submitQuery('HbA1c, metformin & weight correlation')">
-                    <span class="query-icon">📊</span>
-                    <div class="query-text">HbA1c, metformin & weight correlation</div>
-                    <div class="query-complexity">Complexity: Complex</div>
+                
+                <div class="example-card" onclick="submitQuery('Show my abnormal lab results this year')">
+                    <div class="example-icon">🔬</div>
+                    <div class="example-text">Show my abnormal lab results this year</div>
+                    <div class="example-meta">Complexity: Simple</div>
+                </div>
+                
+                <div class="example-card" onclick="submitQuery('HbA1c, metformin & weight correlation')">
+                    <div class="example-icon">📊</div>
+                    <div class="example-text">HbA1c, metformin & weight correlation</div>
+                    <div class="example-meta">Complexity: Standard</div>
                 </div>
             </div>
         </div>
 
-        <!-- Center Panel - Main Content -->
+        <!-- Center Panel -->
         <div class="center-panel">
-            <div class="welcome-header">
-                <div class="status-ready">
-                    <span class="status-dot"></span>
-                    Medical Team Status: Ready
-                </div>
+            <div class="hero-section">
+                <div class="hero-icon">🧠</div>
+                <h1 class="hero-title">Hello, I'm Dr. Vitality, your Chief Medical Officer</h1>
+                <p class="hero-subtitle">I lead a team of 8 medical specialists ready to analyze your health data.</p>
             </div>
-
-            <!-- CMO Introduction -->
-            <div class="cmo-intro">
-                <div class="cmo-avatar">🩺</div>
-                <div class="cmo-name">Dr. Vitality, MD</div>
-                <div class="cmo-title">Chief Medical Officer</div>
-                <p class="cmo-message">
-                    Hello, I'm <strong>Dr. Vitality</strong>, your Chief Medical Officer. I lead a team of 8 medical 
-                    specialists ready to analyze your health data.
-                </p>
-            </div>
-
-            <!-- How it Works -->
+            
             <div class="how-it-works">
-                <h3 class="how-it-works-title">Here's how we work:</h3>
-                <ul class="step-list">
-                    <li class="step-item">
-                        <span class="step-text">You ask a health question</span>
-                    </li>
-                    <li class="step-item">
-                        <span class="step-text">I analyze and assemble the right specialists</span>
-                    </li>
-                    <li class="step-item">
-                        <span class="step-text">My team investigates in parallel</span>
-                    </li>
-                    <li class="step-item">
-                        <span class="step-text">We deliver comprehensive insights</span>
-                    </li>
-                </ul>
-            </div>
-
-            <!-- Key Features -->
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 32px;">
-                <div style="text-align: center; padding: 16px;">
-                    <div style="font-size: 24px; margin-bottom: 8px;">✓</div>
-                    <div style="font-size: 14px; font-weight: 600;">Analyze years of health records</div>
+                <h3 style="font-weight: 600; margin-bottom: var(--space-md);">Here's how we work:</h3>
+                <div class="work-step">
+                    <div class="step-icon">1</div>
+                    <div>
+                        <strong>You ask a health question</strong><br>
+                        <span style="font-size: 14px; color: var(--color-text-secondary);">
+                            I analyze and assemble the right specialists
+                        </span>
+                    </div>
                 </div>
-                <div style="text-align: center; padding: 16px;">
-                    <div style="font-size: 24px; margin-bottom: 8px;">✓</div>
-                    <div style="font-size: 14px; font-weight: 600;">Identify patterns and trends</div>
+                <div class="work-step">
+                    <div class="step-icon">2</div>
+                    <div>
+                        <strong>My team investigates in parallel</strong><br>
+                        <span style="font-size: 14px; color: var(--color-text-secondary);">
+                            Each specialist examines your data thoroughly
+                        </span>
+                    </div>
                 </div>
-                <div style="text-align: center; padding: 16px;">
-                    <div style="font-size: 24px; margin-bottom: 8px;">✓</div>
-                    <div style="font-size: 14px; font-weight: 600;">Create visual health insights</div>
+                <div class="work-step">
+                    <div class="step-icon">3</div>
+                    <div>
+                        <strong>We deliver comprehensive insights</strong><br>
+                        <span style="font-size: 14px; color: var(--color-text-secondary);">
+                            With visualizations and actionable recommendations
+                        </span>
+                    </div>
                 </div>
             </div>
-
-            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 32px;">
-                <div style="background: #F0F9FF; border: 1px solid #BAE6FD; border-radius: 8px; padding: 16px;">
-                    <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px;">✓ Evidence-based recommendations</div>
+            
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">✓</div>
+                    <div class="feature-title">Analyze years of health records</div>
+                    <div class="feature-desc">Comprehensive data analysis</div>
                 </div>
-                <div style="background: #F0FDF4; border: 1px solid #86EFAC; border-radius: 8px; padding: 16px;">
-                    <div style="font-size: 14px; font-weight: 600; margin-bottom: 8px;">✓ Create visual health insights</div>
+                <div class="feature-card">
+                    <div class="feature-icon">✓</div>
+                    <div class="feature-title">Identify patterns and trends</div>
+                    <div class="feature-desc">Advanced pattern recognition</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">✓</div>
+                    <div class="feature-title">Evidence-based recommendations</div>
+                    <div class="feature-desc">Clinical guidelines applied</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">✓</div>
+                    <div class="feature-title">Create visual health insights</div>
+                    <div class="feature-desc">Interactive data visualization</div>
                 </div>
             </div>
-
-            <!-- Input Area -->
-            <div style="font-size: 16px; font-weight: 600; margin-bottom: 16px; text-align: center;">
-                What health question can we help you with today?
-            </div>
-            <div class="input-area">
-                <input type="text" class="input-field" placeholder="Ask about labs, medications, correlations, or health" id="queryInput">
-                <button class="send-button" onclick="submitQueryFromInput()">
-                    <span>Send</span>
+            
+            <div class="query-input-section">
+                <label class="input-label">What health question can we help you with today?</label>
+                <textarea 
+                    id="queryInput"
+                    class="query-input" 
+                    placeholder="Ask about labs, medications, correlations, or health trends..."
+                    rows="3"
+                ></textarea>
+                <button id="submitButton" class="submit-button" onclick="handleSubmit()">
+                    <span>Start Analysis</span>
                     <span>→</span>
                 </button>
             </div>
         </div>
 
-        <!-- Right Panel - Medical Team Architecture -->
-        <div class="panel right-panel">
-            <div class="team-architecture">
-                <h3 class="team-title">
-                    <span>🏥</span>
-                    Your Medical Team Architecture
-                </h3>
-
-                <div class="team-diagram">
-                    <!-- CMO Node -->
-                    <div class="cmo-node">
-                        <div class="node-avatar cmo">🩺</div>
-                        <div class="node-name">Dr. Vitality (CMO)</div>
-                        <div class="node-title">Orchestrates & Delegates</div>
-                    </div>
-
-                    <!-- Connection Lines -->
-                    <div class="connection-lines">
-                        <div class="connection-line left"></div>
-                        <div class="connection-line center"></div>
-                        <div class="connection-line right"></div>
-                    </div>
-
-                    <!-- Specialist Nodes -->
-                    <div class="specialists-row">
-                        <div class="specialist-node">
-                            <div class="node-avatar cardiology">❤️</div>
-                            <div class="node-name">Cardiology</div>
-                            <div class="node-title">Dr. Heart</div>
-                            <div class="node-status">Ready</div>
-                        </div>
-                        <div class="specialist-node">
-                            <div class="node-avatar laboratory">🔬</div>
-                            <div class="node-name">Laboratory</div>
-                            <div class="node-title">Medicine</div>
-                            <div class="node-title">Dr. Lab</div>
-                            <div class="node-status">Ready</div>
-                        </div>
-                        <div class="specialist-node">
-                            <div class="node-avatar endocrinology">💊</div>
-                            <div class="node-name">Endocrinology</div>
-                            <div class="node-title">Dr. Hormone</div>
-                            <div class="node-status">Ready</div>
-                        </div>
-                    </div>
+        <!-- Right Panel -->
+        <div class="right-panel">
+            <h3 class="panel-title">🏥 Your Medical Team Architecture</h3>
+            
+            <div class="team-visualization">
+                <!-- Connection lines -->
+                <div class="connection-line" style="width: 100px; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-90deg);"></div>
+                <div class="connection-line" style="width: 100px; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg);"></div>
+                <div class="connection-line" style="width: 100px; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(0deg);"></div>
+                <div class="connection-line" style="width: 100px; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(45deg);"></div>
+                <div class="connection-line" style="width: 100px; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(90deg);"></div>
+                <div class="connection-line" style="width: 100px; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(135deg);"></div>
+                
+                <!-- CMO Node -->
+                <div class="cmo-node">
+                    <span>Dr. Vitality<br>(CMO)</span>
                 </div>
-
-                <!-- Additional Specialists -->
-                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 32px;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <div style="width: 32px; height: 32px; background: var(--analytics); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px;">📊</div>
-                        <div>
-                            <div style="font-size: 12px; font-weight: 600;">Data Analysis</div>
-                            <div style="font-size: 11px; color: var(--gray-500);">Dr. Analytics</div>
-                            <div style="font-size: 10px; color: var(--laboratory);">Ready</div>
-                        </div>
+                
+                <!-- Specialist Nodes -->
+                <div class="specialist-node cardiology" title="Cardiology">❤️</div>
+                <div class="specialist-node laboratory" title="Laboratory Medicine">🔬</div>
+                <div class="specialist-node endocrinology" title="Endocrinology">💉</div>
+                <div class="specialist-node data-analysis" title="Data Analysis">📊</div>
+                <div class="specialist-node preventive" title="Preventive Medicine">🛡️</div>
+                <div class="specialist-node pharmacy" title="Pharmacy">💊</div>
+            </div>
+            
+            <div class="specialist-list">
+                <div class="specialist-list-item">
+                    <div class="specialist-avatar" style="background: var(--color-general-practice);">👨‍⚕️</div>
+                    <div class="specialist-info">
+                        <div class="specialist-name">Dr. Vitality - Chief Medical Officer</div>
+                        <div class="specialist-role">Orchestrates & Delegates</div>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <div style="width: 32px; height: 32px; background: var(--preventive); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px;">🛡️</div>
-                        <div>
-                            <div style="font-size: 12px; font-weight: 600;">Preventive Medicine</div>
-                            <div style="font-size: 11px; color: var(--gray-500);">Dr. Prevention</div>
-                            <div style="font-size: 10px; color: var(--laboratory);">Ready</div>
-                        </div>
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <div style="width: 32px; height: 32px; background: var(--pharmacy); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px;">💉</div>
-                        <div>
-                            <div style="font-size: 12px; font-weight: 600;">Pharmacy</div>
-                            <div style="font-size: 11px; color: var(--gray-500);">Dr. Pharma</div>
-                            <div style="font-size: 10px; color: var(--laboratory);">Ready</div>
-                        </div>
-                    </div>
+                    <div class="ready-badge">Ready</div>
                 </div>
-
-                <!-- Powered By -->
-                <div class="powered-by">
-                    <div class="powered-by-title">⚡ Powered by:</div>
-                    <div class="powered-by-items">
-                        <div>• Anthropic Claude Opus 4</div>
-                        <div>• Snowflake Cortex AI</div>
-                        <div>• Multi-Agent Orchestration</div>
+                
+                <div class="specialist-list-item">
+                    <div class="specialist-avatar" style="background: var(--color-cardiology);">❤️</div>
+                    <div class="specialist-info">
+                        <div class="specialist-name">Dr. Heart - Cardiology</div>
+                        <div class="specialist-role">Cardiovascular Health</div>
                     </div>
+                    <div class="ready-badge">Ready</div>
                 </div>
-
-                <!-- Demo Tip -->
-                <div class="demo-tip">
-                    💡 <strong>Demo Tip:</strong> Try complex questions to see multiple specialists collaborate!
+                
+                <div class="specialist-list-item">
+                    <div class="specialist-avatar" style="background: var(--color-laboratory);">🔬</div>
+                    <div class="specialist-info">
+                        <div class="specialist-name">Dr. Lab - Laboratory Medicine</div>
+                        <div class="specialist-role">Lab Results Analysis</div>
+                    </div>
+                    <div class="ready-badge">Ready</div>
+                </div>
+                
+                <div class="specialist-list-item">
+                    <div class="specialist-avatar" style="background: var(--color-endocrinology);">💉</div>
+                    <div class="specialist-info">
+                        <div class="specialist-name">Dr. Hormone - Endocrinology</div>
+                        <div class="specialist-role">Hormones & Metabolism</div>
+                    </div>
+                    <div class="ready-badge">Ready</div>
+                </div>
+                
+                <div class="specialist-list-item">
+                    <div class="specialist-avatar" style="background: var(--color-data-analysis);">📊</div>
+                    <div class="specialist-info">
+                        <div class="specialist-name">Dr. Analytics - Data Analysis</div>
+                        <div class="specialist-role">Statistical Insights</div>
+                    </div>
+                    <div class="ready-badge">Ready</div>
+                </div>
+            </div>
+            
+            <div class="powered-by">
+                <div class="powered-title">🚀 Powered by:</div>
+                <div class="powered-item">
+                    • Anthropic Claude Opus 4
+                </div>
+                <div class="powered-item">
+                    • Snowflake Cortex AI
+                </div>
+                <div class="powered-item">
+                    • Multi-Agent Orchestration
+                </div>
+                
+                <div style="margin-top: var(--space-lg); padding: var(--space-md); background: var(--color-background); border-radius: 8px; text-align: center;">
+                    <div style="font-size: 12px; color: var(--color-text-secondary); margin-bottom: var(--space-xs);">
+                        💡 Demo Tip: Try complex questions to see multiple specialists collaborate!
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
+    </main>
 
     <script>
-        function submitQuery(query) {
-            document.getElementById('queryInput').value = query;
-            // Highlight selected card
-            document.querySelectorAll('.query-card').forEach(card => {
-                card.classList.remove('selected');
-            });
-            event.currentTarget.classList.add('selected');
-            
-            // Simulate submission after short delay
-            setTimeout(() => {
-                alert(`Query submitted: "${query}"\n\nIn the real app, this would transition to the chat interface.`);
-            }, 300);
-        }
+        // Auto-resize textarea
+        const queryInput = document.getElementById('queryInput');
+        queryInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = this.scrollHeight + 'px';
+        });
 
-        function submitQueryFromInput() {
-            const query = document.getElementById('queryInput').value;
-            if (query.trim()) {
-                alert(`Query submitted: "${query}"\n\nIn the real app, this would transition to the chat interface.`);
+        // Handle form submission
+        function handleSubmit() {
+            const query = queryInput.value.trim();
+            if (query) {
+                // Simulate submission - in real app, would navigate to main app
+                document.getElementById('submitButton').innerHTML = '<span class="loading"></span>';
+                document.getElementById('submitButton').disabled = true;
+                
+                setTimeout(() => {
+                    alert(`Analysis started for: "${query}"\n\nIn the real app, this would navigate to the main chat interface.`);
+                    document.getElementById('submitButton').innerHTML = '<span>Start Analysis</span><span>→</span>';
+                    document.getElementById('submitButton').disabled = false;
+                }, 1000);
             }
         }
 
-        // Allow Enter key to submit
-        document.getElementById('queryInput').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                submitQueryFromInput();
+        // Submit example query
+        function submitQuery(query) {
+            queryInput.value = query;
+            queryInput.style.height = 'auto';
+            queryInput.style.height = queryInput.scrollHeight + 'px';
+            queryInput.focus();
+        }
+
+        // Add enter key support
+        queryInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSubmit();
             }
         });
 
-        // Add floating animation to specialist nodes
-        document.querySelectorAll('.node-avatar').forEach((node, index) => {
-            node.style.animationDelay = `${index * 0.3}s`;
+        // Animate specialist nodes on hover
+        document.querySelectorAll('.specialist-node').forEach(node => {
+            node.addEventListener('mouseenter', function() {
+                const title = this.getAttribute('title');
+                this.style.transform = 'scale(1.1)';
+            });
+            
+            node.addEventListener('mouseleave', function() {
+                this.style.transform = 'scale(1)';
+            });
         });
     </script>
 </body>

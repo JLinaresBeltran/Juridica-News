@@ -1,115 +1,40 @@
-# Animation & Transition Specifications: Health Insight Assistant
+# Animation and Transition Specifications: Multi-Agent Health Insight System
 
 ## Animation Principles
 
 ### Core Philosophy
-Animations in the Health Insight Assistant serve to:
-1. **Guide Attention**: Direct users to important changes
-2. **Show Relationships**: Connect UI elements and actions
-3. **Provide Feedback**: Confirm user interactions
-4. **Enhance Personality**: Make the medical team feel alive
-5. **Reduce Cognitive Load**: Smooth transitions between states
+Animations in the Health Insight System serve to:
+1. **Guide Attention**: Direct focus to important changes
+2. **Show Relationships**: Connect medical team interactions
+3. **Indicate Progress**: Real-time analysis feedback
+4. **Smooth Transitions**: Reduce cognitive load
+5. **Build Trust**: Professional, medical-grade feel
 
-### Performance Guidelines
-- **60 FPS Target**: All animations must maintain smooth framerates
-- **GPU Acceleration**: Use transform and opacity when possible
-- **Will-Change**: Declare animated properties in advance
-- **Reduced Motion**: Respect user preferences
-
-## Timing & Easing
-
-### Duration Scale
+### Timing Guidelines
 ```css
 :root {
-  --duration-instant: 100ms;   /* Micro-interactions */
-  --duration-fast: 150ms;      /* Hover states */
+  /* Duration scales */
+  --duration-instant: 100ms;   /* Hover states */
+  --duration-fast: 150ms;      /* Micro-interactions */
   --duration-normal: 300ms;    /* Most transitions */
-  --duration-moderate: 500ms;  /* Panel slides */
-  --duration-slow: 700ms;      /* Complex animations */
-  --duration-slower: 1000ms;   /* Page transitions */
-}
-```
-
-### Easing Functions
-```css
-:root {
-  /* Standard easings */
-  --ease-in: cubic-bezier(0.4, 0, 1, 1);
-  --ease-out: cubic-bezier(0, 0, 0.2, 1);
-  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --duration-slow: 500ms;      /* Complex animations */
+  --duration-slower: 800ms;    /* Page transitions */
+  --duration-slowest: 1200ms;  /* Initial load sequences */
   
-  /* Special easings */
-  --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
-  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  /* Easing functions */
+  --ease-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 1, 1);
+  --ease-spring: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  --ease-smooth: cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 ```
 
 ## Component Animations
 
-### Button Interactions
+### 1. Page Load Sequence
+Initial application load with staggered reveal:
+
 ```css
-.button {
-  transition: all var(--duration-fast) var(--ease-out);
-  transform: translateY(0);
-}
-
-.button:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.button:active {
-  transform: translateY(0);
-  transition-duration: var(--duration-instant);
-}
-
-/* Ripple effect on click */
-@keyframes ripple {
-  0% {
-    transform: scale(0);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(4);
-    opacity: 0;
-  }
-}
-
-.button::after {
-  content: '';
-  position: absolute;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.3);
-  width: 100px;
-  height: 100px;
-  margin-left: -50px;
-  margin-top: -50px;
-  animation: ripple 600ms ease-out;
-}
-```
-
-### Card Hover Effects
-```css
-.card {
-  transition: all var(--duration-normal) var(--ease-out);
-  transform: translateY(0);
-}
-
-.card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
-}
-
-/* Stagger animation for card lists */
-.card-list .card {
-  animation: fadeInUp var(--duration-normal) var(--ease-out) both;
-}
-
-.card-list .card:nth-child(1) { animation-delay: 0ms; }
-.card-list .card:nth-child(2) { animation-delay: 50ms; }
-.card-list .card:nth-child(3) { animation-delay: 100ms; }
-
 @keyframes fadeInUp {
   from {
     opacity: 0;
@@ -120,617 +45,691 @@ Animations in the Health Insight Assistant serve to:
     transform: translateY(0);
   }
 }
-```
 
-### Input Focus Transitions
-```css
-.input-field {
-  border: 1px solid var(--gray-300);
-  transition: border-color var(--duration-fast) var(--ease-out);
+/* Staggered load sequence */
+.header {
+  animation: fadeInUp var(--duration-normal) var(--ease-out);
 }
 
-.input-field:focus {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+.left-sidebar {
+  animation: fadeInUp var(--duration-normal) var(--ease-out) 100ms;
 }
 
-/* Floating label animation */
-.input-group label {
-  transition: all var(--duration-normal) var(--ease-out);
-  transform-origin: left center;
+.center-panel {
+  animation: fadeInUp var(--duration-normal) var(--ease-out) 200ms;
 }
 
-.input-group.focused label,
-.input-group.filled label {
-  transform: translateY(-20px) scale(0.8);
-  color: var(--primary);
+.right-panel {
+  animation: fadeInUp var(--duration-normal) var(--ease-out) 300ms;
 }
 ```
 
-## Medical Team Animations
+### 2. Medical Team Animations
 
-### Specialist Status Indicators
+#### Specialist Activation
 ```css
-/* Waiting state - subtle pulse */
-.specialist-status.waiting {
-  animation: pulse-subtle 3s ease-in-out infinite;
-}
-
-@keyframes pulse-subtle {
-  0%, 100% { opacity: 0.4; }
-  50% { opacity: 0.7; }
-}
-
-/* Active state - energetic pulse */
-.specialist-status.active {
-  animation: pulse-active 1.5s ease-in-out infinite;
-}
-
-@keyframes pulse-active {
+/* Idle to Active state */
+@keyframes specialistActivate {
   0% {
-    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
     transform: scale(1);
+    opacity: 0.6;
   }
   50% {
-    box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
     transform: scale(1.1);
+    opacity: 1;
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
     transform: scale(1);
+    opacity: 1;
   }
 }
 
-/* Complete state - check animation */
-.specialist-status.complete {
-  animation: complete-bounce var(--duration-normal) var(--ease-bounce);
+.specialist-node {
+  transition: all var(--duration-normal) var(--ease-out);
 }
 
-@keyframes complete-bounce {
-  0% { transform: scale(0); }
-  50% { transform: scale(1.2); }
-  100% { transform: scale(1); }
+.specialist-node.activating {
+  animation: specialistActivate var(--duration-slow) var(--ease-spring);
+}
+
+/* Pulsing while active */
+@keyframes specialistPulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+  }
+}
+
+.specialist-node.active {
+  animation: specialistPulse 2s var(--ease-in-out) infinite;
 }
 ```
 
-### Progress Bar Animations
+#### Connection Lines
 ```css
-.progress-bar {
-  background: var(--gray-200);
-  overflow: hidden;
-  position: relative;
+/* Data flow animation */
+@keyframes dataFlow {
+  0% {
+    stroke-dashoffset: 100;
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
 }
 
+.connection-line {
+  stroke-dasharray: 5 5;
+  animation: dataFlow 2s linear infinite;
+}
+
+/* Gradient flow effect */
+.connection-gradient {
+  animation: gradientFlow 3s ease-in-out infinite;
+}
+
+@keyframes gradientFlow {
+  0% {
+    stop-color: var(--color-primary);
+    stop-opacity: 0;
+  }
+  50% {
+    stop-color: var(--color-primary);
+    stop-opacity: 1;
+  }
+  100% {
+    stop-color: var(--color-primary);
+    stop-opacity: 0;
+  }
+}
+```
+
+### 3. Progress Indicators
+
+#### Linear Progress Bar
+```css
+/* Smooth progress fill */
 .progress-fill {
-  background: var(--primary);
-  height: 100%;
-  transition: width var(--duration-normal) var(--ease-out);
+  transition: width var(--duration-slow) var(--ease-out);
+  position: relative;
+  overflow: hidden;
 }
 
-/* Animated stripes for active progress */
-.progress-fill.active::after {
+/* Shimmer effect */
+.progress-fill::after {
   content: '';
   position: absolute;
   top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-image: linear-gradient(
-    45deg,
-    rgba(255, 255, 255, 0.15) 25%,
-    transparent 25%,
-    transparent 50%,
-    rgba(255, 255, 255, 0.15) 50%,
-    rgba(255, 255, 255, 0.15) 75%,
-    transparent 75%,
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.3),
     transparent
   );
-  background-size: 20px 20px;
-  animation: progress-stripes 1s linear infinite;
+  animation: shimmer 2s infinite;
 }
 
-@keyframes progress-stripes {
-  0% { background-position: 0 0; }
-  100% { background-position: 20px 0; }
-}
-```
-
-### CMO Avatar Animation
-```css
-.cmo-avatar {
-  animation: float 3s ease-in-out infinite;
-}
-
-@keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
-}
-
-/* Thinking animation */
-.cmo-avatar.thinking {
-  animation: thinking 2s ease-in-out infinite;
-}
-
-@keyframes thinking {
-  0%, 100% { transform: scale(1) rotate(0deg); }
-  25% { transform: scale(1.05) rotate(-5deg); }
-  75% { transform: scale(1.05) rotate(5deg); }
-}
-```
-
-## Panel Transitions
-
-### Sliding Panels
-```css
-/* Left panel slide */
-.left-panel {
-  transform: translateX(0);
-  transition: transform var(--duration-moderate) var(--ease-out);
-}
-
-.left-panel.collapsed {
-  transform: translateX(-100%);
-}
-
-/* Right panel overlay on mobile */
-@media (max-width: 1023px) {
-  .right-panel {
-    position: fixed;
-    right: 0;
-    transform: translateX(100%);
-    transition: transform var(--duration-moderate) var(--ease-out);
+@keyframes shimmer {
+  100% {
+    left: 100%;
   }
+}
+```
+
+#### Circular Progress
+```javascript
+// SVG circle progress animation
+const CircularProgress = ({ progress }) => {
+  const circumference = 2 * Math.PI * 45; // radius = 45
+  const offset = circumference - (progress / 100) * circumference;
   
-  .right-panel.open {
-    transform: translateX(0);
-    box-shadow: -4px 0 24px rgba(0, 0, 0, 0.1);
-  }
-}
-
-/* Panel resize animation */
-.panel-resizable {
-  transition: width var(--duration-fast) ease-out;
-}
+  return (
+    <svg className="circular-progress">
+      <circle
+        className="progress-track"
+        cx="50" cy="50" r="45"
+        fill="none"
+        stroke="#E5E7EB"
+        strokeWidth="4"
+      />
+      <circle
+        className="progress-fill"
+        cx="50" cy="50" r="45"
+        fill="none"
+        stroke="#3B82F6"
+        strokeWidth="4"
+        strokeDasharray={circumference}
+        strokeDashoffset={offset}
+        style={{
+          transition: 'stroke-dashoffset 0.5s ease-out',
+          transform: 'rotate(-90deg)',
+          transformOrigin: '50% 50%'
+        }}
+      />
+    </svg>
+  );
+};
 ```
 
-### Tab Switching
+### 4. Message Animations
+
+#### New Message Arrival
 ```css
-.tab-content {
-  animation: fadeIn var(--duration-normal) var(--ease-out);
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-/* Slide and fade for tab content */
-.tab-content.slide-in {
-  animation: slideIn var(--duration-normal) var(--ease-out);
-}
-
-@keyframes slideIn {
+@keyframes messageSlideIn {
   from {
     opacity: 0;
-    transform: translateX(20px);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
-    transform: translateX(0);
+    transform: translateY(0);
   }
 }
 
-/* Tab indicator animation */
+.message {
+  animation: messageSlideIn var(--duration-normal) var(--ease-out);
+}
+
+/* Typing indicator */
+@keyframes typingDot {
+  0%, 60%, 100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-10px);
+  }
+}
+
+.typing-dot {
+  animation: typingDot 1.4s infinite;
+}
+
+.typing-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+```
+
+#### Tool Call Animation
+```css
+@keyframes toolCallExpand {
+  from {
+    max-height: 0;
+    opacity: 0;
+  }
+  to {
+    max-height: 100px;
+    opacity: 1;
+  }
+}
+
+.tool-call {
+  animation: toolCallExpand var(--duration-normal) var(--ease-out);
+}
+
+/* Loading state for tool execution */
+@keyframes toolExecuting {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.tool-call.executing {
+  background: linear-gradient(
+    90deg,
+    #F3F4F6 25%,
+    #E5E7EB 50%,
+    #F3F4F6 75%
+  );
+  background-size: 200% 100%;
+  animation: toolExecuting 1.5s linear infinite;
+}
+```
+
+### 5. Panel Transitions
+
+#### Collapse/Expand Panels
+```css
+/* Smooth width transitions */
+.left-sidebar {
+  transition: width var(--duration-normal) var(--ease-out);
+  overflow: hidden;
+}
+
+.left-sidebar.collapsed {
+  width: 60px;
+}
+
+/* Content fade during collapse */
+.sidebar-content {
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+.left-sidebar.collapsed .sidebar-content {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Icon rotation for collapse button */
+.collapse-icon {
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.collapsed .collapse-icon {
+  transform: rotate(180deg);
+}
+```
+
+#### Tab Switching
+```css
+/* Tab indicator slide */
 .tab-indicator {
   position: absolute;
   bottom: 0;
   height: 2px;
-  background: var(--primary);
+  background: var(--color-primary);
   transition: all var(--duration-normal) var(--ease-out);
 }
-```
 
-## Chat Animations
-
-### Message Appearance
-```css
-.message {
-  animation: messageIn var(--duration-normal) var(--ease-out);
-  transform-origin: bottom;
+/* Content fade and slide */
+.tab-content {
+  animation: tabContentIn var(--duration-normal) var(--ease-out);
 }
 
-@keyframes messageIn {
+@keyframes tabContentIn {
   from {
     opacity: 0;
-    transform: translateY(20px) scale(0.9);
+    transform: translateX(10px);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-/* Typing indicator */
-.typing-indicator {
-  display: flex;
-  gap: 4px;
-}
-
-.typing-dot {
-  width: 8px;
-  height: 8px;
-  background: var(--gray-400);
-  border-radius: 50%;
-  animation: typing 1.4s ease-in-out infinite;
-}
-
-.typing-dot:nth-child(1) { animation-delay: 0s; }
-.typing-dot:nth-child(2) { animation-delay: 0.2s; }
-.typing-dot:nth-child(3) { animation-delay: 0.4s; }
-
-@keyframes typing {
-  0%, 80%, 100% {
-    transform: scale(1);
-    opacity: 0.5;
-  }
-  40% {
-    transform: scale(1.3);
-    opacity: 1;
+    transform: translateX(0);
   }
 }
 ```
 
-### Tool Call Animations
+### 6. Visualization Animations
+
+#### Chart Entry Animations
+```javascript
+// React component with Recharts
+const AnimatedLineChart = ({ data }) => {
+  const [animationComplete, setAnimationComplete] = useState(false);
+  
+  return (
+    <LineChart data={data}>
+      <Line
+        type="monotone"
+        dataKey="value"
+        stroke="#3B82F6"
+        strokeWidth={2}
+        dot={false}
+        animationDuration={1200}
+        animationEasing="ease-out"
+        onAnimationEnd={() => setAnimationComplete(true)}
+      />
+      {animationComplete && (
+        <Line
+          type="monotone"
+          dataKey="reference"
+          stroke="#10B981"
+          strokeWidth={1}
+          strokeDasharray="5 5"
+          animationDuration={600}
+        />
+      )}
+    </LineChart>
+  );
+};
+```
+
+#### Code Streaming Effect
 ```css
-.tool-call {
-  overflow: hidden;
-  max-height: 60px;
-  transition: max-height var(--duration-normal) var(--ease-out);
-}
-
-.tool-call.expanded {
-  max-height: 500px;
-}
-
-/* Code streaming effect */
-.code-stream {
-  animation: stream-in var(--duration-slow) ease-out;
-}
-
-@keyframes stream-in {
+/* Simulated typing effect */
+@keyframes codeLine {
   from {
-    clip-path: inset(0 100% 0 0);
+    width: 0;
+    opacity: 0;
   }
   to {
-    clip-path: inset(0 0 0 0);
+    width: 100%;
+    opacity: 1;
   }
+}
+
+.code-line {
+  overflow: hidden;
+  white-space: nowrap;
+  animation: codeLine var(--duration-normal) var(--ease-out) forwards;
+  animation-delay: calc(var(--line-index) * 50ms);
+}
+
+/* Cursor blink */
+@keyframes cursorBlink {
+  0%, 49% {
+    opacity: 1;
+  }
+  50%, 100% {
+    opacity: 0;
+  }
+}
+
+.code-cursor {
+  animation: cursorBlink 1s infinite;
 }
 ```
 
-## Loading States
+### 7. Hover & Interaction States
 
-### Skeleton Screens
+#### Button Hover
 ```css
+.button {
+  transition: all var(--duration-instant) var(--ease-out);
+  transform: translateY(0);
+}
+
+.button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+}
+
+.button:active {
+  transform: translateY(0);
+  transition-duration: 50ms;
+}
+```
+
+#### Card Hover Effects
+```css
+.specialist-card {
+  transition: all var(--duration-fast) var(--ease-out);
+  transform: translateY(0);
+}
+
+.specialist-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+/* Reveal additional info on hover */
+.specialist-card .details {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: all var(--duration-normal) var(--ease-out);
+}
+
+.specialist-card:hover .details {
+  max-height: 100px;
+  opacity: 1;
+}
+```
+
+### 8. Loading States
+
+#### Skeleton Loading
+```css
+@keyframes skeletonWave {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
 .skeleton {
   background: linear-gradient(
     90deg,
-    var(--gray-200) 25%,
-    var(--gray-100) 50%,
-    var(--gray-200) 75%
+    #F3F4F6 25%,
+    #E5E7EB 50%,
+    #F3F4F6 75%
   );
   background-size: 200% 100%;
-  animation: skeleton-loading 1.5s ease-in-out infinite;
-}
-
-@keyframes skeleton-loading {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  animation: skeletonWave 1.5s ease-in-out infinite;
+  border-radius: 4px;
 }
 ```
 
-### Spinner Animations
+#### Spinner Variations
 ```css
-.spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid var(--gray-200);
-  border-top-color: var(--primary);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
 /* Medical cross spinner */
-.medical-spinner {
-  position: relative;
-  width: 40px;
-  height: 40px;
-}
-
-.medical-spinner::before,
-.medical-spinner::after {
-  content: '';
-  position: absolute;
-  background: var(--primary);
-  animation: medical-spin 2s ease-in-out infinite;
-}
-
-.medical-spinner::before {
-  width: 100%;
-  height: 4px;
-  top: 50%;
-  left: 0;
-  transform: translateY(-50%);
-}
-
-.medical-spinner::after {
-  width: 4px;
-  height: 100%;
-  left: 50%;
-  top: 0;
-  transform: translateX(-50%);
-}
-
-@keyframes medical-spin {
-  0%, 100% { transform: scale(1) rotate(0deg); }
-  50% { transform: scale(1.2) rotate(180deg); }
-}
-```
-
-## Visualization Animations
-
-### Chart Entry Animations
-```css
-/* Line chart draw-in effect */
-.chart-line {
-  stroke-dasharray: 1000;
-  stroke-dashoffset: 1000;
-  animation: draw-line 2s ease-out forwards;
-}
-
-@keyframes draw-line {
-  to { stroke-dashoffset: 0; }
-}
-
-/* Bar chart grow effect */
-.chart-bar {
-  transform-origin: bottom;
-  animation: grow-bar 1s var(--ease-out) both;
-}
-
-@keyframes grow-bar {
-  from { transform: scaleY(0); }
-  to { transform: scaleY(1); }
-}
-
-/* Stagger bars */
-.chart-bar:nth-child(1) { animation-delay: 0ms; }
-.chart-bar:nth-child(2) { animation-delay: 100ms; }
-.chart-bar:nth-child(3) { animation-delay: 200ms; }
-```
-
-### Data Point Interactions
-```css
-.data-point {
-  transition: all var(--duration-fast) var(--ease-out);
-  transform: scale(1);
-}
-
-.data-point:hover {
-  transform: scale(1.5);
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
-}
-
-/* Tooltip animation */
-.tooltip {
-  opacity: 0;
-  transform: translateY(5px);
-  transition: all var(--duration-fast) var(--ease-out);
-  pointer-events: none;
-}
-
-.data-point:hover .tooltip {
-  opacity: 1;
-  transform: translateY(0);
-}
-```
-
-## Page Transitions
-
-### Route Transitions
-```css
-.page-enter {
-  opacity: 0;
-  transform: translateX(20px);
-}
-
-.page-enter-active {
-  opacity: 1;
-  transform: translateX(0);
-  transition: all var(--duration-normal) var(--ease-out);
-}
-
-.page-exit {
-  opacity: 1;
-  transform: translateX(0);
-}
-
-.page-exit-active {
-  opacity: 0;
-  transform: translateX(-20px);
-  transition: all var(--duration-normal) var(--ease-out);
-}
-```
-
-### Modal Animations
-```css
-/* Backdrop fade */
-.modal-backdrop {
-  animation: fadeIn var(--duration-normal) var(--ease-out);
-}
-
-/* Modal scale and fade */
-.modal-content {
-  animation: modalIn var(--duration-normal) var(--ease-spring);
-}
-
-@keyframes modalIn {
-  from {
-    opacity: 0;
-    transform: scale(0.9) translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-}
-
-.modal-content.closing {
-  animation: modalOut var(--duration-fast) var(--ease-in);
-}
-
-@keyframes modalOut {
-  to {
-    opacity: 0;
-    transform: scale(0.95) translateY(10px);
-  }
-}
-```
-
-## Micro-interactions
-
-### Success Animations
-```css
-.success-checkmark {
-  width: 56px;
-  height: 56px;
-  animation: checkmark-circle 0.6s ease-in-out;
-}
-
-@keyframes checkmark-circle {
+@keyframes medicalSpin {
   0% {
-    transform: scale(0) rotate(45deg);
-    opacity: 0;
-  }
-  50% {
-    transform: scale(1.2) rotate(45deg);
-    opacity: 1;
+    transform: rotate(0deg);
   }
   100% {
-    transform: scale(1) rotate(45deg);
-    opacity: 1;
+    transform: rotate(360deg);
   }
 }
 
-.success-checkmark path {
-  stroke-dasharray: 48;
-  stroke-dashoffset: 48;
-  animation: checkmark-stroke 0.3s 0.3s ease-out forwards;
+.medical-spinner {
+  animation: medicalSpin 1.5s linear infinite;
 }
 
-@keyframes checkmark-stroke {
-  to { stroke-dashoffset: 0; }
+/* DNA helix loader */
+@keyframes helixRotate {
+  0% {
+    transform: rotateY(0deg);
+  }
+  100% {
+    transform: rotateY(360deg);
+  }
+}
+
+.helix-loader {
+  animation: helixRotate 2s linear infinite;
 }
 ```
 
-### Error Shake
+## Mobile-Specific Animations
+
+### Touch Feedback
 ```css
-.error-shake {
-  animation: shake 0.5s ease-in-out;
+/* Ripple effect on tap */
+@keyframes ripple {
+  to {
+    transform: scale(4);
+    opacity: 0;
+  }
 }
 
-@keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
-  20%, 40%, 60%, 80% { transform: translateX(4px); }
+.touch-ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(59, 130, 246, 0.3);
+  transform: scale(0);
+  animation: ripple var(--duration-slow) var(--ease-out);
 }
+```
+
+### Swipe Gestures
+```javascript
+// Panel swipe animation
+const swipeAnimation = {
+  duration: 300,
+  easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+  
+  swipeLeft: {
+    transform: ['translateX(0)', 'translateX(-100%)'],
+    opacity: [1, 0]
+  },
+  
+  swipeRight: {
+    transform: ['translateX(0)', 'translateX(100%)'],
+    opacity: [1, 0]
+  }
+};
 ```
 
 ## Performance Optimization
 
-### GPU Acceleration
+### Animation Best Practices
 ```css
-/* Force GPU acceleration for smooth animations */
-.animated-element {
+/* Use transform and opacity only */
+.optimized-animation {
   will-change: transform, opacity;
-  transform: translateZ(0); /* Create new layer */
-  backface-visibility: hidden; /* Prevent flicker */
+  transform: translateZ(0); /* Hardware acceleration */
 }
 
-/* Remove after animation */
-.animated-element.animation-done {
-  will-change: auto;
+/* Avoid animating expensive properties */
+/* Bad */
+.bad { transition: width 300ms; }
+
+/* Good */
+.good { transition: transform 300ms; }
+```
+
+### Conditional Animations
+```javascript
+// Check user preferences
+const prefersReducedMotion = window.matchMedia(
+  '(prefers-reduced-motion: reduce)'
+).matches;
+
+// Apply appropriate duration
+const animationDuration = prefersReducedMotion ? 0 : 300;
+
+// Disable complex animations
+if (prefersReducedMotion) {
+  document.body.classList.add('reduce-motion');
 }
 ```
 
-### Reduced Motion Support
+### Frame Rate Management
+```javascript
+// Use requestAnimationFrame for smooth animations
+function animateProgress(element, targetValue) {
+  let currentValue = 0;
+  const increment = targetValue / 60; // 60fps
+  
+  function update() {
+    currentValue = Math.min(currentValue + increment, targetValue);
+    element.style.width = `${currentValue}%`;
+    
+    if (currentValue < targetValue) {
+      requestAnimationFrame(update);
+    }
+  }
+  
+  requestAnimationFrame(update);
+}
+```
+
+## Animation Sequences
+
+### Complex Orchestration
+```javascript
+// Medical team assembly sequence
+async function assembleTeam(specialists) {
+  // 1. CMO appears
+  await animate('.cmo-node', 'fadeIn', 300);
+  
+  // 2. Connection lines draw
+  await animate('.connections', 'drawLines', 500);
+  
+  // 3. Specialists appear in sequence
+  for (const [index, specialist] of specialists.entries()) {
+    await animate(
+      `.specialist-${specialist.id}`,
+      'specialistAppear',
+      200,
+      index * 100 // stagger delay
+    );
+  }
+  
+  // 4. Activate first specialist
+  await animate('.specialist-1', 'activate', 300);
+}
+```
+
+### State Machine Animations
+```javascript
+const specialistStates = {
+  idle: {
+    opacity: 0.6,
+    scale: 1,
+    animation: 'none'
+  },
+  
+  activating: {
+    opacity: 1,
+    scale: 1.1,
+    animation: 'pulse 0.5s ease-out'
+  },
+  
+  active: {
+    opacity: 1,
+    scale: 1,
+    animation: 'working 2s ease-in-out infinite'
+  },
+  
+  completing: {
+    opacity: 1,
+    scale: 1.05,
+    animation: 'complete 0.3s ease-out'
+  },
+  
+  complete: {
+    opacity: 0.8,
+    scale: 1,
+    animation: 'none'
+  }
+};
+```
+
+## CSS Variables for Theming
+
 ```css
+/* Animation theming */
+:root {
+  --animation-primary: var(--color-primary);
+  --animation-success: var(--color-success);
+  --animation-warning: var(--color-warning);
+  --animation-error: var(--color-error);
+  
+  /* Speed multiplier for accessibility */
+  --animation-speed: 1;
+}
+
+/* Slow animations preference */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+  :root {
+    --animation-speed: 0.01;
   }
-  
-  /* Keep essential feedback */
-  .loading-spinner {
-    animation-duration: 2s !important;
-  }
-  
-  /* Replace motion with opacity */
-  .message {
-    animation: fadeIn 0.01ms;
-  }
+}
+
+/* Usage */
+.animated-element {
+  animation-duration: calc(300ms * var(--animation-speed));
 }
 ```
 
 ## Implementation Guidelines
 
-### Animation Debugging
-```css
-/* Debug mode to slow down animations */
-.debug-animations * {
-  animation-duration: 3s !important;
-  transition-duration: 3s !important;
-}
-```
-
-### JavaScript Animation Hooks
-```javascript
-// Animation end detection
-element.addEventListener('animationend', () => {
-  element.classList.add('animation-done');
-  element.style.willChange = 'auto';
-});
-
-// Stagger animations programmatically
-items.forEach((item, index) => {
-  item.style.animationDelay = `${index * 50}ms`;
-});
-
-// Respect reduced motion in JS
-const prefersReducedMotion = window.matchMedia(
-  '(prefers-reduced-motion: reduce)'
-).matches;
-
-if (!prefersReducedMotion) {
-  enableAnimations();
-}
-```
-
-### Animation Utilities
-```css
-/* Utility classes */
-.animate-fade-in { animation: fadeIn var(--duration-normal) var(--ease-out); }
-.animate-slide-up { animation: slideUp var(--duration-normal) var(--ease-out); }
-.animate-scale-in { animation: scaleIn var(--duration-normal) var(--ease-spring); }
-.animate-delay-1 { animation-delay: 100ms; }
-.animate-delay-2 { animation-delay: 200ms; }
-.animate-delay-3 { animation-delay: 300ms; }
-```
+1. **Always use CSS animations when possible** - Better performance than JS
+2. **Limit simultaneous animations** - Max 3-4 concurrent animations
+3. **Test on low-end devices** - Ensure 60fps on all targets
+4. **Provide fallbacks** - Static states for no-JS scenarios
+5. **Document animation intent** - Comment complex sequences
+6. **Use animation libraries sparingly** - Prefer native solutions
+7. **Monitor performance** - Use Chrome DevTools Performance tab

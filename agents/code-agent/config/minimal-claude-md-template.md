@@ -6,18 +6,27 @@ You are implementing [PROJECT_NAME] - [ONE_LINE_DESCRIPTION].
 
 Before starting, ensure you understand:
 □ All PM outputs (PRD, architecture, APIs, data models)
+
 □ UX prototypes (open the HTML files!)
+
 □ Pre-built tools (what's provided, how to use them)
+
 □ Technical patterns (implementation guide is the master doc)
+
 □ Visualization agent requirement (generates React components)
+
 □ No Redis, no Next.js, no databases
+
 □ FastAPI + React/Vite only
 
 ## Technology Stack (REQUIRED)
 
 **Backend**: FastAPI (Python) - NOT Next.js, NOT Django, NOT Flask
+
 **Frontend**: React with Vite - NOT Next.js, NOT Create React App
+
 **Streaming**: Direct SSE from FastAPI - NO Redis, NO queues
+
 **Data Access**: Import pre-built tools from `backend/tools/` - DO NOT reimplement
 
 ## Implementation Process
@@ -57,11 +66,11 @@ Before starting, ensure you understand:
    - Understand their interfaces
    - Plan to IMPORT and use them directly
 
-### Phase 2: Create Implementation Plan
+### Phase 2: Present Implementation Plan
 
 After thoroughly reviewing ALL documents:
 
-1. Create a comprehensive todo list that includes:
+1. **DRAFT** (do not use todo system yet) an implementation plan that includes:
    - Backend setup with FastAPI
    - All agents from architecture (CMO, specialists, visualization)
    - Frontend setup with React + Vite
@@ -76,15 +85,15 @@ After thoroughly reviewing ALL documents:
    - Exact API endpoints specified
    - UI components from UX prototypes
 
-3. **IMPORTANT**: Present the complete implementation plan showing:
+3. **Present the plan as TEXT** (not as todos) showing:
    - All phases in order
    - Which agents you'll implement
    - How you'll use the pre-built tools
    - Frontend components matching UX prototypes
 
-4. Ask: "I've reviewed all requirements including PM outputs, UX prototypes, and technical patterns. Here's my implementation plan based on the architecture. Should I proceed with Phase 1, or would you like to adjust anything?"
+4. **Ask for approval**: "I've reviewed all requirements including PM outputs, UX prototypes, and technical patterns. Here's my implementation plan based on the architecture. Should I proceed with this plan?"
 
-5. Wait for user confirmation before starting
+5. **ONLY AFTER USER APPROVES**: Create the actual todos using the todo system and begin Phase 1.
 
 ### Phase 3: Execute Plan
 
@@ -122,9 +131,10 @@ backend/
 ├── api/                 # API route handlers
 │   └── chat.py         # SSE endpoint for streaming
 ├── services/           
+│   ├── health_analyst_service.py  # Main orchestration service
 │   ├── agents/         # Agent implementations
 │   │   ├── cmo/        # Orchestrator with prompts/
-│   │   ├── specialists/ # Each specialist with prompts/
+│   │   ├── specialist/ # Single class with prompts/ for all
 │   │   └── visualization/ # Visualization agent (REQUIRED)
 │   └── streaming/      # SSE utilities
 └── tools/              # PRE-BUILT tools (DO NOT MODIFY)
@@ -202,8 +212,8 @@ async def chat_message(request):
 ```
 
 ## Important Notes
-- Create ONE comprehensive todo list
-- Get user approval before implementing
+- Present plan as TEXT first, get approval, THEN create todos
+- No duplicate presentation (todos ARE the plan once approved)
 - Tools are PRE-BUILT - import and use them directly
 - Match UI components to UX prototypes exactly
 - Final deliverable must include:
