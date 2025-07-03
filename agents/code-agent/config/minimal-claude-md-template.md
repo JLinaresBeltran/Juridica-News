@@ -18,12 +18,11 @@ Before starting, ensure you understand ALL requirements:
 
 ### PM Outputs Review
 □ PRD with thread management and visualization history requirements
-□ System architecture with evaluation framework
+□ System architecture with multi-agent orchestration
 □ API specifications including thread and visualization endpoints
 □ Data models with UUID-based tracking
 □ Component architecture document (20+ components)
 □ User stories including thread management and query history
-□ Testing and evaluation framework requirements
 
 ### UX Outputs Review
 □ **CRITICAL**: Open and study ALL HTML prototypes

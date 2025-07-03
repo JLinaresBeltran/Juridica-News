@@ -1,146 +1,153 @@
-# Enhanced Product Owner Prompt for UX Agent
+# Product Owner Prompt for UX Agent - Health Insight System
 
 ## Prompt to Submit to UX Agent
 
-I need you to design a production-ready, modern UI/UX for a [YOUR DOMAIN] multi-agent system that feels as polished as a manually crafted application. The design should emphasize glassmorphism, smooth animations, and sophisticated information architecture.
+I need you to design a production-ready, modern UI/UX for a Multi-Agent Health Insight System that feels as polished as a manually crafted medical application. The design should emphasize glassmorphism, smooth animations, and sophisticated health information architecture.
 
 ### Critical Design Requirements:
 
 1. **Component Library (25+ Components)**
-   You MUST design and specify these components with variants:
+   You MUST design and specify these health-focused components with variants:
    
    **Layout Components:**
-   - MainLayout (three-panel responsive)
-   - Header (branding, user info, settings)
-   - ThreadSidebar (conversation management)
+   - MainLayout (three-panel responsive health dashboard)
+   - Header (Health Insight branding, user profile, settings)
+   - ThreadSidebar (health consultation history)
    - ResizablePanel (draggable dividers)
    
-   **Conversation Components:**
-   - ChatInterface (main interaction area)
-   - MessageList (animated message flow)
-   - MessageBubble (user/assistant with avatars)
-   - QueryInput (enhanced with character count)
-   - ToolCall (collapsible execution displays)
-   - ThinkingIndicator (animated processing dots)
+   **Health Chat Components:**
+   - ChatInterface (health query interaction)
+   - MessageList (animated health conversation flow)
+   - MessageBubble (patient/Dr. Vitality messages)
+   - QueryInput (health question input with suggestions)
+   - ToolCall (medical tool execution displays)
+   - ThinkingIndicator (medical analysis processing)
    
-   **Agent Visualization:**
-   - AgentTeamView (full org chart)
-   - AgentCard (individual status cards)
-   - TeamConnections (animated SVG paths)
-   - ProgressIndicator (multiple types)
-   - StatusBadge (state indicators)
+   **Medical Team Visualization:**
+   - MedicalTeamView (CMO and specialist org chart)
+   - AgentCard (individual doctor status cards)
+   - TeamConnections (animated SVG medical team paths)
+   - ProgressIndicator (health analysis progress)
+   - StatusBadge (doctor availability indicators)
    
-   **Results & History:**
-   - ResultHistory (query-based filtering)
-   - QuerySelector (dropdown/list)
-   - VisualizationRenderer (dynamic charts)
-   - VisualizationCard (individual displays)
-   - ExportButton (format options)
+   **Health Results & History:**
+   - HealthResultHistory (query-based health filtering)
+   - QuerySelector (health question dropdown)
+   - VisualizationRenderer (health charts - labs, vitals)
+   - HealthMetricCard (individual health displays)
+   - ExportButton (health record export)
    
    **Utility Components:**
-   - ErrorBoundary (error display with retry)
-   - LoadingStates (skeleton loaders)
-   - EmptyStates (helpful CTAs)
-   - ConfirmDialog (modal confirmations)
-   - ToastNotifications (success/error feedback)
+   - ErrorBoundary (medical error handling)
+   - LoadingStates (health data loading)
+   - EmptyStates (health tips when no data)
+   - ConfirmDialog (health action confirmations)
+   - ToastNotifications (health alerts)
 
 2. **Glassmorphism Effects (CRITICAL - MUST IMPLEMENT)**
-   - Primary design language throughout
-   - Backdrop blur effects (10-16px)
-   - Semi-transparent backgrounds
-   - Subtle borders and shadows
-   - Modern depth and layering
+   - Medical-grade clean aesthetic
+   - Backdrop blur for depth (10-16px)
+   - Semi-transparent health panels
+   - Subtle medical blue accents
+   - Professional healthcare layering
 
 3. **Animation Specifications**
-   - Agent activation: Pulsing animations with color
-   - Message appearance: Slide-up with fade
-   - Connection lines: Animated SVG drawing
-   - Hover states: Subtle lift and shadow
-   - Loading: Smooth skeleton and progress
-   - Transitions: 200-300ms with cubic-bezier easing
+   - Doctor activation: Pulsing with specialty color
+   - Health message appearance: Gentle slide-up
+   - Medical team connections: Drawing animation
+   - Health data loading: Smooth skeleton
+   - Vital sign updates: Subtle transitions
+   - Medical confidence: 200-300ms easing
 
-4. **Three-Panel Layout**
-   - **Left Panel (300px):** Thread sidebar with conversation history
-   - **Center Panel (flexible):** Main chat interface
-   - **Right Panel (400px):** Tabbed view for team/visualizations
-   - Responsive: Collapses to mobile-friendly single column
+4. **Three-Panel Health Layout**
+   - **Left Panel (300px):** Health consultation threads
+   - **Center Panel (flexible):** Health chat with Dr. Vitality
+   - **Right Panel (400px):** Medical Team / Health Visualizations tabs
+   - Responsive: Mobile health monitoring
 
-5. **Thread Management UI**
-   - Conversations grouped by date (Today, Yesterday, etc.)
-   - Search bar with real-time filtering
-   - Auto-generated thread titles
-   - Delete confirmations
-   - Active thread highlighting
+5. **Health Thread Management UI**
+   - Health consultations by date (Today, Yesterday, etc.)
+   - Search past health questions
+   - Auto-titles from health queries
+   - Delete health conversations safely
+   - Active consultation highlighting
 
-6. **Agent Team Visualization**
-   - Orchestrator in center (larger)
-   - Specialists arranged around orchestrator
-   - Animated SVG connections between agents
-   - Status indicators: waiting, thinking, active, complete
-   - Color coding per agent specialty
+6. **Medical Team Visualization**
+   - CMO (Dr. Vitality) in center (larger)
+   - 8 Medical specialists around:
+     - Dr. Heart (Cardiology) - Red #EF4444
+     - Dr. Hormone (Endocrinology) - Purple #8B5CF6
+     - Dr. Lab (Laboratory) - Green #10B981
+     - Dr. Analytics (Data) - Yellow #F59E0B
+     - Dr. Prevention (Preventive) - Orange #F97316
+     - Dr. Pharma (Pharmacy) - Orange #FB923C
+     - Dr. Nutrition (Nutrition) - Lime #84CC16
+     - Dr. Primary (General) - Cyan #06B6D4
+   - Animated connections showing collaboration
+   - Medical specialty status indicators
 
-7. **Modern Visual Language**
-   - Clean, professional aesthetic appropriate for [YOUR DOMAIN]
-   - Color psychology aligned with domain
-   - Typography hierarchy with excellent readability
-   - Accessible color contrast (4.5:1 minimum)
-   - Mobile-first responsive design
+7. **Healthcare Visual Language**
+   - Clean, trustworthy medical aesthetic
+   - Calming blues and health-positive greens
+   - Clear medical data hierarchy
+   - HIPAA-appropriate privacy indicators
+   - Accessible health information design
 
 ### Required Outputs:
 
 1. **design-system.md**
-   - Complete color palette with semantic meanings
-   - Typography scale and usage guidelines
-   - Glassmorphism CSS specifications
-   - Animation timing functions
-   - Spacing system (8-point grid)
+   - Medical color palette with health meanings
+   - Healthcare typography for readability
+   - Medical glassmorphism specifications
+   - Health animation guidelines
+   - Medical spacing system
 
 2. **component-specs.md**
-   - All 25+ components with detailed specifications
-   - States: default, hover, active, disabled, loading
-   - Variants for different contexts
-   - Interaction patterns
+   - All 25+ health components detailed
+   - Medical states and interactions
+   - Health-specific variants
+   - Accessibility for medical users
 
 3. **Two Interactive Prototypes (HTML):**
-   - **welcome-prototype.html:** Landing experience with team preview
-   - **main-app-prototype.html:** Complete working interface demo
+   - **welcome-prototype.html:** Health system intro with medical team
+   - **main-app-prototype.html:** Full health consultation interface
 
 4. **layout-guidelines.md**
-   - Three-panel layout specifications
-   - Responsive breakpoints and behavior
-   - Panel resizing and collapsing
+   - Health dashboard three-panel specs
+   - Medical responsive breakpoints
+   - Health data panel behaviors
 
 5. **animation-specs.md**
-   - Timing, easing, and keyframe definitions
-   - Micro-interactions and hover effects
-   - Loading and transition animations
+   - Medical team animations
+   - Health data transitions
+   - Vital sign update effects
 
 6. **visualization-specs.md**
-   - Chart types and styling
-   - Interactive elements
-   - Data visualization best practices
+   - Health chart types (lab trends, vital signs)
+   - Medical data best practices
+   - Interactive health metrics
 
 7. **accessibility-guidelines.md**
-   - WCAG 2.1 AA compliance
-   - Keyboard navigation patterns
-   - Screen reader optimizations
+   - Healthcare WCAG compliance
+   - Medical keyboard navigation
+   - Health screen reader optimization
 
 ### Visual References:
-[Attach any screenshots, mockups, or visual references that show the desired look and feel]
+[Attached: User Stories User Flows Mocks.pdf showing the exact health UI we want]
 
 ### Attached Documents:
-1. PM Agent outputs (PRD, architecture, component list)
-2. [Optional: Screenshots of target UI]
-3. [Optional: Brand guidelines]
-4. [Optional: Competitor analysis]
+1. PM Agent health outputs (PRD, medical architecture, health components)
+2. User Stories User Flows Mocks.pdf - Target health UI screenshots
+3. health-insight-brand-guidelines.md - Medical visual identity
+4. health-domain-requirements.md - Medical context
 
 ### Key Success Criteria:
-- Interface feels modern and professional
-- Animations enhance rather than distract
-- Information architecture is intuitive
-- Complex multi-agent workflows are visualized clearly
-- Design scales from mobile to desktop
-- Accessibility is built-in, not added on
-- Code implementation guidance is clear
+- Interface feels trustworthy for health data
+- Medical animations are calming, not distracting
+- Health information architecture is intuitive
+- Complex medical team workflows are clear
+- Design works for health monitoring on all devices
+- Medical accessibility is exemplary
+- Implementation guides medical UI perfectly
 
-Please create designs that would make a manually crafted application proud. Every pixel should feel intentional and polished.
+Please create designs that inspire confidence in handling sensitive health data. Every pixel should convey medical professionalism and care.

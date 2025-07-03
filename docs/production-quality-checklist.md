@@ -9,11 +9,10 @@ This checklist ensures the 3 AI Amigos process generates applications with the s
 ### Core Documents ✅
 - [ ] **PRD.md** - Includes thread management and visualization history
 - [ ] **user-stories.md** - Contains production features (thread mgmt, error handling)
-- [ ] **system-architecture.md** - Specifies evaluation framework
+- [ ] **system-architecture.md** - Specifies multi-agent orchestration
 - [ ] **api-specification.md** - Includes thread and visualization endpoints
 - [ ] **data-models.md** - Uses UUID-based tracking
 - [ ] **component-architecture.md** - Lists 20+ components
-- [ ] **evaluation-framework.md** - Testing and quality metrics
 - [ ] **tool-interface.md** - Pre-built tool integration
 - [ ] **feature-priority.md** - P0/P1/P2 categorization
 
@@ -24,7 +23,6 @@ This checklist ensures the 3 AI Amigos process generates applications with the s
 - [ ] Error handling with retry logic (3 attempts, exponential backoff)
 - [ ] Performance requirements specified (response times, loading)
 - [ ] Accessibility requirements (WCAG 2.1 AA)
-- [ ] Evaluation framework with automated testing
 - [ ] LocalStorage schema and migration patterns
 
 ### API Design ✅
@@ -157,7 +155,6 @@ Must include these 25+ components:
 - [ ] **Performance monitoring** capabilities
 - [ ] **Graceful degradation** when services are unavailable
 - [ ] **Documentation** for deployment and usage
-- [ ] **Testing capabilities** included
 
 ## Success Criteria
 
@@ -176,7 +173,6 @@ The implementation meets production standards when:
 ### PM Agent Issues
 - **Missing production features** → Use enhanced instructions
 - **Vague requirements** → Request specific implementation details
-- **No evaluation framework** → Insist on testing specifications
 
 ### UX Agent Issues
 - **Insufficient components** → Require 25+ component specifications
