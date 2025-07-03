@@ -23,14 +23,6 @@ The system uses pre-built tools that abstract data storage and querying. All age
 
 The target users and specific domain requirements are detailed in the attached documentation.
 
-**Technology Requirements**: 
-- Backend: FastAPI 0.104.1 with Python 3.11+
-- Frontend: React 18.2.0 with Vite 5.0.8
-- Styling: Tailwind CSS 3.3.0 (NOT v4)
-- Streaming: SSE via GET endpoints with EventSource
-- Visualizations: Recharts 2.10.0 with @babel/standalone for dynamic rendering
-- The pre-built data access tools will be provided - do not design database schemas or data persistence.
-
 Please create:
 1. A comprehensive Product Requirements Document (PRD.md)
 2. Detailed user stories with acceptance criteria (user-stories.md)
@@ -41,20 +33,6 @@ Please create:
 7. Feature prioritization matrix (feature-priority.md)
 
 Focus on making this system extensible so the pattern can be applied to other multi-agent use cases beyond healthcare.
-
-**Architecture Guidelines**:
-- Backend: FastAPI with direct SSE streaming
-- Frontend: React with Vite (not Next.js)
-- No external services (Redis, databases, message queues)
-- Pre-built tools handle all data access
-- Simple, direct implementation patterns
-
-**Critical Implementation Notes**:
-- SSE must use GET endpoints with X-Accel-Buffering: no header
-- Add 0.001s delays between streaming events for proper flushing
-- TypeScript imports must use `import type` for type-only imports
-- Include visualization agent that generates self-contained React components
-- All specialist prompts must be externalized in .txt files
 
 ## I have attached the following documents:
 
@@ -99,7 +77,14 @@ Focus on making this system extensible so the pattern can be applied to other mu
 - Link: https://www.anthropic.com/engineering/built-multi-agent-research-system
 - This is the reference architecture pattern we're following
 
-### 8. **Health Technical Customization Guide** (health-technical-customization-guide.md)
+### 8. **Technology Requirements** (technology-requirements.md)
+- Exact technology stack and versions (FastAPI, React, Vite, Tailwind CSS)
+- What NOT to use (no Next.js, no Redis, no databases)
+- Critical implementation rules
+- SSE streaming requirements
+- Pre-built tool usage guidelines
+
+### 9. **Health Technical Customization Guide** (health-technical-customization-guide.md)
 - Health-specific agent configurations (CMO + 8 specialists)
 - Medical data models and schemas
 - Health query complexity rules

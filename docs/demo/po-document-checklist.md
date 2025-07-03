@@ -2,7 +2,7 @@
 
 ## Documents You Need to Prepare
 
-### For PM Agent Message (7 documents)
+### For PM Agent Message (8 documents)
 ✅ **1. simplified-architecture-brief.md**
 - Technology stack (FastAPI + React/Vite)
 - What NOT to use (no Redis, no Next.js)
@@ -39,39 +39,49 @@
 - https://www.anthropic.com/engineering/built-multi-agent-research-system
 - Can be a link or downloaded text
 
-### For Claude Code Workspace (7 additional documents)
+✅ **8. technology-requirements.md**
+- Exact technology stack and versions
+- What NOT to use (detailed list)
+- Critical implementation rules
+- Version compatibility matrix
 
-✅ **8. implementation-guide.md** → Goes in `requirements/technical-patterns/`
+### For Claude Code Workspace (8 additional documents)
+
+✅ **9. technology-requirements.md** → Goes in `requirements/technical-patterns/`
+- Same file as #8, place in technical patterns folder
+- Claude Code needs this for implementation
+
+✅ **10. implementation-guide.md** → Goes in `requirements/technical-patterns/`
 - Generic multi-agent implementation patterns
 - 500+ lines of technical guidance
 - References the single SpecialistAgent pattern
 
-✅ **9. multi-agent-patterns.md** → Goes in `requirements/technical-patterns/`
+✅ **11. multi-agent-patterns.md** → Goes in `requirements/technical-patterns/`
 - Orchestrator-worker pattern details
 - Based on Anthropic's approach
 - Clarifies single specialist class approach
 
-✅ **10. streaming-patterns.md** → Goes in `requirements/technical-patterns/`
+✅ **12. streaming-patterns.md** → Goes in `requirements/technical-patterns/`
 - SSE implementation guide
 - Real-time update patterns
 - Frontend/backend streaming code
 
-✅ **11. visualization-agent-pattern.md** → Goes in `requirements/technical-patterns/`
+✅ **13. visualization-agent-pattern.md** → Goes in `requirements/technical-patterns/`
 - How to implement visualization agent
 - Code artifact streaming pattern
 - React component generation
 
-✅ **12. dependency-management-guide.md** → Goes in `requirements/technical-patterns/`
+✅ **14. dependency-management-guide.md** → Goes in `requirements/technical-patterns/`
 - CRITICAL: Exact versions to prevent conflicts
 - Solutions for common dependency issues
 - Required for consistent builds
 
-✅ **13. sse-implementation-guide.md** → Goes in `requirements/technical-patterns/`
+✅ **15. sse-implementation-guide.md** → Goes in `requirements/technical-patterns/`
 - CRITICAL: Correct SSE patterns
 - GET vs POST endpoints
 - Headers and delay requirements
 
-✅ **14. CLAUDE.md** → Goes in workspace root
+✅ **16. CLAUDE.md** → Goes in workspace root
 - Updated with common issues & solutions
 - Points to requirements folder
 - First thing Claude Code sees
@@ -86,7 +96,8 @@ Step 1: Attach to PM Agent message
 ├── health-domain-requirements.md
 ├── tool-interface-document.md
 ├── User Stories User Flows Mocks.pdf
-└── anthropic-blog-link.txt
+├── anthropic-blog-link.txt
+└── technology-requirements.md
 
 Step 2: PM Agent Creates
 ├── PRD.md
@@ -121,6 +132,7 @@ workspace/
     │   ├── multi-agent-patterns.md
     │   ├── streaming-patterns.md
     │   ├── visualization-agent-pattern.md
+    │   ├── technology-requirements.md      # NEW
     │   ├── dependency-management-guide.md  # NEW
     │   └── sse-implementation-guide.md     # NEW
     ├── pm-outputs/

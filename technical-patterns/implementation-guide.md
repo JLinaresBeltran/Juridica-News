@@ -5,6 +5,7 @@
 You are implementing a Multi-Agent System following Anthropic's orchestrator-worker pattern as described in ["How we built our multi-agent research system"](https://www.anthropic.com/engineering/built-multi-agent-research-system). This guide provides the exact implementation approach using FastAPI and React with direct tool integration.
 
 **CRITICAL**: Review these companion guides:
+- `technology-requirements.md` - Exact technology stack and what NOT to use
 - `dependency-management-guide.md` - Exact versions to prevent library conflicts
 - `sse-implementation-guide.md` - Correct SSE patterns for streaming
 
@@ -524,14 +525,16 @@ Your implementation succeeds when:
 2. Review `requirements/pm-outputs/architecture/system-architecture.md`
 3. Examine `requirements/ux-outputs/prototypes/`
 4. Check for any provided tools in `backend/tools/`
-5. Review `visualization-agent-pattern.md` for visualization requirements
-6. **Check for customization guides**: Look for domain-specific technical and UI customization guides in `requirements/po-inputs/`
-7. Begin with Phase 1 and progress systematically
+5. **Review technology stack**: Read `technology-requirements.md` for exact versions and constraints
+6. Review `visualization-agent-pattern.md` for visualization requirements
+7. **Check for customization guides**: Look for domain-specific technical and UI customization guides in `requirements/po-inputs/`
+8. Begin with Phase 1 and progress systematically
 
 Remember: The domain-specific details are in the requirements directory. This guide provides the technical patterns that work across all domains. Domain customization guides in po-inputs bridge the gap between generic patterns and specific implementations.
 
 ## Related Patterns
 
+- [Technology Requirements](technology-requirements.md) - Exact stack and version requirements
 - [Visualization Agent Pattern](visualization-agent-pattern.md) - REQUIRED for data analysis systems
 - [Multi-Agent Patterns](multi-agent-patterns.md) - Orchestrator-worker architecture
 - [Streaming Patterns](streaming-patterns.md) - SSE implementation details

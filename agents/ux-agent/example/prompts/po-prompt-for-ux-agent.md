@@ -50,24 +50,7 @@ Please create:
 6. Animation and transition specifications (animation-specs.md)
 7. Visualization specifications (visualization-specs.md)
 
-Focus on creating a design that builds user trust while handling complex medical information in an approachable way.
-
-**Technology Context**: 
-- Frontend: React 18.2.0 with Vite 5.0.8
-- Styling: Tailwind CSS 3.3.0 (CRITICAL: NOT v4) 
-- Visualizations: Recharts 2.10.0
-- Icons: Lucide React 0.294.0
-- Design components that work well with React's component model
-- Include glassmorphism effects (backdrop-blur, semi-transparent panels)
-- No authentication screens are needed
-
-**Critical Design Requirements**:
-- 3-panel layout with collapsible thread sidebar (300px)
-- Agent team visualization with animated status indicators
-- Streaming UI patterns for real-time updates
-- Tool call displays that are collapsible
-- Real-time connection status indicator
-- Gradient backgrounds for premium feel
+Focus on creating a design that builds user trust while handling complex information in an approachable way.
 
 ## I have attached the following documents:
 
@@ -84,13 +67,19 @@ Focus on creating a design that builds user trust while handling complex medical
    - Agent team visualization
    - Real-time progress indicators
    - Data visualizations
-9. **Brand Guidelines** (health-insight-brand-guidelines.md)
+9. **Technology Requirements** (technology-requirements.md)
+   - Frontend stack: React 18.2.0 with Vite 5.0.8
+   - Styling: Tailwind CSS 3.3.0 (NOT v4)
+   - Icons: Lucide React 0.294.0
+   - Visualizations: Recharts 2.10.0
+   - Critical design constraints (3-panel layout, glassmorphism, no auth)
+10. **Brand Guidelines** (health-insight-brand-guidelines.md)
    - Complete visual identity system
    - Domain-specific color palette
    - Typography and spacing system
    - Component specifications
    - Voice and tone guidelines
-10. **Health UI Customization Guide** (health-ui-customization-guide.md) 
+11. **Health UI Customization Guide** (health-ui-customization-guide.md) 
    - Medical specialist colors and icons
    - Health-specific UI components
    - Medical team visualization details
