@@ -1,88 +1,146 @@
-# Product Owner Initial Prompt for UX Designer Agent
+# Enhanced Product Owner Prompt for UX Agent
 
-## Prompt to Submit:
+## Prompt to Submit to UX Agent
 
-I need you to design the user interface for a Multi-Agent System. This is a sophisticated application that uses an AI team (orchestrator + specialist agents) to provide comprehensive insights.
+I need you to design a production-ready, modern UI/UX for a [YOUR DOMAIN] multi-agent system that feels as polished as a manually crafted application. The design should emphasize glassmorphism, smooth animations, and sophisticated information architecture.
 
-I have attached the Product Manager's outputs (PRD, user stories, architecture) along with visual mockups showing the exact UI we want to achieve. The key UI/UX requirements are:
+### Critical Design Requirements:
 
-1. **3-Panel Layout**:
-   - Left: Conversation threads sidebar
-   - Center: Main interface with query input
-   - Right: Context-sensitive panels (Agent Team status, Visualizations)
+1. **Component Library (25+ Components)**
+   You MUST design and specify these components with variants:
+   
+   **Layout Components:**
+   - MainLayout (three-panel responsive)
+   - Header (branding, user info, settings)
+   - ThreadSidebar (conversation management)
+   - ResizablePanel (draggable dividers)
+   
+   **Conversation Components:**
+   - ChatInterface (main interaction area)
+   - MessageList (animated message flow)
+   - MessageBubble (user/assistant with avatars)
+   - QueryInput (enhanced with character count)
+   - ToolCall (collapsible execution displays)
+   - ThinkingIndicator (animated processing dots)
+   
+   **Agent Visualization:**
+   - AgentTeamView (full org chart)
+   - AgentCard (individual status cards)
+   - TeamConnections (animated SVG paths)
+   - ProgressIndicator (multiple types)
+   - StatusBadge (state indicators)
+   
+   **Results & History:**
+   - ResultHistory (query-based filtering)
+   - QuerySelector (dropdown/list)
+   - VisualizationRenderer (dynamic charts)
+   - VisualizationCard (individual displays)
+   - ExportButton (format options)
+   
+   **Utility Components:**
+   - ErrorBoundary (error display with retry)
+   - LoadingStates (skeleton loaders)
+   - EmptyStates (helpful CTAs)
+   - ConfirmDialog (modal confirmations)
+   - ToastNotifications (success/error feedback)
 
-2. **Welcome Experience**: 
-   - System overview and capabilities
-   - Example queries to get started
-   - Agent team architecture visualization
+2. **Glassmorphism Effects (CRITICAL - MUST IMPLEMENT)**
+   - Primary design language throughout
+   - Backdrop blur effects (10-16px)
+   - Semi-transparent backgrounds
+   - Subtle borders and shadows
+   - Modern depth and layering
 
-3. **Real-time Agent Team Display**:
-   - Show orchestrator and active agents
-   - Live progress indicators for each agent
-   - Analysis results as they complete
+3. **Animation Specifications**
+   - Agent activation: Pulsing animations with color
+   - Message appearance: Slide-up with fade
+   - Connection lines: Animated SVG drawing
+   - Hover states: Subtle lift and shadow
+   - Loading: Smooth skeleton and progress
+   - Transitions: 200-300ms with cubic-bezier easing
 
-4. **Dynamic Visualizations**:
-   - Multiple chart types appropriate to the domain
-   - Query selector to switch between visualizations
-   - Interactive, responsive charts
+4. **Three-Panel Layout**
+   - **Left Panel (300px):** Thread sidebar with conversation history
+   - **Center Panel (flexible):** Main chat interface
+   - **Right Panel (400px):** Tabbed view for team/visualizations
+   - Responsive: Collapses to mobile-friendly single column
 
-5. **Design Theme**:
-   - Domain-appropriate styling (details in attached docs)
-   - Professional yet approachable
-   - Use of relevant iconography
-   - Glassmorphism and modern effects
-   - Progressive disclosure of information
+5. **Thread Management UI**
+   - Conversations grouped by date (Today, Yesterday, etc.)
+   - Search bar with real-time filtering
+   - Auto-generated thread titles
+   - Delete confirmations
+   - Active thread highlighting
 
-The design should feel premium and trustworthy. Users should immediately understand:
-- How to interact with the system
-- Which agents are working on their request
-- The progress of the analysis
-- How to interpret the results
+6. **Agent Team Visualization**
+   - Orchestrator in center (larger)
+   - Specialists arranged around orchestrator
+   - Animated SVG connections between agents
+   - Status indicators: waiting, thinking, active, complete
+   - Color coding per agent specialty
 
-The multi-agent architecture (orchestrator + specialists) should be visualized in an intuitive way that builds confidence in the system's capabilities.
+7. **Modern Visual Language**
+   - Clean, professional aesthetic appropriate for [YOUR DOMAIN]
+   - Color psychology aligned with domain
+   - Typography hierarchy with excellent readability
+   - Accessible color contrast (4.5:1 minimum)
+   - Mobile-first responsive design
 
-Please create:
-1. Complete Design System documentation (design-system.md)
-2. Component specifications for all UI elements (component-specs.md)
-3. Interactive HTML prototypes (welcome-prototype.html and main-app-prototype.html)
-4. Responsive layout guidelines (layout-guidelines.md)
-5. Accessibility considerations (accessibility-guidelines.md)
-6. Animation and transition specifications (animation-specs.md)
-7. Visualization specifications (visualization-specs.md)
+### Required Outputs:
 
-Focus on creating a design that builds user trust while handling complex information in an approachable way.
+1. **design-system.md**
+   - Complete color palette with semantic meanings
+   - Typography scale and usage guidelines
+   - Glassmorphism CSS specifications
+   - Animation timing functions
+   - Spacing system (8-point grid)
 
-## I have attached the following documents:
+2. **component-specs.md**
+   - All 25+ components with detailed specifications
+   - States: default, hover, active, disabled, loading
+   - Variants for different contexts
+   - Interaction patterns
 
-1. **PRD.md** (from PM Agent)
-2. **user-stories.md** (from PM Agent)
-3. **system-architecture.md** (from PM Agent)
-4. **api-specification.md** (from PM Agent)
-5. **data-models.md** (from PM Agent)
-6. **feature-priority.md** (from PM Agent)
-7. **tool-interface.md** (from PM Agent)
-8. **User Stories, User Flows, and Mockups** (User Stories User Flows Mocks.pdf)
-   - Screenshots showing the exact UI we want to achieve
-   - 3-panel layout examples
-   - Agent team visualization
-   - Real-time progress indicators
-   - Data visualizations
-9. **Technology Requirements** (technology-requirements.md)
-   - Frontend stack: React 18.2.0 with Vite 5.0.8
-   - Styling: Tailwind CSS 3.3.0 (NOT v4)
-   - Icons: Lucide React 0.294.0
-   - Visualizations: Recharts 2.10.0
-   - Critical design constraints (3-panel layout, glassmorphism, no auth)
-10. **Brand Guidelines** (health-insight-brand-guidelines.md)
-   - Complete visual identity system
-   - Domain-specific color palette
-   - Typography and spacing system
-   - Component specifications
-   - Voice and tone guidelines
-11. **Health UI Customization Guide** (health-ui-customization-guide.md) 
-   - Medical specialist colors and icons
-   - Health-specific UI components
-   - Medical team visualization details
-   - Trust-building elements for health data
-   - Health-appropriate animations
+3. **Two Interactive Prototypes (HTML):**
+   - **welcome-prototype.html:** Landing experience with team preview
+   - **main-app-prototype.html:** Complete working interface demo
 
+4. **layout-guidelines.md**
+   - Three-panel layout specifications
+   - Responsive breakpoints and behavior
+   - Panel resizing and collapsing
+
+5. **animation-specs.md**
+   - Timing, easing, and keyframe definitions
+   - Micro-interactions and hover effects
+   - Loading and transition animations
+
+6. **visualization-specs.md**
+   - Chart types and styling
+   - Interactive elements
+   - Data visualization best practices
+
+7. **accessibility-guidelines.md**
+   - WCAG 2.1 AA compliance
+   - Keyboard navigation patterns
+   - Screen reader optimizations
+
+### Visual References:
+[Attach any screenshots, mockups, or visual references that show the desired look and feel]
+
+### Attached Documents:
+1. PM Agent outputs (PRD, architecture, component list)
+2. [Optional: Screenshots of target UI]
+3. [Optional: Brand guidelines]
+4. [Optional: Competitor analysis]
+
+### Key Success Criteria:
+- Interface feels modern and professional
+- Animations enhance rather than distract
+- Information architecture is intuitive
+- Complex multi-agent workflows are visualized clearly
+- Design scales from mobile to desktop
+- Accessibility is built-in, not added on
+- Code implementation guidance is clear
+
+Please create designs that would make a manually crafted application proud. Every pixel should feel intentional and polished.

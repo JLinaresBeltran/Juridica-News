@@ -2,283 +2,537 @@
 
 You are implementing [PROJECT_NAME] - [ONE_LINE_DESCRIPTION].
 
-## Pre-Implementation Checklist
+## 🎯 Production Quality Standards
 
-Before starting, ensure you understand:
-□ All PM outputs (PRD, architecture, APIs, data models)
+This is a PRODUCTION-READY implementation. You must deliver:
+- ✅ Complete feature parity with specifications
+- ✅ Professional UI with glassmorphism and animations
+- ✅ Comprehensive error handling and recovery
+- ✅ Performance optimizations and lazy loading
+- ✅ Full accessibility compliance (WCAG 2.1 AA)
+- ✅ 25+ polished components as specified in UX docs
 
-□ UX prototypes (open the HTML files!)
+## 📋 Pre-Implementation Checklist
 
-□ Pre-built tools (what's provided, how to use them)
+Before starting, ensure you understand ALL requirements:
 
-□ Technical patterns (implementation guide is the master doc)
+### PM Outputs Review
+□ PRD with thread management and visualization history requirements
+□ System architecture with evaluation framework
+□ API specifications including thread and visualization endpoints
+□ Data models with UUID-based tracking
+□ Component architecture document (20+ components)
+□ User stories including thread management and query history
+□ Testing and evaluation framework requirements
 
-□ Visualization agent requirement (generates React components)
+### UX Outputs Review
+□ **CRITICAL**: Open and study ALL HTML prototypes
+□ Design system with glassmorphism specifications
+□ Component specs for 25+ components
+□ Animation specifications with timing/easing
+□ Layout guidelines for three-panel interface
+□ Thread sidebar design specifications
+□ Agent team visualization with SVG connections
+□ Tab-based navigation patterns
 
-□ No Redis, no Next.js, no databases
+### Technical Patterns Review
+□ Implementation guide (MASTER DOCUMENT)
+□ Multi-agent patterns with orchestrator-worker
+□ Streaming patterns with SSE best practices
+□ Dependency management guide (exact versions)
+□ SSE implementation guide
+□ Visualization agent pattern
 
-□ FastAPI + React/Vite only
+### Pre-built Tools Understanding
+□ Located ALL tools in `backend/tools/`
+□ Understand import patterns
+□ Know tool interfaces and usage
+□ Will NOT reimplement any existing tools
 
-## Technology Stack (REQUIRED)
+## 🛠️ Technology Stack (STRICT REQUIREMENTS)
 
-**Backend**: FastAPI (Python) - NOT Next.js, NOT Django, NOT Flask
-- fastapi==0.104.1
-- anthropic==0.39.0
-- sse-starlette==1.8.2
+### Backend Stack
+```txt
+FastAPI==0.104.1        # Web framework (NOT Django/Flask)
+anthropic==0.39.0       # AI integration
+sse-starlette==1.8.2    # Server-sent events
+uvicorn[standard]==0.25.0
+python-dotenv==1.0.0
+pydantic==2.5.3
+httpx==0.25.2
+python-multipart==0.0.6
+```
 
-**Frontend**: React with Vite - NOT Next.js, NOT Create React App
-- react@^18.2.0
-- tailwindcss@^3.3.0 (NOT v4)
-- recharts@^2.10.0
-- @babel/standalone@^7.23.0
+### Frontend Stack
+```json
+{
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.20.0",
+    "react-markdown": "^9.0.1",
+    "tailwindcss": "^3.3.0",    // CRITICAL: NOT v4
+    "recharts": "^2.10.0",
+    "@babel/standalone": "^7.23.0",
+    "lucide-react": "^0.294.0",
+    "uuid": "^9.0.1",
+    "clsx": "^2.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.2.2",
+    "@types/react": "^18.2.0",
+    "@vitejs/plugin-react": "^4.2.0",
+    "vite": "^5.0.8"
+  }
+}
+```
 
-**Streaming**: Direct SSE from FastAPI - NO Redis, NO queues
-- Use GET endpoints with EventSource
-- Add X-Accel-Buffering: no header
-- Include 0.001s delays for proper flushing
+## 📁 Required Project Structure
 
-**Data Access**: Import pre-built tools from `backend/tools/` - DO NOT reimplement
-
-## Implementation Process
-
-### Phase 1: Analysis & Planning
-
-**IMPORTANT**: Thoroughly review ALL documents in the `requirements/` directory:
-
-1. **PM-Generated Outputs** (`requirements/pm-outputs/`)
-   - Read PRD.md for overall vision and requirements
-   - Study system-architecture.md for technical design
-   - Review api-specification.md for endpoint details
-   - Examine data-models.md for entity structures
-   - Check tool-interface.md for pre-built tool usage
-   - Review user-stories.md for feature requirements
-
-2. **UX-Generated Outputs** (`requirements/ux-outputs/`)
-   - **CRITICAL**: Review `prototypes/` folder for HTML mockups
-   - Study design-system.md for styling guidelines
-   - Check component-specs.md for UI components
-   - Review visualization-specs.md for chart requirements
-
-3. **PO-Provided Inputs** (`requirements/po-inputs/`)
-   - Review domain-specific requirements
-   - Check brand guidelines if provided
-   - Study any mockups or wireframes
-   - **CRITICAL**: Review multi-agent-implementation-architecture.md for backend structure
-
-4. **Technical Patterns** (`requirements/technical-patterns/`)
-   - **MASTER GUIDE**: `implementation-guide.md` - Follow this exactly
-   - Review `visualization-agent-pattern.md` for visualization requirements
-   - Check `multi-agent-patterns.md` for orchestration patterns
-   - Study `streaming-patterns.md` for SSE implementation
-
-5. **Pre-built Tools** (`backend/tools/`)
-   - Identify ALL provided tools
-   - Understand their interfaces
-   - Plan to IMPORT and use them directly
-
-### Phase 2: Present Implementation Plan
-
-After thoroughly reviewing ALL documents:
-
-1. **DRAFT** (do not use todo system yet) an implementation plan that includes:
-   - Backend setup with FastAPI
-   - All agents from architecture (CMO, specialists, visualization)
-   - Frontend setup with React + Vite
-   - CodeArtifact component for visualizations
-   - SSE streaming implementation
-   - Integration of pre-built tools
-
-2. Your plan MUST match the architecture in PM outputs:
-   - Orchestrator agent (CMO)
-   - All specialist agents listed
-   - Visualization agent (generates React components)
-   - Exact API endpoints specified
-   - UI components from UX prototypes
-
-3. **Present the plan as TEXT** (not as todos) showing:
-   - All phases in order
-   - Which agents you'll implement
-   - How you'll use the pre-built tools
-   - Frontend components matching UX prototypes
-
-4. **Ask for approval**: "I've reviewed all requirements including PM outputs, UX prototypes, and technical patterns. Here's my implementation plan based on the architecture. Should I proceed with this plan?"
-
-5. **ONLY AFTER USER APPROVES**: Create the actual todos using the todo system and begin Phase 1.
-
-### Phase 3: Execute Plan
-
-Only after user approval:
-
-1. **Match UX Prototypes Exactly**
-   - Open and study the HTML files in `requirements/ux-outputs/prototypes/`
-   - Implement the EXACT layout and components shown
-   - Use the same class names and styling patterns
-   - Include all interactive elements demonstrated
-
-2. **Follow Implementation Order**
-   - Backend setup first (FastAPI, agents, tools)
-   - Frontend setup next (React + Vite)
-   - Integration last (SSE connection, visualization rendering)
-
-3. **Update Todo Status**
-   - Mark each task as you complete it
-   - Complete each phase before moving to next
-   - Test as you go
-
-## Quick Links
-- PM Outputs: `requirements/pm-outputs/` (PRD, architecture, APIs)
-- UX Prototypes: `requirements/ux-outputs/prototypes/` (HTML mockups)
-- Implementation Guide: `requirements/technical-patterns/implementation-guide.md`
-- Visualization Pattern: `requirements/technical-patterns/visualization-agent-pattern.md`
-- Pre-built Tools: `backend/tools/` (DO NOT MODIFY)
-
-## Expected Project Structure
-
+### Backend Architecture
 ```
 backend/
-├── main.py              # FastAPI app with CORS and SSE endpoints
-├── requirements.txt     # anthropic, fastapi, uvicorn, etc.
-├── api/                 # API route handlers
-│   └── chat.py         # SSE endpoint for streaming
-├── services/           
-│   ├── health_analyst_service.py  # Main orchestration service
-│   ├── agents/         # Agent implementations
-│   │   ├── cmo/        # Orchestrator with prompts/
-│   │   ├── specialist/ # Single class with prompts/ for all
-│   │   └── visualization/ # Visualization agent (REQUIRED)
-│   └── streaming/      # SSE utilities
-└── tools/              # PRE-BUILT tools (DO NOT MODIFY)
+├── main.py                      # FastAPI app with CORS, SSE
+├── requirements.txt             # Exact versions as specified
+├── .env                         # Environment variables
+├── api/
+│   ├── __init__.py
+│   ├── chat.py                  # SSE streaming endpoint
+│   ├── threads.py               # Thread management endpoints
+│   └── visualizations.py        # Visualization history endpoints
+├── services/
+│   ├── __init__.py
+│   ├── orchestration_service.py # Main orchestrator
+│   ├── thread_manager.py        # Thread persistence
+│   ├── visualization_manager.py # Viz history tracking
+│   ├── error_handler.py         # Retry logic, error recovery
+│   └── agents/
+│       ├── __init__.py
+│       ├── orchestrator/        # Main orchestrator agent
+│       │   ├── orchestrator_agent.py
+│       │   └── prompts/         # Externalized prompts
+│       │       ├── analyze_query.txt
+│       │       ├── team_assembly.txt
+│       │       └── synthesis.txt
+│       ├── specialists/         # All specialist agents
+│       │   ├── specialist_agent.py
+│       │   └── prompts/         # One per specialist
+│       └── visualization/       # Visualization generator
+│           ├── visualization_agent.py
+│           └── prompts/         # Chart type prompts
+├── models/
+│   ├── __init__.py
+│   ├── thread_models.py         # Thread, Message, etc.
+│   ├── visualization_models.py  # Visualization tracking
+│   └── agent_models.py          # Agent states
+├── utils/
+│   ├── __init__.py
+│   ├── streaming.py             # SSE utilities
+│   └── retry.py                 # Retry patterns
+└── tools/                       # PRE-BUILT (DO NOT MODIFY)
     ├── tool_registry.py
-    └── [other provided tools]
+    └── [provided tools]
+```
 
+### Frontend Architecture
+```
 frontend/
-├── package.json         # React, Vite, Tailwind, Recharts, @babel/standalone
-├── vite.config.ts      
-├── src/
-│   ├── App.tsx         # Main app component
-│   ├── components/     # React components
-│   │   ├── ChatInterface.tsx    # Main chat UI with SSE
-│   │   ├── CodeArtifact.tsx     # Renders visualization code
-│   │   ├── MedicalTeamDisplay.tsx # Shows agent status
-│   │   └── [other UX components]
-│   ├── services/       # API client with SSE
-│   └── types/          # TypeScript types
-└── index.html
+├── package.json                 # Exact dependencies
+├── vite.config.ts              # Vite configuration
+├── tailwind.config.js          # Tailwind v3 config
+├── tsconfig.json               # TypeScript config
+├── index.html                  # Entry point
+└── src/
+    ├── main.tsx                # React entry
+    ├── App.tsx                 # Main app with routing
+    ├── components/
+    │   ├── layout/             # Layout components (4)
+    │   │   ├── MainLayout.tsx
+    │   │   ├── Header.tsx
+    │   │   ├── ThreadSidebar.tsx
+    │   │   └── ResizablePanel.tsx
+    │   ├── chat/               # Chat components (6)
+    │   │   ├── ChatInterface.tsx
+    │   │   ├── MessageList.tsx
+    │   │   ├── MessageBubble.tsx
+    │   │   ├── QueryInput.tsx
+    │   │   ├── ToolCall.tsx
+    │   │   └── ThinkingIndicator.tsx
+    │   ├── agents/             # Agent components (5)
+    │   │   ├── AgentTeamView.tsx
+    │   │   ├── AgentCard.tsx
+    │   │   ├── TeamConnections.tsx
+    │   │   ├── ProgressIndicator.tsx
+    │   │   └── StatusBadge.tsx
+    │   ├── visualizations/     # Viz components (5)
+    │   │   ├── VisualizationHistory.tsx
+    │   │   ├── QuerySelector.tsx
+    │   │   ├── CodeArtifact.tsx
+    │   │   ├── VisualizationCard.tsx
+    │   │   └── ExportButton.tsx
+    │   └── common/             # Utility components (5)
+    │       ├── ErrorBoundary.tsx
+    │       ├── LoadingStates.tsx
+    │       ├── EmptyStates.tsx
+    │       ├── ConfirmDialog.tsx
+    │       └── ToastNotifications.tsx
+    ├── hooks/                  # Custom hooks
+    │   ├── useThreads.ts       # Thread management
+    │   ├── useVisualizations.ts # Viz history
+    │   ├── useSSE.ts          # SSE connection
+    │   └── useLocalStorage.ts # Persistence
+    ├── services/               # API integration
+    │   ├── api.ts             # Base API client
+    │   ├── threadService.ts   # Thread operations
+    │   └── sseService.ts      # SSE handling
+    ├── types/                  # TypeScript types
+    │   └── index.ts           # All type definitions
+    └── styles/                 # Global styles
+        └── globals.css        # Tailwind imports
+
 ```
 
-## Critical Implementation Rules
+## 🚀 Implementation Process
 
-### ALWAYS:
-- Use FastAPI for backend (with `uvicorn main:app --reload`)
-- Use React + Vite for frontend (with `npm run dev`)
-- Import tools from `backend/tools/` using:
-  ```python
-  from tools.tool_registry import ToolRegistry
-  from tools.health_query_tool import execute_health_query_v2
-  ```
-- Implement direct SSE streaming without queues
-- Keep agents simple - thin wrappers around Anthropic calls
-- Use externalized prompts in `.txt` files
-- **Include Visualization Agent** that:
-  - Generates self-contained React components
-  - Embeds data directly in the component
-  - Streams as ```javascript code blocks
-  - Is called AFTER synthesis is complete
+### Phase 1: Analysis & Planning (CRITICAL)
 
-### NEVER:
-- Use Next.js (backend or frontend)
-- Add Redis, databases, or message queues  
-- Reimplement tools that exist in `backend/tools/`
-- Create complex agent inheritance hierarchies
-- Add authentication systems
-- Use state management libraries (Redux, Zustand)
+1. **Deep Dive into Requirements**
+   - Read EVERY document in `requirements/` thoroughly
+   - Open and study ALL HTML prototypes
+   - Understand the complete system architecture
+   - Note all 25+ components to implement
+   - Identify thread management requirements
+   - Review visualization history needs
 
-## Key Implementation Patterns
+2. **Understand Production Features**
+   - Thread persistence with UUID tracking
+   - Query-based visualization history
+   - Error recovery with retry logic
+   - Loading states for all async operations
+   - Glassmorphism effects throughout
+   - Smooth animations and transitions
 
-### Agent Implementation Pattern
-```python
-# Every agent follows this pattern
-class SpecialistAgent:
-    def __init__(self, name, specialty):
-        self.client = Anthropic()
-        self.tools = ToolRegistry()  # Import pre-built tools
-        self.prompts = self._load_prompts()  # From .txt files
+3. **Study Pre-built Tools**
+   ```python
+   # Example of correct tool usage
+   from tools.tool_registry import ToolRegistry
+   from tools.[domain]_query_tool import execute_query_v2
+   
+   # In your agents
+   result = await execute_query_v2({"query": "..."})
+   ```
+
+### Phase 2: Present Comprehensive Plan
+
+After thorough analysis, present a DETAILED plan (as text, not todos) that includes:
+
+1. **Backend Implementation**
+   - FastAPI setup with all required endpoints
+   - Thread management service with UUID tracking
+   - Orchestrator agent with query complexity analysis
+   - All specialist agents with proper prompts
+   - Visualization agent generating React components
+   - Error handling service with retry logic
+   - SSE streaming with proper headers
+
+2. **Frontend Implementation**
+   - Three-panel layout matching UX prototypes
+   - Thread sidebar with conversation management
+   - Chat interface with real-time updates
+   - Agent team visualization with SVG connections
+   - Tab navigation for team/visualization views
+   - All 25+ components as specified
+   - Glassmorphism effects and animations
+
+3. **Integration Points**
+   - SSE connection with reconnection logic
+   - LocalStorage for thread persistence
+   - Dynamic visualization rendering
+   - Error boundaries and recovery
+
+4. **Ask for Approval**
+   "I've thoroughly reviewed all requirements including PM outputs, UX prototypes, and technical patterns. My plan implements all production features including thread management, visualization history, and the complete component library. Should I proceed?"
+
+### Phase 3: Execute with Excellence
+
+Only after approval:
+
+1. **Match UX Prototypes EXACTLY**
+   - Implement every component shown
+   - Apply glassmorphism effects
+   - Include all animations
+   - Match spacing and typography
+
+2. **Implement Production Features**
+   - UUID-based thread tracking
+   - LocalStorage persistence
+   - Query-based visualization history
+   - Comprehensive error handling
+   - Loading and empty states
+
+3. **Follow Best Practices**
+   - Absolute imports (no relative imports)
+   - Externalized prompts in .txt files
+   - Proper TypeScript types (no 'any')
+   - Error boundaries on all components
+   - Accessibility attributes
+
+## 💡 Critical Implementation Patterns
+
+### Thread Management Pattern
+```typescript
+// Thread persistence with UUID
+interface Thread {
+  id: string;  // UUID v4
+  title: string;
+  createdAt: number;
+  messages: Message[];
+  visualizations: VisualizationGroup[];
+}
+
+// LocalStorage key pattern
+const STORAGE_KEY = '[domain]-threads-v1';
+
+// Auto-save with debouncing
+const saveThreads = debounce((threads: Thread[]) => {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(threads));
+}, 5000);
 ```
-
-### Visualization Flow
-1. CMO completes synthesis
-2. Visualization agent generates React component
-3. Component streamed as ```javascript code block
-4. Frontend CodeArtifact renders it dynamically
 
 ### SSE Streaming Pattern (CRITICAL)
 ```python
-# Correct GET endpoint for EventSource
+# Backend - GET endpoint with proper headers
 @router.get("/api/chat/stream")
-async def chat_stream(message: str):
-    async def generate():
-        # Critical delay to prevent buffering
-        await asyncio.sleep(0.001)
+async def stream_chat(message: str = Query(...)):
+    async def event_generator():
+        # Initial connection event
+        yield {
+            "event": "connected",
+            "data": json.dumps({"message": "Connected"})
+        }
+        await asyncio.sleep(0.001)  # Force flush
         
+        # Process with orchestrator
         async for update in orchestrator.process(message):
             yield {
-                "event": "message",
-                "data": json.dumps(update)
+                "event": update["type"],
+                "data": json.dumps(update["data"])
             }
             await asyncio.sleep(0.001)  # Force flush
     
     return EventSourceResponse(
-        generate(),
+        event_generator(),
         headers={
-            'X-Accel-Buffering': 'no',  # Critical header
-            'Cache-Control': 'no-cache'
+            'X-Accel-Buffering': 'no',    # CRITICAL
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive'
         }
     )
-
-# Frontend usage
-const eventSource = new EventSource(`/api/chat/stream?message=${encodeURIComponent(message)}`);
 ```
 
-## Common Issues & Solutions
-
-### TypeScript Import Errors
 ```typescript
-// Wrong - causes "does not provide export" errors
-import { SpecialistStatus, COLORS } from './types';
-
-// Correct - use type imports
-import type { SpecialistStatus } from './types';
-import { COLORS } from './types';
-```
-
-### Tailwind CSS Version Issues
-```json
-// package.json - Use v3, NOT v4
-"tailwindcss": "^3.3.0"  // ✅ Correct
-"tailwindcss": "^4.0.0"  // ❌ Wrong - breaking changes
-```
-
-### SSE Connection Issues
-```typescript
-// Wrong - POST with EventSource
-new EventSource('/api/chat/message', { method: 'POST' }); // ❌
-
-// Correct - GET with query params
-new EventSource(`/api/chat/stream?message=${encodeURIComponent(msg)}`); // ✅
-```
-
-## Important Notes
-- Present plan as TEXT first, get approval, THEN create todos
-- No duplicate presentation (todos ARE the plan once approved)
-- Tools are PRE-BUILT - import and use them directly
-- Match UI components to UX prototypes exactly
-- Follow dependency versions EXACTLY
-- Test SSE streaming before marking complete
-- Final deliverable must include:
-  ```bash
-  # Backend
-  cd backend && pip install -r requirements.txt && python main.py
+// Frontend - EventSource with reconnection
+const connectSSE = (message: string) => {
+  const url = `/api/chat/stream?message=${encodeURIComponent(message)}`;
+  const eventSource = new EventSource(url);
   
-  # Frontend
-  cd frontend && npm install && npm run dev
-  ```
+  eventSource.onopen = () => console.log('Connected');
+  
+  eventSource.addEventListener('agent_activated', (e) => {
+    const data = JSON.parse(e.data);
+    updateAgentStatus(data);
+  });
+  
+  eventSource.onerror = () => {
+    eventSource.close();
+    // Implement reconnection logic
+    setTimeout(() => reconnectSSE(message), 1000);
+  };
+  
+  return eventSource;
+};
+```
+
+### Glassmorphism Implementation
+```css
+/* globals.css - MUST IMPLEMENT */
+@layer components {
+  .glass-panel {
+    @apply bg-white/70 backdrop-blur-[16px] border border-white/20 
+           shadow-[0_8px_32px_rgba(0,0,0,0.1)] rounded-2xl;
+  }
+  
+  .glass-card {
+    @apply bg-white/80 backdrop-blur-[10px] border border-gray-200/50 
+           shadow-lg rounded-xl transition-all duration-200;
+  }
+  
+  .glass-card:hover {
+    @apply transform -translate-y-0.5 shadow-xl;
+  }
+}
+```
+
+### Animation Patterns
+```css
+/* Agent status animations */
+@keyframes thinking-pulse {
+  0%, 100% { 
+    opacity: 0.4; 
+    transform: scale(0.95); 
+  }
+  50% { 
+    opacity: 1; 
+    transform: scale(1.05); 
+  }
+}
+
+.agent-thinking {
+  animation: thinking-pulse 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+/* Message animations */
+@keyframes slide-up {
+  from { 
+    opacity: 0; 
+    transform: translateY(20px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+
+.message-enter {
+  animation: slide-up 0.3s ease-out;
+}
+```
+
+### Error Handling Pattern
+```python
+# Backend retry logic
+async def with_retry(
+    func: Callable, 
+    max_attempts: int = 3,
+    backoff_factor: float = 2.0
+) -> Any:
+    for attempt in range(max_attempts):
+        try:
+            return await func()
+        except Exception as e:
+            if attempt == max_attempts - 1:
+                raise
+            wait_time = backoff_factor ** attempt
+            await asyncio.sleep(wait_time)
+            # Log retry attempt
+```
+
+## ✅ Quality Checklist
+
+### Before Starting Implementation
+- [ ] Read ALL PM outputs thoroughly
+- [ ] Studied ALL UX prototypes in detail
+- [ ] Understand thread management requirements
+- [ ] Know visualization history specifications
+- [ ] Identified all 25+ components to build
+- [ ] Reviewed animation specifications
+- [ ] Understood glassmorphism requirements
+- [ ] Located all pre-built tools
+
+### During Implementation
+- [ ] Using exact dependency versions
+- [ ] Following three-panel layout from UX
+- [ ] Implementing thread sidebar with categories
+- [ ] Building agent team visualization with SVG
+- [ ] Adding tab navigation for views
+- [ ] Including all loading states
+- [ ] Implementing error boundaries
+- [ ] Adding retry logic for failures
+
+### Before Completion
+- [ ] All 25+ components implemented
+- [ ] Glassmorphism effects applied
+- [ ] Animations smooth and performant
+- [ ] Thread persistence working
+- [ ] Visualization history functional
+- [ ] SSE streaming without buffering
+- [ ] Error handling comprehensive
+- [ ] Accessibility compliance met
+
+## 🚫 Common Pitfalls to Avoid
+
+### TypeScript Issues
+```typescript
+// ❌ WRONG - Causes import errors
+import { AgentStatus, COLORS } from './types';
+
+// ✅ CORRECT - Use type imports
+import type { AgentStatus } from './types';
+import { COLORS } from './constants';
+```
+
+### Tailwind Version
+```json
+// ❌ WRONG - v4 has breaking changes
+"tailwindcss": "^4.0.0"
+
+// ✅ CORRECT - Use v3
+"tailwindcss": "^3.3.0"
+```
+
+### SSE Implementation
+```python
+# ❌ WRONG - POST endpoint
+@router.post("/api/chat/stream")
+
+# ✅ CORRECT - GET endpoint
+@router.get("/api/chat/stream")
+```
+
+### Tool Usage
+```python
+# ❌ WRONG - Reimplementing tools
+class CustomQueryTool:
+    def execute_query(self, query):
+        # Custom implementation
+
+# ✅ CORRECT - Import existing tools
+from tools.query_tool import execute_query_v2
+```
+
+## 🎉 Definition of Done
+
+Your implementation is complete when:
+
+1. **Backend Running**
+   ```bash
+   cd backend
+   pip install -r requirements.txt
+   python main.py
+   # API available at http://localhost:8000
+   ```
+
+2. **Frontend Running**
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
+   # UI available at http://localhost:5173
+   ```
+
+3. **All Features Working**
+   - Thread management with persistence
+   - Agent visualization with animations
+   - SSE streaming without buffering
+   - Visualization history by query
+   - Error handling with recovery
+   - All 25+ components polished
+
+4. **Production Quality**
+   - Glassmorphism effects throughout
+   - Smooth animations and transitions
+   - Professional UI matching prototypes
+   - Accessibility compliance
+   - Performance optimized
+
+Remember: You're building a PRODUCTION-READY system. Every detail matters. The final result should be indistinguishable from a manually crafted application.

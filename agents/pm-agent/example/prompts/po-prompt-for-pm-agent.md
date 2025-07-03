@@ -1,92 +1,81 @@
-# Product Owner Initial Prompt for Product Management Agent
+# Enhanced Product Owner Prompt for PM Agent
 
-## Prompt to Submit:
+## Prompt to Submit to PM Agent
 
-I need to build a Multi-Agent System that uses Anthropic's orchestrator-worker pattern (as described in their blog post: https://www.anthropic.com/engineering/built-multi-agent-research-system). The system should have an orchestrator agent that coordinates multiple specialist agents, each with deep domain expertise.
+I need you to create a comprehensive product specification for a production-ready [YOUR DOMAIN] multi-agent system. This system should demonstrate enterprise-grade features including conversation persistence, visualization history, and comprehensive error handling.
 
-I have attached comprehensive documentation that includes our architecture approach, domain requirements, available tools, and visual examples of the desired system.
+### Core Requirements:
 
-Key requirements:
-1. Implement real-time streaming updates showing agent progress
-2. Create a beautiful, professional UI with 3-panel layout
-3. Generate dynamic visualizations from data
-4. Support simple to complex queries with appropriate agent activation
-5. Use the provided data access tools (no direct database integration needed)
+1. **Multi-Agent Architecture**
+   - Design an orchestrator-worker pattern with one main orchestrator and multiple specialist agents
+   - Each agent should have clear responsibilities and expertise areas
+   - Implement progressive disclosure of analysis results
+   - Include a visualization agent that generates self-contained React components
 
-The system will showcase best practices for multi-agent AI systems, including:
-- Parallel agent execution for complex queries
-- Graceful degradation when agents fail
-- Clear coordination and synthesis of multiple perspectives
-- Production-ready error handling and monitoring
+2. **Thread Management System**
+   - UUID-based conversation tracking
+   - Full conversation history with persistence
+   - Thread organization by date (Today, Yesterday, Past 7 Days, Past 30 Days)
+   - Search and filtering capabilities
+   - Auto-generated thread titles
+   - Export functionality
 
-The system uses pre-built tools that abstract data storage and querying. All agents will access data through the provided domain-specific tools documented in the attached files.
+3. **Query-Based Visualization History**
+   - Each query generates a unique ID for tracking
+   - Multiple visualizations per query supported
+   - Query selector UI for filtering visualizations
+   - Timestamp tracking for all visualizations
+   - Visualization categorization by type
 
-The target users and specific domain requirements are detailed in the attached documentation.
+4. **Production Features**
+   - Comprehensive error handling with retry logic (3 attempts, exponential backoff)
+   - Loading states for all async operations
+   - Empty states with helpful CTAs
+   - Network reconnection handling for SSE
+   - Performance optimization (lazy loading, debouncing)
+   - Accessibility compliance (WCAG 2.1 AA)
 
-Please create:
-1. A comprehensive Product Requirements Document (PRD.md)
-2. Detailed user stories with acceptance criteria (user-stories.md)
-3. Technical architecture documentation (system-architecture.md)
-4. API specifications for frontend-backend communication (api-specification.md)
-5. Data model definitions (data-models.md)
-6. Tool interface documentation (tool-interface.md)
-7. Feature prioritization matrix (feature-priority.md)
+5. **Technical Requirements**
+   - FastAPI backend with Python 3.11+
+   - React 18.2 frontend with Vite and TypeScript
+   - Server-Sent Events for real-time streaming
+   - LocalStorage for client-side persistence
+   - No external databases or Redis (tools handle data)
 
-Focus on making this system extensible so the pattern can be applied to other multi-agent use cases beyond healthcare.
+6. **UI/UX Requirements**
+   - Three-panel desktop layout (thread sidebar, main chat, context panel)
+   - Glassmorphism design language throughout
+   - Smooth animations and transitions
+   - Agent visualization with status indicators
+   - Tab-based navigation for different views
+   - Mobile-responsive design
 
-## I have attached the following documents:
+7. **Testing & Evaluation**
+   - Include automated testing framework
+   - Performance benchmarks for each agent
+   - Token usage optimization strategies
+   - Success metrics and KPIs
+   - Quality assurance checklist
 
-### 1. **Simplified Architecture Brief** (simplified-architecture-brief.md)
-- Defines the exact technology stack: FastAPI + React/Vite
-- Explains the simple, direct implementation approach
-- Shows what NOT to use (no Redis, no databases, no Next.js)
-- Provides clear code patterns to follow
+Please create all standard PM artifacts (PRD, user stories, architecture, API specs, data models, etc.) with special attention to the production features. The system should feel as polished as a manually crafted application.
 
-### 2. **Multi-Agent Implementation Architecture** (multi-agent-implementation-architecture.md)
-- Shows the exact backend service structure needed
-- Explains single SpecialistAgent class with multiple specialties
-- Details prompt organization and externalization
-- Provides concrete code patterns for initialization
+### Attached Documents:
+1. [domain]-requirements.md - Domain expertise and specific requirements
+2. multi-agent-architecture-brief.md - Why we're using multi-agent approach
+3. tool-interface-document.md - Pre-built tools documentation
+4. [Optional: UI mockups/screenshots] - Visual references for desired look
+5. [Optional: brand-guidelines.md] - If you have specific visual requirements
+6. Anthropic-Blog-Building-Effective-Agents.txt - Reference for best practices
 
-### 3. **Multi-Agent Architecture Brief** (multi-agent-architecture-brief.md)
-- Explains the orchestrator-worker pattern conceptually
-- Shows expected 90.2% performance improvement over single agents
-- Defines the CMO + specialist pattern we want to implement
+### Expected Outputs:
+- PRD.md with production feature requirements
+- user-stories.md including thread and visualization management
+- system-architecture.md with evaluation framework
+- api-specification.md with all endpoints (threads, visualizations, SSE)
+- data-models.md with UUID-based entities
+- component-architecture.md listing 20+ required components
+- evaluation-framework.md with testing specifications
+- tool-interface.md showing how to use pre-built tools
+- feature-priority.md with P0/P1/P2 categorization
 
-### 4. **Domain Requirements** (health-domain-requirements.md)
-- Details all domain-specific data types 
-- Lists the specialist agents needed for this domain
-- Provides example queries from simple to complex
-- Defines visualization requirements for the domain
-
-### 5. **Tool Interface Documentation** (tool-interface.md)
-- Documents the pre-built data access tools
-- Shows input/output schemas for each tool
-- Provides usage examples for domain queries
-- Explains how agents should integrate with these tools
-
-### 6. **User Stories, User Flows, and Mockups** (User Stories User Flows Mocks.pdf)
-- Screenshots of the actual working system showing:
-  - 3-panel layout with interaction interface
-  - Agent team visualization with real-time status
-  - Dynamic data visualizations
-  - User flow from welcome screen through analysis
-- These mockups show the exact UI/UX we want to achieve
-
-### 7. **Anthropic's Multi-Agent Blog Post** 
-- Link: https://www.anthropic.com/engineering/built-multi-agent-research-system
-- This is the reference architecture pattern we're following
-
-### 8. **Technology Requirements** (technology-requirements.md)
-- Exact technology stack and versions (FastAPI, React, Vite, Tailwind CSS)
-- What NOT to use (no Next.js, no Redis, no databases)
-- Critical implementation rules
-- SSE streaming requirements
-- Pre-built tool usage guidelines
-
-### 9. **Health Technical Customization Guide** (health-technical-customization-guide.md)
-- Health-specific agent configurations (CMO + 8 specialists)
-- Medical data models and schemas
-- Health query complexity rules
-- Health-specific API endpoints
-- Compliance and security considerations
+Remember: We're building a production system, not a prototype. Every feature should be thoroughly specified with error handling, performance considerations, and user experience polish.
