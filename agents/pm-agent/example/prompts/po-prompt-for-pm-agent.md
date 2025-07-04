@@ -78,7 +78,7 @@ Please create all standard PM artifacts with special attention to health domain 
 - Provides example health queries from simple to complex
 - Defines health visualization requirements
 
-### 5. **Tool Interface Documentation** (tool-interface.md)
+### 5. **Tool Interface Documentation** (tool-interface-document.md)
 - Documents the pre-built Snowflake health data access tools
 - Shows input/output schemas for health queries
 - Provides usage examples for medical data queries

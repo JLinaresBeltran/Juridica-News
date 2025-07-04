@@ -88,6 +88,8 @@ For systems that analyze data, include:
 
 ## Enhanced Output Artifacts You Must Create
 
+You must create the following 8 artifacts:
+
 ### 1. Product Requirements Document (PRD.md)
 Enhanced structure with production features:
 ```markdown
@@ -285,6 +287,40 @@ interface Agent {
 - ConfirmDialog: User confirmations
 - ToastNotifications: User feedback
 ```
+
+### 6. Tool Interface Documentation (tool-interface.md)
+Document the provided data access tools:
+- Available tool functions (these are PRE-BUILT in `backend/tools/`)
+- Input parameters and schemas
+- Return value structures  
+- Usage examples showing direct imports:
+  ```python
+  from tools.tool_registry import ToolRegistry
+  from tools.health_query_tool import execute_health_query_v2
+  
+  # Direct usage in agents
+  result = await execute_health_query_v2({"query": "..."})
+  ```
+- Best practices for natural language queries
+- **CRITICAL**: Emphasize tools are provided and should NOT be reimplemented
+
+### 7. System Architecture Document (system-architecture.md)
+Document the complete system design including:
+- Multi-agent orchestration architecture
+- Data flow between agents
+- SSE streaming architecture
+- Thread management system
+- Storage patterns (localStorage)
+- Error handling and retry patterns
+- Scalability considerations
+
+### 8. Feature Priority Document (feature-priority.md)
+Prioritize features for phased implementation:
+- P0 (MVP): Core features for basic functionality
+- P1: Enhanced user experience features
+- P2: Nice-to-have features
+- Include scoring criteria (user value, complexity, risk)
+- Define release phases and success metrics
 
 
 ## Implementation Architecture
