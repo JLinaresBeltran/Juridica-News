@@ -66,10 +66,14 @@ This creates a seamless flow where human vision is amplified by AI expertise at 
 │
 ├── 📚 technical-patterns/        # Domain-agnostic patterns
 │   ├── implementation-guide.md   # Multi-agent implementation
-│   ├── multi-agent-patterns-doc.md   # Orchestrator-worker patterns
-│   ├── streaming-patterns-doc.md     # Real-time SSE updates
+│   ├── multi-agent-patterns.md   # Orchestrator-worker patterns
+│   ├── streaming-patterns.md     # Real-time SSE updates
 │   ├── dependency-management-guide.md  # Critical version requirements
-│   └── sse-implementation-guide.md     # SSE best practices
+│   ├── sse-implementation-guide.md     # SSE best practices
+│   ├── multi-agent-implementation-architecture.md  # Backend service structure
+│   ├── visualization-agent-pattern.md  # Visualization agent implementation
+│   ├── technology-requirements.md      # Stack and version requirements
+│   └── anthropic-blog.md              # Anthropic's research patterns
 │
 ├── 🏥 use-cases/                 # Domain-specific examples
 │   └── multi-agent-health-insight-system/
@@ -81,9 +85,11 @@ This creates a seamless flow where human vision is amplified by AI expertise at 
 │       └── Anthropic-Blog-[...].txt
 │
 ├── 📖 docs/                      # Setup guides
-│   ├── demo-setup-guide.md
-│   ├── po-document-checklist.md
+│   ├── demo/                     # Demo-specific guides
+│   │   ├── demo-setup-guide.md
+│   │   └── po-document-checklist.md
 │   ├── requirements-directory-structure.md
+│   ├── production-quality-checklist.md
 │   └── images/
 │       └── ai-amigos-diagram.png
 │
@@ -158,7 +164,7 @@ Create these documents (use health examples as templates):
 2. Start new conversation
 3. Copy prompt from: `agents/pm-agent/example/prompts/po-prompt-for-pm-agent.md`
 4. Customize for your domain
-5. Attach your documents (4-6 files) to the message
+5. Attach your documents (8 files) to the message
 6. Submit and wait for outputs
 
 **PM Agent will create:**
@@ -167,6 +173,7 @@ Create these documents (use health examples as templates):
 - 🏗️ system-architecture.md
 - 🔌 api-specification.md
 - 📊 data-models.md
+- 🧩 component-architecture.md
 - 🛠️ tool-interface.md
 - 📋 feature-priority.md
 
@@ -217,7 +224,7 @@ cp path/to/3-AMIGO-AGENTS/technical-patterns/* requirements/technical-patterns/
 
 Place in `requirements/pm-outputs/`:
 - PRD.md, user-stories.md, feature-priority.md (root level)
-- architecture/ → PM's technical documents (api-specification.md, data-models.md, system-architecture.md, tool-interface.md)
+- architecture/ → PM's technical documents (api-specification.md, data-models.md, system-architecture.md, component-architecture.md, tool-interface.md)
 
 **Important**: Check api-specification.md for correct SSE endpoint (should be GET, not POST)
 
