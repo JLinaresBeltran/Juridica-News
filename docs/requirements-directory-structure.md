@@ -44,10 +44,10 @@ requirements/
 ├── po-inputs/                [Provided by Product Owner]
 │   ├── anthropic-multi-agent-blog.txt  # Copy of Anthropic's blog post
 │   ├── [domain]-requirements.md        # Domain expertise (health, finance, etc.)
-│   ├── tool-interface-document.md      # Documentation of pre-built tools
-│   ├── user-stories-flows-mocks.pdf    # Visual examples of desired UI/UX
+│   ├── [domain]-mcp-tool-interface.md  # Documentation of pre-built MCP tools
+│   ├── [domain]-user-stories.pdf       # Visual examples of desired UI/UX
 │   ├── [domain]-brand-guidelines.md    # Visual identity and design system
-│   └── multi-agent-architecture-brief.md # Why multi-agent approach
+│   └── [domain]-system-architecture-guide.md # Combined architecture doc
 │
 └── examples/                 [Created by PM & UX Agents]
     ├── user-flows/

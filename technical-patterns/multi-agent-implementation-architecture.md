@@ -1,14 +1,14 @@
 # Multi-Agent Implementation Architecture
 
-This document bridges the conceptual multi-agent pattern with concrete implementation details for the health insight system.
+This document bridges the conceptual multi-agent pattern with concrete implementation details. While we use a health system as our primary example, these patterns apply to any domain.
 
 ## Service Architecture Overview
 
 ```
 backend/services/
-├── health_analyst_service.py    # Main orchestration service
+├── health_analyst_service.py    # Main orchestration service (health example)
 ├── agents/
-│   ├── cmo/                    # Chief Medical Officer (Orchestrator)
+│   ├── cmo/                    # Chief Medical Officer (Orchestrator example)
 │   │   ├── cmo_agent.py
 │   │   └── prompts/           # Externalized prompts
 │   ├── specialist/            # Single specialist implementation
@@ -21,11 +21,13 @@ backend/services/
     └── sse_handler.py
 ```
 
+**Domain Adaptation**: Replace "health_analyst_service" and "cmo" with your domain-specific names (e.g., "financial_analyst_service" and "cfo" for finance).
+
 ## Key Implementation Patterns
 
 ### 1. Service Initialization Pattern
 
-The main orchestration service (`health_analyst_service.py`) initializes all agents:
+The main orchestration service initializes all agents (health example):
 
 ```python
 class HealthAnalystService:
@@ -55,9 +57,9 @@ class HealthAnalystService:
         )
 ```
 
-### 2. CMO Agent Pattern
+### 2. Orchestrator Agent Pattern
 
-The CMO (Chief Medical Officer) acts as the orchestrator:
+The CMO (Chief Medical Officer) acts as the orchestrator in our health example:
 
 ```python
 class CMOAgent:
@@ -75,6 +77,8 @@ class CMOAgent:
         # Create tasks for relevant specialists based on query
         # Returns list of SpecialistTask objects
 ```
+
+**Pattern Explanation**: The orchestrator (CMO in health, CFO in finance, etc.) coordinates specialist agents based on domain-specific logic.
 
 ### 3. Specialist Agent Pattern
 
@@ -95,7 +99,7 @@ class SpecialistAgent:
         # Return SpecialistResult
 ```
 
-The specialties are defined as an enum:
+The specialties are defined as an enum (health example):
 ```python
 class MedicalSpecialty(Enum):
     GENERAL_PRACTICE = "general_practice"
@@ -108,8 +112,14 @@ class MedicalSpecialty(Enum):
     DATA_ANALYSIS = "data_analysis"
 ```
 
+**Other Domain Examples**:
+- Finance: `RISK_ANALYSIS`, `PORTFOLIO_MANAGEMENT`, `TAX_PLANNING`
+- Legal: `CONTRACT_REVIEW`, `COMPLIANCE`, `LITIGATION_SUPPORT`
+- Engineering: `SYSTEMS_DESIGN`, `SECURITY_REVIEW`, `PERFORMANCE_OPTIMIZATION`
+
 ### 4. Prompt Organization
 
+Health system example:
 ```
 prompts/
 ├── cmo/prompts/
@@ -163,6 +173,8 @@ All agents receive the ToolRegistry but use different tools:
 - **Specialists**: Use `execute_health_query_v2` for detailed analysis
 - **Visualization**: No tools, generates React components from synthesis
 
+**Domain Adaptation**: Your domain will have different tools (e.g., `execute_financial_query` for finance).
+
 ### 7. Streaming Architecture
 
 ```python
@@ -189,16 +201,42 @@ async def chat_message(request: ChatRequest):
 Environment variables control behavior:
 ```bash
 ANTHROPIC_API_KEY=your-key
-CMO_MODEL=claude-3-sonnet-20240229
+CMO_MODEL=claude-3-sonnet-20240229              # Or ORCHESTRATOR_MODEL for generic
 SPECIALIST_MODEL=claude-3-sonnet-20240229
 VISUALIZATION_MODEL=claude-3-sonnet-20240229
 MAX_TOOL_CALLS_PER_SPECIALIST=5
 ```
 
+## Adapting to Your Domain
+
+### 1. Define Your Orchestrator
+- **Health Example**: CMO (Chief Medical Officer)
+- **Your Domain**: Choose an appropriate orchestrator name
+- Define complexity assessment rules for your domain
+- Create task delegation logic
+
+### 2. Define Your Specialists
+- **Health Example**: 8 medical specialties (cardiology, endocrinology, etc.)
+- **Your Domain**: Define specialties relevant to your field
+- Write system prompts for each specialty
+- Define what data/tools each specialist needs
+
+### 3. Adapt Visualization
+- **Health Example**: Medical charts (vital signs, lab trends, risk scores)
+- **Your Domain**: Define chart types relevant to your data
+- Create component templates for your data types
+- Ensure proper data embedding in generated components
+
+### 4. Configure Tools
+- **Health Example**: `execute_health_query_v2`, `snowflake_import_analyze_health_records_v2`
+- **Your Domain**: Map your pre-built tools to the ToolRegistry
+- Define which agents can use which tools
+- Handle tool-specific error cases
+
 ## Summary
 
 This architecture achieves multi-agent orchestration through:
-- **CMO as orchestrator** creating and managing tasks
+- **Orchestrator as coordinator** creating and managing tasks (CMO in health example)
 - **Single specialist implementation** with prompt-based specialization
 - **Visualization agent** for dynamic UI generation
 - **Tool abstraction** hiding data complexity

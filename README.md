@@ -74,9 +74,9 @@ This creates a seamless flow where human vision is amplified by AI expertise at 
 ├── 🏥 use-cases/                 # Domain-specific examples
 │   └── multi-agent-health-insight-system/
 │       ├── health-domain-requirements.md
-│       ├── multi-agent-architecture-brief.md
-│       ├── tool-interface-document.md
-│       ├── User Stories User Flows Mocks.pdf
+│       ├── health-system-architecture-guide.md  # Combined architecture doc
+│       ├── health-mcp-tool-interface.md        # Health MCP tools
+│       ├── health-user-stories.pdf             # User stories & mockups
 │       ├── health-insight-brand-guidelines.md
 │       └── Anthropic-Blog-[...].txt
 │
@@ -144,8 +144,8 @@ Use provided documents in `use-cases/multi-agent-health-insight-system/`:
 Create these documents (use health examples as templates):
 
 1. **[domain]-requirements.md** - Your domain expertise
-2. **multi-agent-architecture-brief.md** - Why multi-agent
-3. **tool-interface-document.md** - If you have pre-built tools
+2. **[domain]-system-architecture-guide.md** - Combined architecture document with multi-agent patterns
+3. **[domain]-mcp-tool-interface.md** - If you have pre-built MCP tools
 4. **Visual references** - Screenshots/PDF showing desired UI/UX (optional but recommended)
 5. **[domain]-brand-guidelines.md** - Visual identity based on visual references
 6. **Anthropic blog** - [Link](https://www.anthropic.com/engineering/built-multi-agent-research-system)
@@ -282,9 +282,9 @@ A sophisticated multi-agent health analysis system featuring:
    ```
    use-cases/multi-agent-health-insight-system/
    ├── health-domain-requirements.md
-   ├── multi-agent-architecture-brief.md
-   ├── tool-interface-document.md
-   ├── User Stories User Flows Mocks.pdf
+   ├── health-system-architecture-guide.md
+   ├── health-mcp-tool-interface.md
+   ├── health-user-stories.pdf
    ├── health-insight-brand-guidelines.md
    └── Anthropic-Blog-[...].txt
    ```

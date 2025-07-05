@@ -46,12 +46,13 @@ This repository contains everything needed to implement the 3 AI Amigos methodol
 ├── 📚 technical-guides/          # REUSABLE patterns (domain-agnostic)
 │   ├── implementation-guide.md   # Multi-agent implementation
 │   ├── multi-agent-patterns.md   # Based on Anthropic's research
+│   ├── multi-agent-implementation-architecture.md # Backend structure patterns
 │   └── streaming-patterns.md     # Real-time updates
 │
 ├── 🏥 use-cases/                 # EXAMPLE: Complete health system
 │   └── multi-agent-health-insight-system/
 │       ├── [domain documents]    # Templates for your own domains
-│       └── User Stories User Flows Mocks.pdf # UI/UX examples
+│       └── health-user-stories.pdf # UI/UX examples
 │
 ├── 📖 docs/                      # HOW-TO guides
 │   ├── demo-setup-guide.md      # Run the demo

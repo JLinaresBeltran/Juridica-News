@@ -94,10 +94,10 @@ Follow this pattern for ANY domain:
 
 ```
 services/
-├── health_analyst_service.py    # Main orchestration service
+├── [domain]_analyst_service.py  # Main orchestration service
 ├── agents/
-│   ├── cmo/                    # Orchestrator agent
-│   │   ├── cmo_agent.py
+│   ├── orchestrator/           # Orchestrator agent (CMO for health)
+│   │   ├── orchestrator_agent.py
 │   │   └── prompts/           # Externalized prompts
 │   ├── specialist/            # Single specialist implementation
 │   │   ├── specialist_agent.py
@@ -108,7 +108,7 @@ services/
 └── streaming/
     └── sse_handler.py         # Real-time updates
 
-**IMPORTANT**: See `requirements/po-inputs/multi-agent-implementation-architecture.md` for detailed backend structure.
+**IMPORTANT**: See `technical-patterns/multi-agent-implementation-architecture.md` for detailed backend structure and health system examples.
 ```
 
 **Generic Orchestrator Pattern**:

@@ -2,48 +2,39 @@
 
 ## Documents You Need to Prepare
 
-### For PM Agent Message (8 documents)
-✅ **1. simplified-architecture-brief.md**
-- Technology stack (FastAPI + React/Vite)
-- What NOT to use (no Redis, no Next.js)
-- Simple, direct implementation approach
+### For PM Agent Message (6 documents)
+✅ **1. health-system-architecture-guide.md**
+- Comprehensive architecture document combining:
+  - Multi-agent orchestrator-worker pattern
+  - Technology stack (FastAPI + React/Vite)
+  - Health-specific configurations and data models
+  - Implementation patterns and code examples
 
-✅ **2. multi-agent-implementation-architecture.md**
-- Exact backend service structure
-- Single SpecialistAgent class pattern
-- Prompt organization details
-- Code initialization examples
+✅ **2. multi-agent-implementation-architecture.md** (from technical-patterns/)
+- Shows the exact backend service structure needed
+- Explains single SpecialistAgent class with multiple specialties
+- Details prompt organization and externalization
+- Provides concrete code patterns for initialization
 
-✅ **3. multi-agent-architecture-brief.md**
-- Explains orchestrator-worker pattern conceptually
-- Core requirements for multi-agent system
-- Why multi-agent vs single agent
-
-✅ **4. health-domain-requirements.md**  
+✅ **3. health-domain-requirements.md**  
 - Health data types (labs, vitals, medications)
 - Medical specialties needed
 - Example health queries
 
-✅ **5. tool-interface-document.md**
-- Documents the two pre-built tools
+✅ **4. health-mcp-tool-interface.md**
+- Documents the health-specific MCP tools
 - `execute_health_query_v2` specifications
 - `snowflake_import_analyze_health_records_v2` specifications
 
-✅ **6. User Stories User Flows Mocks.pdf**
+✅ **5. health-user-stories.pdf**
 - Screenshots of the working system
 - Shows exact UI/UX to achieve
 - Medical team visualization examples
 - Real-time progress indicators
 
-✅ **7. Anthropic Blog Link/Text**
+✅ **6. Anthropic Blog Link/Text**
 - https://www.anthropic.com/engineering/built-multi-agent-research-system
 - Can be a link or downloaded text
-
-✅ **8. technology-requirements.md**
-- Exact technology stack and versions
-- What NOT to use (detailed list)
-- Critical implementation rules
-- Version compatibility matrix
 
 ### For Claude Code Workspace (8 additional documents)
 

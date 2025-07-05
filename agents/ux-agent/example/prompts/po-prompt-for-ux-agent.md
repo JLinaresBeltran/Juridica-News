@@ -133,7 +133,7 @@ I need you to design a production-ready, modern UI/UX for a Multi-Agent Health I
    - Health screen reader optimization
 
 ### Visual References:
-[Attached: User Stories User Flows Mocks.pdf showing the exact health UI we want]
+[Attached: health-user-stories.pdf showing the exact health UI we want]
 
 ### I have attached the following documents:
 
@@ -144,7 +144,7 @@ I need you to design a production-ready, modern UI/UX for a Multi-Agent Health I
 5. **data-models.md** (from PM Agent)
 6. **feature-priority.md** (from PM Agent)
 7. **tool-interface.md** (from PM Agent)
-8. **User Stories, User Flows, and Mockups** (User Stories User Flows Mocks.pdf)
+8. **Health User Stories** (health-user-stories.pdf)
    - Screenshots showing the exact health UI we want to achieve
    - 3-panel layout examples
    - Medical team visualization
