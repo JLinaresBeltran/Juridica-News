@@ -181,25 +181,66 @@ Enhanced format:
 ```
 
 ### 3. Interactive Prototypes (HTML)
-Create TWO comprehensive prototypes:
+Create comprehensive, production-quality HTML prototypes as specified by the Product Owner.
 
-#### welcome-prototype.html
-Must demonstrate:
-- Landing experience with glassmorphism
-- Agent team visualization preview
-- Example query cards with complexity indicators
-- Smooth hover animations
-- Call-to-action to start conversation
+**HTML Prototype Best Practices:**
 
-#### main-app-prototype.html
-Must demonstrate:
-- Complete three-panel layout
-- Active conversation with streaming
-- Thread sidebar with multiple conversations
-- Agent team visualization with connections
-- Tab switching for team/results view
-- Loading states and animations
-- Error states with recovery options
+#### Structure Requirements
+1. **Self-Contained Files**: Each prototype must be a complete HTML file
+2. **CDN Dependencies**: Use specified CDN versions for consistency
+3. **Inline Styling**: All CSS in `<style>` tags within the file
+4. **No External Files**: Everything needed must be in the single HTML file
+
+#### Essential Elements
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>[Descriptive Title]</title>
+    <!-- CDN dependencies as specified -->
+    <style>
+        /* Complete CSS including:
+           - Base styles
+           - Component styles
+           - Animations
+           - Responsive rules
+           - Custom utilities */
+    </style>
+</head>
+<body>
+    <!-- Complete HTML structure -->
+    <script>
+        // Any necessary JavaScript for:
+        // - Interactions
+        // - Animations
+        // - State management
+        // - Simulated data
+    </script>
+</body>
+</html>
+```
+
+#### Quality Standards
+1. **Visual Fidelity**: Match design system exactly
+2. **Smooth Animations**: Use CSS transitions and keyframes
+3. **Interactive Elements**: Include hover, focus, active states
+4. **Loading States**: Show skeleton screens and spinners
+5. **Empty States**: Design helpful messages when no data
+6. **Error States**: Include error handling UI
+7. **Responsive Behavior**: At minimum, perfect desktop view
+
+#### Common Patterns to Include
+- Glassmorphism effects with backdrop-filter
+- Custom scrollbars for better aesthetics
+- Smooth transitions (200-300ms)
+- Loading animations (pulse, spin, shimmer)
+- Progressive disclosure of information
+- Focus management for accessibility
+- Keyboard navigation support
+
+The Product Owner will provide specific prototype requirements detailing exactly what should be demonstrated in each prototype.
 
 ### 4. Layout Guidelines (layout-guidelines.md)
 Specify:

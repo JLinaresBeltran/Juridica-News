@@ -2,7 +2,7 @@
 
 ## Documents You Need to Prepare
 
-### For PM Agent Message (6 documents)
+### For PM Agent Message (8 documents)
 ✅ **1. health-system-architecture-guide.md**
 - Comprehensive architecture document combining:
   - Multi-agent orchestrator-worker pattern
@@ -10,31 +10,44 @@
   - Health-specific configurations and data models
   - Implementation patterns and code examples
 
-✅ **2. multi-agent-implementation-architecture.md** (from technical-patterns/)
-- Shows the exact backend service structure needed
-- Explains single SpecialistAgent class with multiple specialties
-- Details prompt organization and externalization
-- Provides concrete code patterns for initialization
-
-✅ **3. health-domain-requirements.md**  
+✅ **2. health-domain-requirements.md**  
 - Health data types (labs, vitals, medications)
 - Medical specialties needed
 - Example health queries
 
-✅ **4. health-mcp-tool-interface.md**
+✅ **3. health-mcp-tool-interface.md**
 - Documents the health-specific MCP tools
 - `execute_health_query_v2` specifications
 - `snowflake_import_analyze_health_records_v2` specifications
 
-✅ **5. health-user-stories.pdf**
+✅ **4. health-user-stories.pdf**
 - Screenshots of the working system
 - Shows exact UI/UX to achieve
 - Medical team visualization examples
 - Real-time progress indicators
 
+✅ **5. health-design-requirements.md**
+- Medical specialist colors and visual identity
+- Healthcare branding and typography
+- Medical team visualization requirements
+- Trust-building design elements
+- Professional healthcare aesthetic
+
 ✅ **6. Anthropic Blog Link/Text**
 - https://www.anthropic.com/engineering/built-multi-agent-research-system
 - Can be a link or downloaded text
+
+✅ **7. multi-agent-implementation-architecture.md** (from technical-patterns/)
+- Shows the exact backend service structure needed
+- Explains single SpecialistAgent class with multiple specialties
+- Details prompt organization and externalization
+- Provides concrete code patterns for initialization
+
+✅ **8. technology-requirements.md**
+- Exact technology stack and versions
+- What NOT to use (no Next.js, no Redis, no databases)
+- Critical implementation rules
+- SSE streaming requirements
 
 ### For Claude Code Workspace (8 additional documents)
 
@@ -80,14 +93,14 @@
 ## Document Flow in Demo
 
 ```
-Step 1: Attach to PM Agent message
-├── simplified-architecture-brief.md
-├── multi-agent-implementation-architecture.md
-├── multi-agent-architecture-brief.md
+Step 1: Attach to PM Agent message (8 documents)
+├── health-system-architecture-guide.md
 ├── health-domain-requirements.md
-├── tool-interface-document.md
-├── User Stories User Flows Mocks.pdf
+├── health-mcp-tool-interface.md
+├── health-user-stories.pdf
+├── health-design-requirements.md
 ├── anthropic-blog-link.txt
+├── multi-agent-implementation-architecture.md (from technical-patterns/)
 └── technology-requirements.md
 
 Step 2: PM Agent Creates
@@ -96,14 +109,18 @@ Step 2: PM Agent Creates
 ├── api-specification.md
 └── [other PM outputs]
 
-Step 3: Attach to UX Agent message
+Step 3: Attach to UX Agent message (11 documents)
 ├── PRD.md (from PM)
 ├── user-stories.md (from PM)
 ├── system-architecture.md (from PM)
 ├── api-specification.md (from PM)
 ├── data-models.md (from PM)
-├── User Stories User Flows Mocks.pdf
-└── health-insight-brand-guidelines.md
+├── feature-priority.md (from PM)
+├── tool-interface.md (from PM)
+├── health-user-stories.pdf
+├── technology-requirements.md
+├── health-design-requirements.md
+└── health-prototype-requirements.md
 
 Step 4: UX Agent Creates
 ├── design-system.md
@@ -142,10 +159,11 @@ workspace/
     │   ├── animation-specs.md
     │   └── prototypes/
     └── po-inputs/
-        ├── multi-agent-architecture-brief.md
+        ├── health-system-architecture-guide.md
         ├── health-domain-requirements.md
-        ├── tool-interface-document.md
-        ├── User Stories User Flows Mocks.pdf
+        ├── health-mcp-tool-interface.md
+        ├── health-user-stories.pdf
+        ├── health-design-requirements.md
         └── anthropic-blog.txt
 ```
 

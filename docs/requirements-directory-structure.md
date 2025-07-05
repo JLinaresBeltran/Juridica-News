@@ -46,7 +46,7 @@ requirements/
 │   ├── [domain]-requirements.md        # Domain expertise (health, finance, etc.)
 │   ├── [domain]-mcp-tool-interface.md  # Documentation of pre-built MCP tools
 │   ├── [domain]-user-stories.pdf       # Visual examples of desired UI/UX
-│   ├── [domain]-brand-guidelines.md    # Visual identity and design system
+│   ├── [domain]-design-requirements.md # Design requirements from PO
 │   └── [domain]-system-architecture-guide.md # Combined architecture doc
 │
 └── examples/                 [Created by PM & UX Agents]

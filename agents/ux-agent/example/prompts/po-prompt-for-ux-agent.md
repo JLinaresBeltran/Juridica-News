@@ -108,9 +108,10 @@ I need you to design a production-ready, modern UI/UX for a Multi-Agent Health I
    - Health-specific variants
    - Accessibility for medical users
 
-3. **Two Interactive Prototypes (HTML):**
+3. **Three Interactive Prototypes (HTML):**
    - **welcome-prototype.html:** Health system intro with medical team
    - **main-app-prototype.html:** Full health consultation interface
+   - **synthesis-visualization-prototype.html:** Results synthesis and data visualization interface
 
 4. **layout-guidelines.md**
    - Health dashboard three-panel specs
@@ -131,9 +132,6 @@ I need you to design a production-ready, modern UI/UX for a Multi-Agent Health I
    - Healthcare WCAG compliance
    - Medical keyboard navigation
    - Health screen reader optimization
-
-### Visual References:
-[Attached: health-user-stories.pdf showing the exact health UI we want]
 
 ### I have attached the following documents:
 
@@ -156,18 +154,20 @@ I need you to design a production-ready, modern UI/UX for a Multi-Agent Health I
    - Icons: Lucide React 0.294.0
    - Visualizations: Recharts 2.10.0
    - Critical design constraints (3-panel layout, glassmorphism, no auth)
-10. **Health Insight Brand Guidelines** (health-insight-brand-guidelines.md)
-   - Complete medical visual identity system
-   - Healthcare color palette
-   - Typography and spacing system
-   - Medical component specifications
-   - Voice and tone guidelines
-11. **Health UI Customization Guide** (health-ui-customization-guide.md) 
-   - Medical specialist colors and icons
-   - Health-specific UI components
-   - Medical team visualization details
-   - Trust-building elements for health data
-   - Health-appropriate animations
+10. **Health Design Requirements** (health-design-requirements.md)
+   - CRITICAL: Complete design requirements from Product Owner
+   - Medical specialist colors (exact hex codes required)
+   - Healthcare visual identity and branding
+   - Medical team visualization specifications
+   - Health-specific UI component requirements
+   - Typography, spacing, and animation guidelines
+   - Trust-building and accessibility requirements
+11. **Health Prototype Requirements** (health-prototype-requirements.md)
+   - CRITICAL: Exact specifications for HTML prototypes
+   - Self-contained HTML file structure
+   - Required CSS patterns and animations
+   - Component demonstrations needed
+   - Layout dimensions and interactions
 
 ### Key Success Criteria:
 - Interface feels trustworthy for health data

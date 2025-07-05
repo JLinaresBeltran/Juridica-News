@@ -53,61 +53,6 @@ I need you to create a comprehensive product specification for a production-read
 
 Please create all standard PM artifacts with special attention to health domain requirements and HIPAA-compliant patterns. The system should feel as trustworthy and polished as a professional medical application.
 
-### I have attached the following documents:
-
-### 1. **Health System Architecture Guide** (health-system-architecture-guide.md)
-- Comprehensive architecture document combining:
-  - Multi-agent orchestrator-worker pattern with 90.2% performance improvement
-  - Exact technology stack: FastAPI + React/Vite (no Next.js, Redis, or databases)
-  - Simple, direct implementation approach with code patterns
-  - Health-specific agent configurations (CMO + 8 specialists)
-  - Medical data models, tools, and API endpoints
-  - Performance requirements and compliance considerations
-
-### 2. **Multi-Agent Implementation Architecture** (multi-agent-implementation-architecture.md)
-- Shows the exact backend service structure needed
-- Explains single SpecialistAgent class with multiple specialties
-- Details prompt organization and externalization
-- Provides concrete code patterns for initialization
-
-### 3. **Domain Requirements** (health-domain-requirements.md)
-- Details all health-specific data types 
-- Lists the 8 medical specialist agents needed
-- Provides example health queries from simple to complex
-- Defines health visualization requirements
-
-### 4. **Health MCP Tool Interface** (health-mcp-tool-interface.md)
-- Documents the health-specific MCP tools for data access
-- Shows input/output schemas for health queries
-- Provides usage examples for medical data queries
-- Explains how agents should integrate with these tools
-
-### 5. **Health User Stories** (health-user-stories.pdf)
-- Screenshots of the actual working health system showing:
-  - 3-panel layout with health consultation interface
-  - Medical team visualization with real-time status
-  - Dynamic health data visualizations
-  - User flow from welcome screen through health analysis
-- These mockups show the exact health UI/UX we want to achieve
-
-### 6. **Anthropic's Multi-Agent Blog Post** 
-- Link: https://www.anthropic.com/engineering/built-multi-agent-research-system
-- This is the reference architecture pattern we're following
-
-### 7. **Technology Requirements** (technology-requirements.md)
-- Exact technology stack and versions (FastAPI, React, Vite, Tailwind CSS)
-- What NOT to use (no Next.js, no Redis, no databases)
-- Critical implementation rules
-- SSE streaming requirements
-- Pre-built tool usage guidelines
-
-### 8. **Health Insight Brand Guidelines** (health-insight-brand-guidelines.md)
-- Medical color palette and visual identity
-- Healthcare typography and spacing
-- Medical iconography and imagery
-- Trust-building design elements
-- Professional healthcare aesthetic
-
 ### Expected Outputs:
 - PRD.md with health system production features
 - user-stories.md including health consultation management
@@ -119,3 +64,58 @@ Please create all standard PM artifacts with special attention to health domain 
 - feature-priority.md with health feature prioritization
 
 Remember: We're building a production health system that handles sensitive medical data. Every feature should be thoroughly specified with error handling, performance considerations, and medical user experience polish.
+
+### I have attached the following documents:
+
+### 1. **Health System Architecture Guide** (health-system-architecture-guide.md)
+- Comprehensive architecture document combining:
+  - Multi-agent orchestrator-worker pattern with 90.2% performance improvement
+  - Exact technology stack: FastAPI + React/Vite (no Next.js, Redis, or databases)
+  - Simple, direct implementation approach with code patterns
+  - Health-specific agent configurations (CMO + 8 specialists)
+  - Medical data models, tools, and API endpoints
+  - Performance requirements and compliance considerations
+
+### 2. **Domain Requirements** (health-domain-requirements.md)
+- Details all health-specific data types 
+- Lists the 8 medical specialist agents needed
+- Provides example health queries from simple to complex
+- Defines health visualization requirements
+
+### 3. **Health MCP Tool Interface** (health-mcp-tool-interface.md)
+- Documents the health-specific MCP tools for data access
+- Shows input/output schemas for health queries
+- Provides usage examples for medical data queries
+- Explains how agents should integrate with these tools
+
+### 4. **Health User Stories** (health-user-stories.pdf)
+- Screenshots of the actual working health system showing:
+  - 3-panel layout with health consultation interface
+  - Medical team visualization with real-time status
+  - Dynamic health data visualizations
+  - User flow from welcome screen through health analysis
+- These mockups show the exact health UI/UX we want to achieve
+
+### 5. **Health Design Requirements** (health-design-requirements.md)
+- Medical specialist colors and visual identity
+- Healthcare branding and typography
+- Medical team visualization requirements
+- Trust-building design elements
+- Professional healthcare aesthetic
+
+### 6. **Anthropic's Multi-Agent Blog Post** 
+- Link: https://www.anthropic.com/engineering/built-multi-agent-research-system
+- This is the reference architecture pattern we're following
+
+### 7. **Multi-Agent Implementation Architecture** (multi-agent-implementation-architecture.md)
+- Shows the exact backend service structure needed
+- Explains single SpecialistAgent class with multiple specialties
+- Details prompt organization and externalization
+- Provides concrete code patterns for initialization
+
+### 8. **Technology Requirements** (technology-requirements.md)
+- Exact technology stack and versions (FastAPI, React, Vite, Tailwind CSS)
+- What NOT to use (no Next.js, no Redis, no databases)
+- Critical implementation rules
+- SSE streaming requirements
+- Pre-built tool usage guidelines

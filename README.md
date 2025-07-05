@@ -77,7 +77,7 @@ This creates a seamless flow where human vision is amplified by AI expertise at 
 │       ├── health-system-architecture-guide.md  # Combined architecture doc
 │       ├── health-mcp-tool-interface.md        # Health MCP tools
 │       ├── health-user-stories.pdf             # User stories & mockups
-│       ├── health-insight-brand-guidelines.md
+│       ├── health-design-requirements.md
 │       └── Anthropic-Blog-[...].txt
 │
 ├── 📖 docs/                      # Setup guides
@@ -147,7 +147,7 @@ Create these documents (use health examples as templates):
 2. **[domain]-system-architecture-guide.md** - Combined architecture document with multi-agent patterns
 3. **[domain]-mcp-tool-interface.md** - If you have pre-built MCP tools
 4. **Visual references** - Screenshots/PDF showing desired UI/UX (optional but recommended)
-5. **[domain]-brand-guidelines.md** - Visual identity based on visual references
+5. **[domain]-design-requirements.md** - Design requirements for UX Agent
 6. **Anthropic blog** - [Link](https://www.anthropic.com/engineering/built-multi-agent-research-system)
 
 ### Phase 3: Run the AI Amigos
@@ -285,7 +285,7 @@ A sophisticated multi-agent health analysis system featuring:
    ├── health-system-architecture-guide.md
    ├── health-mcp-tool-interface.md
    ├── health-user-stories.pdf
-   ├── health-insight-brand-guidelines.md
+   ├── health-design-requirements.md
    └── Anthropic-Blog-[...].txt
    ```
 
