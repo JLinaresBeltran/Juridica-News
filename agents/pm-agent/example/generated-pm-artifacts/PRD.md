@@ -1,205 +1,209 @@
-# Product Requirements Document: Health Insight Assistant
+# Product Requirements Document: Multi-Agent Health Insight System
 
 ## Executive Summary
 
-The Health Insight Assistant is an AI-powered health analysis platform that leverages a multi-agent architecture to provide comprehensive, personalized health insights. By orchestrating a team of specialized medical AI agents, the system delivers 90%+ more comprehensive analysis than single-agent systems, enabling users to understand complex health patterns, track trends, and receive actionable recommendations based on their medical data.
-
-## Product Vision
-
-Create a trustworthy, medical-grade AI assistant that democratizes access to sophisticated health analysis while maintaining the highest standards of accuracy, privacy, and user experience. The system should feel as professional as consulting with a team of medical specialists while being as accessible as chatting with a helpful assistant.
+The Multi-Agent Health Insight System is an AI-powered health analysis platform that leverages multiple specialized medical agents to provide comprehensive health insights. Following Anthropic's proven multi-agent architecture pattern (90.2% performance improvement), the system orchestrates a Chief Medical Officer (CMO) agent coordinating 8 medical specialist agents to analyze health data, identify patterns, and generate actionable insights with professional-grade visualizations.
 
 ## Core Features
 
-### 1. Conversation Management
-- **Thread-based Health Consultations**: UUID-based conversation tracking with automatic categorization
-- **Persistent History**: All health conversations saved and searchable across sessions
-- **Smart Organization**: Automatic grouping by time (Today, Yesterday, Past 7 Days, Past 30 Days)
-- **Health Query Search**: Full-text search across all past health questions and analyses
-- **Auto-titled Threads**: Intelligent thread naming based on initial health query
-- **Export Functionality**: Generate PDF reports or structured data exports for healthcare providers
+### Conversation Management
+- **Thread-Based Health Consultations**: UUID-based conversation tracking with full session persistence
+- **Intelligent Organization**: Automatic categorization by date (Today, Yesterday, Past 7 Days, Past 30 Days)
+- **Smart Search**: Full-text search across all health queries and responses
+- **Auto-Generated Titles**: First health query becomes the conversation title
+- **Export Capabilities**: Generate PDF reports for physician visits
+- **Thread Deletion**: Soft delete with recovery option and confirmation dialog
+- **Active Thread Highlighting**: Visual indicator for current consultation
 
-### 2. Multi-Agent Medical Team Orchestration
+### Multi-Agent Orchestration
 - **Chief Medical Officer (CMO)**: Master orchestrator that analyzes query complexity and coordinates specialists
 - **8 Medical Specialists**:
-  - **Cardiology**: Heart health, blood pressure, cardiovascular risk assessment
-  - **Endocrinology**: Hormones, diabetes, metabolic health analysis
-  - **Laboratory Medicine**: Lab result interpretation, reference range analysis
-  - **Data Analytics**: Statistical trends, correlations, predictive modeling
-  - **Preventive Medicine**: Risk assessments, screening recommendations
-  - **Pharmacy**: Medication reviews, interactions, adherence analysis
-  - **Nutrition**: Dietary impact analysis, nutritional recommendations
-  - **General Practice**: Holistic health coordination and primary care perspective
-- **Progressive Disclosure**: Real-time status updates as each specialist analyzes data
-- **Parallel Processing**: Multiple specialists work simultaneously for faster results
+  1. **Cardiology** (Dr. Heart) - Cardiovascular health analysis
+  2. **Laboratory Medicine** (Dr. Lab) - Lab result interpretation
+  3. **Endocrinology** (Dr. Hormone) - Hormonal and metabolic analysis
+  4. **Data Analysis** (Dr. Analytics) - Statistical trends and predictions
+  5. **Preventive Medicine** (Dr. Prevention) - Risk assessment and screening
+  6. **Pharmacy** (Dr. Pharma) - Medication analysis and interactions
+  7. **Nutrition** (Dr. Nutrition) - Dietary impact on health
+  8. **General Practice** (Dr. Vitality) - Holistic health coordination
+- **Visualization Agent**: Generates self-contained React components with embedded health data
+- **Progressive Disclosure**: Real-time updates as each specialist completes analysis
+- **Parallel Execution**: Specialists work simultaneously for faster results
 
-### 3. Dynamic Health Visualizations
-- **Query-linked Visualizations**: Each health analysis generates appropriate interactive charts
-- **Visualization Types**:
-  - Time series for lab trends and vital signs
-  - Comparison charts for before/after medication changes
-  - Risk assessment gauges and scores
-  - Distribution charts for pattern analysis
+### Data Visualization & Results
+- **Health-Specific Visualizations**:
+  - Time series charts for lab trends with reference ranges
+  - Gauge charts for current vs. normal ranges
+  - Distribution charts for health patterns
   - Correlation matrices for multi-parameter relationships
-- **Multi-result Support**: Multiple visualizations per query for comprehensive insights
-- **History Navigation**: Query selector to browse past analyses and their visualizations
-- **Self-contained Components**: Visualizations include embedded data for sharing
+  - Risk score visualizations
+- **Query-Based History**: Each analysis generates unique ID for tracking
+- **Multi-Result Support**: Multiple visualizations per health query
+- **Interactive Features**: Zoom, pan, hover details, click-through navigation
+- **Export Options**: PNG images, CSV data, PDF reports
 
-### 4. Error Handling & Recovery
-- **Intelligent Retry Logic**: 3 attempts with exponential backoff for failed operations
-- **Graceful Degradation**: Partial results shown when some data sources fail
-- **User-friendly Messaging**: Medical context-appropriate error explanations
-- **Component Error Boundaries**: Isolated failures don't crash the entire application
-- **Network Resilience**: Automatic reconnection for SSE streams
-- **Fallback States**: Helpful guidance when operations fail
+### Error Handling & Recovery
+- **Retry Mechanism**: 3 attempts with exponential backoff (2s, 4s, 8s)
+- **Graceful Degradation**: Partial results displayed when some agents fail
+- **User-Friendly Messages**: Medical domain-appropriate error explanations
+- **Component Error Boundaries**: Isolated failures don't crash the application
+- **Network Reconnection**: Automatic SSE stream recovery
+- **Fallback States**: Helpful content when data unavailable
+- **Error Logging**: Structured logging without exposing PHI
 
-### 5. Performance & Quality
+### Performance & Quality
 - **Response Times**:
-  - Simple queries: < 5 seconds total
-  - Standard queries: < 15 seconds with specialist coordination
-  - Complex queries: < 30 seconds for comprehensive analysis
-  - Critical health alerts: < 2 seconds
-- **Data Handling**:
-  - Support for 10+ years of health history
-  - 50+ different lab test types
-  - Real-time medication interaction checking
-  - Multi-condition correlation analysis
-- **Accuracy Standards**:
-  - 95%+ accuracy in lab result interpretation
-  - Zero missed critical health indicators
-  - Evidence-based recommendations only
+  - Initial load: < 1 second
+  - Thread list render: < 100ms  
+  - Simple health queries: < 5 seconds
+  - Complex analyses: < 30 seconds
+  - Visualization generation: < 2 seconds
+- **Accuracy Benchmarks**: 90%+ diagnostic completeness
+- **Token Optimization**: Multi-agent uses ~15x tokens but provides 90.2% better results
+- **Auto-Save**: 5-second intervals for conversation state
+- **Concurrent Users**: Support 100+ simultaneous health consultations
 
-## User Experience Design
+## User Experience Requirements
 
-### Desktop Layout (3-Panel)
-- **Left Panel (280px)**: Conversation threads with search and organization
-- **Center Panel (Flexible)**: Main chat interface for health queries
-- **Right Panel (400px)**: 
-  - Medical Team tab showing specialist status and results
-  - Visualization tab for interactive health charts
-  - Query selector for result navigation
-
-### Mobile Experience
-- Stacked panels with smooth transitions
-- Touch-optimized controls
-- Maintained functionality on smaller screens
-- Quick access to recent results
+### Information Architecture
+- **3-Panel Desktop Layout**:
+  - Left: Thread sidebar (280-320px) with conversation history
+  - Center: Health chat interface (min 600px) with progressive updates
+  - Right: Medical team/results panel (400px) with tabs
+- **Mobile Responsive**: Single column with collapsible panels
+- **Tab Navigation**: Medical Team, Visualizations, Export Options
 
 ### Visual Design
-- Medical-grade professional aesthetic
-- Glassmorphism effects for modern appeal
-- Color-coded specialists for easy recognition
-- Smooth animations for state transitions
-- High contrast for accessibility
+- **Medical Theme**: Trust-building blues and whites
+- **Glassmorphism Effects**: Modern medical interface aesthetic
+- **Specialist Colors**: Each medical specialist has designated color
+- **Status Indicators**: Waiting (gray), Active (pulsing), Complete (check)
+- **Smooth Animations**: 300ms transitions, medical-appropriate effects
 
-## Technical Architecture
+### Interaction Patterns
+- **Natural Language Input**: Type health questions conversationally
+- **Quick Query Templates**: Common health questions for easy access
+- **Progressive Loading**: See specialists activate in real-time
+- **Query Selector**: Dropdown to filter visualizations by past queries
+- **Contextual Help**: Tooltips explaining medical terms
 
-### Frontend
-- React 18.2 with TypeScript
-- Vite for fast development and builds
-- Tailwind CSS 3.3 for styling
-- Recharts for data visualization
-- Server-Sent Events for real-time updates
+## Technical Requirements
 
-### Backend
-- FastAPI with Python 3.11+
-- Anthropic Claude API integration
-- Pre-built Snowflake health data tools
-- Streaming response architecture
-- Stateless design for scalability
+### Architecture
+- **Backend**: FastAPI 0.104.1 with Python 3.11+
+- **Frontend**: React 18.2.0 with Vite 5.0.8 and TypeScript 5.x
+- **Styling**: Tailwind CSS 3.3.0 (NOT v4)
+- **Streaming**: Server-Sent Events (SSE) for real-time updates
+- **AI Integration**: Anthropic Claude API (claude-3-sonnet-20240229)
+- **Data Access**: Pre-built Snowflake tools (NO direct database access)
 
-### Data Flow
-1. User submits health query
-2. CMO analyzes complexity and creates specialist tasks
-3. Specialists query health data in parallel
-4. Results stream to frontend in real-time
-5. Visualization agent generates interactive charts
-6. All data persisted to localStorage
+### Data Persistence
+- **Client-Side**: localStorage with versioned schemas
+- **Thread Storage**: JSON structure with automatic migration
+- **Visualization Cache**: Embedded data in generated components
+- **Export Formats**: PDF, PNG, CSV
+- **Retention**: Configurable (default 90 days)
 
-## Security & Compliance
+### Security & Compliance
+- **HIPAA Considerations**:
+  - No PHI in logs or error messages
+  - Encrypted data transmission (HTTPS)
+  - Secure API endpoints
+  - Audit trail for data access
+- **Data Privacy**: No server-side storage of health data
+- **Access Control**: Session-based thread isolation
+- **Medical Disclaimers**: Clear notices about AI limitations
 
-### Data Protection
-- No PHI stored on servers (client-side only)
-- Encrypted API communications
-- Secure tool-based data access
-- Audit trails for all operations
+## Integration Requirements
 
-### Medical Standards
-- Clear disclaimers about AI limitations
-- Evidence-based recommendations only
-- Encouragement to consult healthcare providers
-- No emergency medical advice
+### Snowflake Health Tools
+- **execute_health_query_v2**: Natural language health data queries
+- **snowflake_import_analyze_health_records_v2**: Bulk health data import
+- **Tool Registry**: Centralized tool management for all agents
+- **Error Handling**: Graceful failures with user feedback
 
-## Success Metrics
+### External Systems
+- **Export Integration**: Compatible with common EHR formats
+- **Print Formatting**: Physician-friendly report layouts
+- **Mobile Health Apps**: API-compatible for future integration
 
-### User Engagement
-- Average session duration > 10 minutes
-- 3+ queries per session average
-- 80%+ users return within 7 days
-- 90%+ satisfaction rating
+## Performance Metrics
 
-### System Performance
-- 99.9% uptime
-- < 5 second average response time
-- Zero critical errors per 1000 sessions
-- 90%+ query success rate
+### System Health KPIs
+- **Uptime**: 99.9% availability
+- **Response Time**: P95 < 5 seconds for standard queries
+- **Accuracy**: 90%+ diagnostic completeness
+- **User Satisfaction**: > 4.5/5 rating
 
-### Health Outcomes
-- Users report better health understanding
-- Increased medication adherence
-- More informed healthcare conversations
-- Earlier detection of health trends
+### Medical Quality Metrics
+- **Coverage**: Address all aspects of health queries
+- **Consistency**: Same query produces similar insights
+- **Relevance**: Appropriate specialist activation
+- **Actionability**: Clear next steps provided
 
-## Release Strategy
+## User Roles & Permissions
 
-### MVP (Month 1)
-- Core multi-agent orchestration
-- Basic conversation management
-- Essential health visualizations
-- Desktop-optimized experience
+### Primary Users
+- **Patients**: Submit health queries, view results, export reports
+- **Healthcare Providers**: (Future) Review AI-generated insights
+- **System Administrators**: Monitor system health, no PHI access
 
-### Phase 2 (Month 2)
-- Full conversation persistence
-- Advanced visualization types
-- Mobile responsive design
-- Export functionality
+## Accessibility Requirements
+- **WCAG 2.1 AA Compliance**: Full keyboard navigation, screen reader support
+- **High Contrast Mode**: For vision impairments
+- **Large Text Option**: Scalable interface
+- **Medical Term Glossary**: Plain language explanations
+- **Multi-Language Support**: (Future) Spanish, Chinese, etc.
 
-### Phase 3 (Month 3)
-- Query-based history
-- Enhanced error handling
-- Performance optimizations
-- Accessibility compliance
+## Success Criteria
+
+1. **Adoption**: 1000+ active users within 3 months
+2. **Engagement**: Average 3+ queries per session
+3. **Retention**: 60% monthly active user rate
+4. **Quality**: < 1% error rate in health insights
+5. **Performance**: All queries complete within SLA
+6. **Trust**: 85%+ users trust the insights provided
 
 ## Risk Mitigation
 
 ### Technical Risks
-- **API Rate Limits**: Implement caching and request throttling
+- **API Rate Limits**: Implement request queuing and caching
+- **Model Availability**: Fallback to alternate models if needed
 - **Data Quality**: Validate all health data inputs
-- **Scalability**: Design for horizontal scaling from day one
 
 ### Medical Risks
-- **Misinterpretation**: Clear disclaimers and confidence indicators
-- **Emergency Situations**: Prominent warnings and provider referrals
-- **Data Accuracy**: Multiple validation checkpoints
+- **Liability**: Clear disclaimers about AI limitations
+- **Accuracy**: Conservative confidence thresholds
+- **Emergency Cases**: Direct to immediate medical care
 
-### User Risks
-- **Privacy Concerns**: Transparent data handling policies
-- **Complexity**: Progressive disclosure and helpful onboarding
-- **Trust**: Professional design and evidence-based insights
+## Future Enhancements
 
-## Competitive Advantage
-
-1. **Multi-Agent Intelligence**: 90%+ more comprehensive than single-agent systems
-2. **Real-time Collaboration**: See specialists working together
-3. **Persistent Intelligence**: Learn from entire health history
-4. **Visual Insights**: Complex data made understandable
-5. **Professional Trust**: Medical-grade design and accuracy
-
-## Future Vision
-
+### Phase 2 (6 months)
 - Integration with wearable devices
-- Predictive health modeling
-- Family health management
-- Healthcare provider collaboration portal
-- Multi-language support
+- Medication reminder system
+- Appointment scheduling
+- Family health tracking
 
-This PRD defines a production-ready health insight system that combines cutting-edge AI technology with medical expertise to deliver a transformative health analysis experience.
+### Phase 3 (12 months)
+- Provider portal for clinicians
+- Clinical decision support
+- Population health analytics
+- Predictive health modeling
+
+## Appendix
+
+### Query Complexity Classification
+- **Simple**: Single metric lookup, 1 specialist, < 5 seconds
+- **Standard**: Trend analysis, 2-3 specialists, < 15 seconds
+- **Complex**: Multi-system analysis, 4-6 specialists, < 30 seconds
+- **Critical**: Urgent concerns, all relevant specialists, priority processing
+
+### Medical Specialist Activation Rules
+- Cardiology: Blood pressure, cholesterol, heart-related queries
+- Laboratory: Any lab test interpretation needs
+- Endocrinology: Diabetes, thyroid, hormonal concerns
+- Data Analysis: Trends, correlations, predictions
+- Preventive: Risk assessments, screening recommendations
+- Pharmacy: Medication questions, interactions
+- Nutrition: Diet impact on health metrics
+- General Practice: Coordination and synthesis

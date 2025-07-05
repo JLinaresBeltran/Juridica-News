@@ -92,6 +92,7 @@ I need you to design a production-ready, modern UI/UX for a Multi-Agent Health I
    - Clear medical data hierarchy
    - HIPAA-appropriate privacy indicators
    - Accessible health information design
+  
 
 ### Required Outputs:
 
@@ -142,19 +143,24 @@ I need you to design a production-ready, modern UI/UX for a Multi-Agent Health I
 5. **data-models.md** (from PM Agent)
 6. **feature-priority.md** (from PM Agent)
 7. **tool-interface.md** (from PM Agent)
-8. **Health User Stories** (health-user-stories.pdf)
+8. **component-architecture.md** (from PM Agent)
+   - Medical UI component hierarchy
+   - Component relationships and data flow
+   - State management patterns
+   - Reusable component specifications
+9. **Health User Stories** (health-user-stories.pdf)
    - Screenshots showing the exact health UI we want to achieve
    - 3-panel layout examples
    - Medical team visualization
    - Real-time progress indicators
    - Health data visualizations
-9. **Technology Requirements** (technology-requirements.md)
+10. **Technology Requirements** (technology-requirements.md)
    - Frontend stack: React 18.2.0 with Vite 5.0.8
    - Styling: Tailwind CSS 3.3.0 (NOT v4)
    - Icons: Lucide React 0.294.0
    - Visualizations: Recharts 2.10.0
    - Critical design constraints (3-panel layout, glassmorphism, no auth)
-10. **Health Design Requirements** (health-design-requirements.md)
+11. **Health Design Requirements** (health-design-requirements.md)
    - CRITICAL: Complete design requirements from Product Owner
    - Medical specialist colors (exact hex codes required)
    - Healthcare visual identity and branding
@@ -162,7 +168,7 @@ I need you to design a production-ready, modern UI/UX for a Multi-Agent Health I
    - Health-specific UI component requirements
    - Typography, spacing, and animation guidelines
    - Trust-building and accessibility requirements
-11. **Health Prototype Requirements** (health-prototype-requirements.md)
+12. **Health Prototype Requirements** (health-prototype-requirements.md)
    - CRITICAL: Exact specifications for HTML prototypes
    - Self-contained HTML file structure
    - Required CSS patterns and animations

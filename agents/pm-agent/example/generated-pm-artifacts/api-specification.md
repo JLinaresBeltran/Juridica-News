@@ -1,56 +1,167 @@
-# API Specification - Health Insight Assistant
+# API Specification - Multi-Agent Health Insight System
 
-## Base URL
-- Development: `http://localhost:8000`
-- Production: `https://api.healthinsight.app`
+## Overview
 
-## API Conventions
+This document defines the RESTful API and Server-Sent Events (SSE) endpoints for the Multi-Agent Health Insight System. All endpoints follow REST conventions and use JSON for request/response bodies.
 
-### Headers
-```http
+## Base Configuration
+
+```
+Base URL: https://api.healthinsight.ai
+API Version: v1
 Content-Type: application/json
-Accept: application/json
-X-Request-ID: {uuid}  # Optional request tracking
+Authorization: Bearer {session_token}
 ```
 
-### Response Format
+## Thread Management Endpoints
+
+### GET /api/threads
+Retrieve all health consultation threads for the current session.
+
+**Query Parameters:**
+- `page` (integer): Page number for pagination (default: 1)
+- `limit` (integer): Items per page (default: 20, max: 100)
+- `search` (string): Search query for thread content
+- `category` (string): Filter by date category (today|yesterday|week|month)
+
+**Response:**
+```json
+{
+  "threads": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "title": "Cholesterol Analysis",
+      "created_at": 1719532800000,
+      "updated_at": 1719536400000,
+      "message_count": 12,
+      "last_message": "Your cholesterol has improved...",
+      "category": "today",
+      "has_visualizations": true
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 45,
+    "pages": 3
+  }
+}
+```
+
+### POST /api/threads
+Create a new health consultation thread.
+
+**Request Body:**
+```json
+{
+  "title": "Auto-generated from first query",
+  "metadata": {
+    "source": "web_app",
+    "session_id": "current_session"
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440001",
+  "title": "New Health Consultation",
+  "created_at": 1719532800000,
+  "messages": [],
+  "results": []
+}
+```
+
+### GET /api/threads/{thread_id}
+Retrieve complete thread with messages and results.
+
+**Response:**
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "title": "Cholesterol Analysis",
+  "created_at": 1719532800000,
+  "messages": [
+    {
+      "id": "msg_001",
+      "role": "user",
+      "content": "What's my cholesterol trend over the last 15 years?",
+      "timestamp": 1719532800000,
+      "query_id": "qry_001"
+    },
+    {
+      "id": "msg_002",
+      "role": "assistant",
+      "content": "I'll analyze your cholesterol trend...",
+      "timestamp": 1719532805000,
+      "specialist_results": ["res_001", "res_002"]
+    }
+  ],
+  "results": [
+    {
+      "query_id": "qry_001",
+      "query": "What's my cholesterol trend over the last 15 years?",
+      "timestamp": 1719532800000,
+      "results": [
+        {
+          "id": "res_001",
+          "specialist": "cardiology",
+          "confidence": 0.92,
+          "findings": "Cholesterol shows improving trend..."
+        }
+      ],
+      "visualizations": ["viz_001", "viz_002"]
+    }
+  ]
+}
+```
+
+### PUT /api/threads/{thread_id}
+Update thread metadata (title, tags).
+
+**Request Body:**
+```json
+{
+  "title": "Updated Thread Title",
+  "tags": ["cholesterol", "cardiology"]
+}
+```
+
+### DELETE /api/threads/{thread_id}
+Soft delete a thread (moves to trash).
+
+**Response:**
 ```json
 {
   "success": true,
-  "data": { ... },
-  "error": null,
-  "timestamp": "2025-01-15T10:30:00Z"
+  "message": "Thread moved to trash",
+  "deleted_at": 1719536400000,
+  "recovery_expires": 1722128400000
 }
 ```
 
-### Error Response Format
+### POST /api/threads/{thread_id}/restore
+Restore a deleted thread from trash.
+
+**Response:**
 ```json
 {
-  "success": false,
-  "data": null,
-  "error": {
-    "code": "ERROR_CODE",
-    "message": "Human readable error message",
-    "details": { ... }
-  },
-  "timestamp": "2025-01-15T10:30:00Z"
+  "success": true,
+  "message": "Thread restored successfully",
+  "thread_id": "550e8400-e29b-41d4-a716-446655440000"
 }
 ```
 
-## Endpoints
+## Health Analysis Endpoints
 
-### Health Analysis Endpoints
-
-#### Start Health Analysis (Streaming)
-```http
-GET /api/chat/stream?message={message}&thread_id={thread_id}
-```
-
-Initiates a streaming health analysis using Server-Sent Events.
+### GET /api/chat/stream
+Main SSE endpoint for health query streaming.
 
 **Query Parameters:**
 - `message` (string, required): URL-encoded health query
-- `thread_id` (string, optional): UUID of existing thread or 'new'
+- `thread_id` (string, required): Thread UUID for conversation
+- `complexity_hint` (string): simple|standard|complex|critical
 
 **Response:** Server-Sent Events stream
 ```
@@ -58,517 +169,372 @@ event: connected
 data: {"status": "connected", "thread_id": "550e8400-e29b-41d4-a716-446655440000"}
 
 event: message
-data: {"content": "I'll analyze your health query about cholesterol trends..."}
+data: {"type": "message", "content": "I'll analyze your cholesterol trend..."}
+
+event: specialist_assigned
+data: {
+  "type": "specialist_assigned",
+  "specialists": [
+    {"name": "Dr. Heart", "specialty": "cardiology", "tasks": ["Analyze cholesterol trends"]},
+    {"name": "Dr. Analytics", "specialty": "data_analysis", "tasks": ["Statistical analysis"]}
+  ]
+}
 
 event: agent_activated
-data: {"agent": "cardiology", "name": "Dr. Heart", "status": "active"}
+data: {"type": "agent_activated", "agent": "cardiology", "status": "thinking"}
 
 event: agent_progress
-data: {"agent": "cardiology", "progress": 50, "message": "Analyzing cardiovascular metrics..."}
+data: {"type": "agent_progress", "agent": "cardiology", "progress": 45}
 
 event: agent_complete
-data: {"agent": "cardiology", "confidence": 85, "duration": 2.3}
+data: {
+  "type": "agent_complete",
+  "agent": "cardiology",
+  "confidence": 0.92,
+  "summary": "Cholesterol showing improvement"
+}
+
+event: result_generated
+data: {
+  "type": "result_generated",
+  "query_id": "qry_001",
+  "specialist": "cardiology",
+  "findings": "Detailed findings..."
+}
 
 event: visualization_ready
-data: {"type": "line_chart", "id": "viz_123", "title": "Cholesterol Trend Analysis"}
+data: {
+  "type": "visualization_ready",
+  "viz_id": "viz_001",
+  "title": "15-Year Cholesterol Trend",
+  "component": "const HealthVisualization = () => { ... }"
+}
+
+event: synthesis_complete
+data: {
+  "type": "synthesis_complete",
+  "summary": "Comprehensive health analysis...",
+  "recommendations": ["Continue medication", "Schedule follow-up"]
+}
 
 event: error
-data: {"code": "TOOL_ERROR", "message": "Unable to retrieve some lab data"}
+data: {"type": "error", "code": "SPECIALIST_TIMEOUT", "message": "Cardiology analysis timed out", "retry_available": true}
 
 event: done
-data: {"summary": "Analysis complete", "total_duration": 8.5}
+data: {"type": "done", "query_id": "qry_001", "duration_ms": 8500}
 ```
 
-**Headers Required:**
-```http
-X-Accel-Buffering: no
-Cache-Control: no-cache
-Connection: keep-alive
-```
-
-#### Submit Health Query (Non-streaming)
-```http
-POST /api/chat/message
-```
-
-Submits a health query for analysis (non-streaming alternative).
+### POST /api/chat/message
+Alternative non-streaming endpoint for health queries.
 
 **Request Body:**
 ```json
 {
-  "message": "What's my cholesterol trend over the past year?",
   "thread_id": "550e8400-e29b-41d4-a716-446655440000",
-  "options": {
-    "include_visualizations": true,
-    "specialists": ["cardiology", "laboratory_medicine"]
-  }
+  "message": "Analyze my blood pressure trends",
+  "include_visualizations": true,
+  "timeout_seconds": 30
 }
 ```
 
 **Response:**
 ```json
 {
-  "success": true,
-  "data": {
-    "query_id": "q_789",
-    "thread_id": "550e8400-e29b-41d4-a716-446655440000",
-    "complexity": "standard",
-    "specialists_assigned": [
-      {
-        "type": "cardiology",
-        "name": "Dr. Heart",
-        "status": "pending"
-      },
-      {
-        "type": "laboratory_medicine", 
-        "name": "Dr. Lab",
-        "status": "pending"
-      }
-    ],
-    "estimated_time": 15
-  }
-}
-```
-
-### Thread Management Endpoints
-
-#### List Conversation Threads
-```http
-GET /api/threads?limit={limit}&offset={offset}&search={search}
-```
-
-Retrieves all conversation threads with pagination.
-
-**Query Parameters:**
-- `limit` (int, default: 20): Number of threads to return
-- `offset` (int, default: 0): Pagination offset
-- `search` (string, optional): Search query for thread content
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "threads": [
-      {
-        "id": "550e8400-e29b-41d4-a716-446655440000",
-        "title": "Cholesterol Analysis",
-        "created_at": 1736942400,
-        "updated_at": 1736946000,
-        "message_count": 8,
-        "preview": "What's my cholesterol trend over the past year?",
-        "category": "today"
-      }
-    ],
-    "total": 42,
-    "has_more": true
-  }
-}
-```
-
-#### Get Thread Details
-```http
-GET /api/threads/{thread_id}
-```
-
-Retrieves complete thread with all messages and results.
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
-    "title": "Cholesterol Analysis",
-    "created_at": 1736942400,
-    "messages": [
-      {
-        "id": "msg_123",
-        "role": "user",
-        "content": "What's my cholesterol trend?",
-        "timestamp": 1736942400
-      },
-      {
-        "id": "msg_124",
-        "role": "assistant",
-        "content": "I'll analyze your cholesterol trends...",
-        "timestamp": 1736942405,
-        "metadata": {
-          "complexity": "standard",
-          "specialists": ["cardiology", "laboratory_medicine"]
-        }
-      }
-    ],
-    "results": [
-      {
-        "query_id": "q_789",
-        "query": "What's my cholesterol trend?",
-        "timestamp": 1736942400,
-        "specialists": [...],
-        "synthesis": "...",
-        "visualizations": [...]
-      }
-    ]
-  }
-}
-```
-
-#### Create New Thread
-```http
-POST /api/threads
-```
-
-Creates a new conversation thread.
-
-**Request Body:**
-```json
-{
-  "title": "Custom Title (optional)",
-  "initial_message": "What are my cardiovascular risk factors?"
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "thread_id": "550e8400-e29b-41d4-a716-446655440000",
-    "title": "Cardiovascular Risk Assessment",
-    "created_at": 1736942400
-  }
-}
-```
-
-#### Delete Thread
-```http
-DELETE /api/threads/{thread_id}
-```
-
-Soft deletes a conversation thread.
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "message": "Thread deleted successfully"
-  }
-}
-```
-
-### Health Data Endpoints
-
-#### Get Analysis Results
-```http
-GET /api/threads/{thread_id}/results?query_id={query_id}
-```
-
-Retrieves analysis results for a thread, optionally filtered by query.
-
-**Query Parameters:**
-- `query_id` (string, optional): Filter results by specific query
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "results": [
-      {
-        "query_id": "q_789",
-        "query": "What's my cholesterol trend?",
-        "timestamp": 1736942400,
-        "complexity": "standard",
-        "specialists": [
-          {
-            "type": "cardiology",
-            "name": "Dr. Heart",
-            "findings": "Your cholesterol shows improvement...",
-            "confidence": 85,
-            "duration": 2.3
-          }
-        ],
-        "synthesis": "Based on comprehensive analysis...",
-        "recommendations": [
-          "Continue current medication",
-          "Schedule follow-up in 3 months"
-        ],
-        "visualizations": [
-          {
-            "id": "viz_123",
-            "type": "line_chart",
-            "title": "Cholesterol Trends",
-            "component": "const CholesterolChart = () => {...}"
-          }
-        ]
-      }
-    ]
-  }
-}
-```
-
-#### Export Health Report
-```http
-POST /api/threads/{thread_id}/export
-```
-
-Generates a PDF report of health analyses.
-
-**Request Body:**
-```json
-{
-  "format": "pdf",
-  "include_queries": ["q_789", "q_790"],
-  "options": {
-    "include_visualizations": true,
-    "include_raw_data": false,
-    "provider_format": true
-  }
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "export_url": "/api/exports/exp_456.pdf",
-    "expires_at": 1736950000,
-    "size_bytes": 245760
-  }
-}
-```
-
-### Visualization Endpoints
-
-#### Get Visualization Component
-```http
-GET /api/visualizations/{visualization_id}
-```
-
-Retrieves a specific visualization component.
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "id": "viz_123",
-    "type": "line_chart",
-    "title": "Cholesterol Trends Over Time",
-    "query_id": "q_789",
-    "component": "const HealthVisualization = () => { ... }",
-    "created_at": 1736942400
-  }
-}
-```
-
-#### List Visualizations by Query
-```http
-GET /api/visualizations?query_id={query_id}
-```
-
-Lists all visualizations for a specific query.
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "visualizations": [
-      {
-        "id": "viz_123",
-        "type": "line_chart",
-        "title": "Cholesterol Trends",
-        "query_id": "q_789"
-      },
-      {
-        "id": "viz_124",
-        "type": "comparison_chart",
-        "title": "Before/After Medication",
-        "query_id": "q_789"
-      }
-    ]
-  }
-}
-```
-
-### Health Metrics Endpoints
-
-#### Get Health Metrics
-```http
-GET /api/health/metrics?type={type}&start_date={start}&end_date={end}
-```
-
-Retrieves specific health metrics (direct tool wrapper).
-
-**Query Parameters:**
-- `type` (string, required): Metric type (lab_result, vital_sign, medication)
-- `start_date` (string, optional): ISO date
-- `end_date` (string, optional): ISO date
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "metrics": [
-      {
-        "type": "lab_result",
-        "name": "Total Cholesterol",
-        "value": 185,
-        "unit": "mg/dL",
-        "reference_range": {
-          "min": 0,
-          "max": 200
-        },
-        "status": "normal",
-        "date": "2024-06-15T08:30:00Z"
-      }
-    ],
-    "total": 24
-  }
-}
-```
-
-### System Endpoints
-
-#### Health Check
-```http
-GET /api/health
-```
-
-System health check endpoint.
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "status": "healthy",
-    "version": "1.0.0",
-    "services": {
-      "anthropic_api": "connected",
-      "tools": "available",
-      "sse": "active"
+  "query_id": "qry_002",
+  "thread_id": "550e8400-e29b-41d4-a716-446655440000",
+  "specialists_used": ["cardiology", "data_analysis"],
+  "results": [
+    {
+      "specialist": "cardiology",
+      "confidence": 0.88,
+      "findings": "Blood pressure analysis...",
+      "data_points_analyzed": 156
     }
-  }
+  ],
+  "synthesis": "Overall blood pressure shows...",
+  "visualizations": [
+    {
+      "id": "viz_003",
+      "type": "time_series",
+      "title": "Blood Pressure Trends"
+    }
+  ],
+  "duration_ms": 4200
 }
 ```
 
-#### Get System Configuration
-```http
-GET /api/config
-```
+## Query & Results Endpoints
 
-Returns public system configuration.
+### GET /api/threads/{thread_id}/queries
+Get all queries for a specific thread.
 
 **Response:**
 ```json
 {
-  "success": true,
-  "data": {
-    "specialists": [
-      {
-        "type": "cardiology",
-        "name": "Dr. Heart",
-        "color": "#EF4444",
-        "icon": "heart"
-      }
-    ],
-    "complexity_levels": ["simple", "standard", "complex", "critical"],
-    "max_file_size": 10485760,
-    "supported_formats": ["json", "csv", "pdf"]
-  }
+  "queries": [
+    {
+      "id": "qry_001",
+      "query": "What's my cholesterol trend?",
+      "timestamp": 1719532800000,
+      "complexity": "standard",
+      "specialist_count": 3,
+      "has_visualizations": true
+    }
+  ]
 }
 ```
 
-## WebSocket Alternative (Future)
+### GET /api/threads/{thread_id}/results
+Get all analysis results for a thread.
 
-### Health Analysis WebSocket
-```
-ws://localhost:8000/ws/health-analysis
-```
+**Query Parameters:**
+- `query_id` (string): Filter by specific query
+- `specialist` (string): Filter by specialist type
 
-For future real-time bidirectional communication.
-
-**Message Format:**
+**Response:**
 ```json
 {
-  "type": "query",
-  "data": {
-    "message": "Analyze my blood pressure",
-    "thread_id": "550e8400-e29b-41d4-a716-446655440000"
+  "results": [
+    {
+      "id": "res_001",
+      "query_id": "qry_001",
+      "specialist": "cardiology",
+      "timestamp": 1719532810000,
+      "confidence": 0.92,
+      "findings": {
+        "summary": "Cholesterol improving",
+        "details": "Detailed analysis...",
+        "metrics_analyzed": ["Total Cholesterol", "LDL", "HDL"],
+        "data_sources": ["lab_results"]
+      },
+      "visualizations": ["viz_001"]
+    }
+  ]
+}
+```
+
+## Visualization Endpoints
+
+### GET /api/visualizations/{viz_id}
+Retrieve a specific visualization component.
+
+**Response:**
+```json
+{
+  "id": "viz_001",
+  "title": "15-Year Cholesterol Trend",
+  "type": "time_series",
+  "query_id": "qry_001",
+  "created_at": 1719532820000,
+  "component_code": "const HealthVisualization = () => { /* React component */ }",
+  "metadata": {
+    "chart_type": "line",
+    "data_points": 180,
+    "metrics": ["Total Cholesterol", "LDL", "HDL"]
   }
 }
 ```
+
+### GET /api/threads/{thread_id}/visualizations
+Get all visualizations for a thread.
+
+**Query Parameters:**
+- `type` (string): Filter by visualization type
+- `query_id` (string): Filter by query
+
+**Response:**
+```json
+{
+  "visualizations": [
+    {
+      "id": "viz_001",
+      "title": "Cholesterol Trends",
+      "type": "time_series",
+      "query_id": "qry_001",
+      "thumbnail": "data:image/png;base64,..."
+    }
+  ]
+}
+```
+
+## Export Endpoints
+
+### POST /api/export/pdf
+Generate PDF report for health consultation.
+
+**Request Body:**
+```json
+{
+  "thread_id": "550e8400-e29b-41d4-a716-446655440000",
+  "query_ids": ["qry_001", "qry_002"],
+  "include_visualizations": true,
+  "include_raw_data": false,
+  "physician_format": true
+}
+```
+
+**Response:**
+```json
+{
+  "export_id": "exp_001",
+  "status": "processing",
+  "estimated_time_seconds": 5
+}
+```
+
+### GET /api/export/{export_id}/status
+Check export generation status.
+
+**Response:**
+```json
+{
+  "export_id": "exp_001",
+  "status": "completed",
+  "download_url": "/api/export/exp_001/download",
+  "expires_at": 1719540000000,
+  "file_size_bytes": 1048576
+}
+```
+
+### GET /api/export/{export_id}/download
+Download generated export file.
+
+**Response:** Binary PDF file with appropriate headers
+```
+Content-Type: application/pdf
+Content-Disposition: attachment; filename="HealthInsight_2024-06-28_Cholesterol-Analysis.pdf"
+```
+
+## Health Metrics Endpoints
+
+### GET /api/health/metrics
+Retrieve available health metrics for analysis.
+
+**Response:**
+```json
+{
+  "categories": {
+    "laboratory": {
+      "lipids": ["Total Cholesterol", "LDL", "HDL", "Triglycerides"],
+      "diabetes": ["Glucose", "HbA1c", "Insulin"],
+      "liver": ["ALT", "AST", "Bilirubin"]
+    },
+    "vitals": ["Blood Pressure", "Heart Rate", "Weight", "Temperature"],
+    "medications": {
+      "count": 15,
+      "categories": ["Cardiovascular", "Diabetes", "Supplements"]
+    }
+  },
+  "date_range": {
+    "earliest": "2010-01-15",
+    "latest": "2024-06-28"
+  }
+}
+```
+
+### GET /api/health/emergency-check
+Quick endpoint to check if query contains emergency keywords.
+
+**Request Body:**
+```json
+{
+  "query": "I have severe chest pain and shortness of breath"
+}
+```
+
+**Response:**
+```json
+{
+  "is_emergency": true,
+  "severity": "critical",
+  "keywords_detected": ["severe chest pain", "shortness of breath"],
+  "recommended_action": "seek_immediate_care",
+  "emergency_resources": {
+    "phone": "911",
+    "nearest_er": "City Medical Center - 2.3 miles"
+  }
+}
+```
+
+## Error Responses
+
+All endpoints use consistent error formatting:
+
+```json
+{
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Invalid thread ID format",
+    "details": {
+      "field": "thread_id",
+      "provided": "invalid-uuid"
+    },
+    "timestamp": 1719532800000,
+    "request_id": "req_abc123"
+  }
+}
+```
+
+### Error Codes
+- `VALIDATION_ERROR`: Invalid request parameters
+- `NOT_FOUND`: Resource not found
+- `SPECIALIST_TIMEOUT`: Agent failed to respond in time
+- `RATE_LIMIT`: Too many requests
+- `INTERNAL_ERROR`: Server error (no PHI exposed)
+- `NETWORK_ERROR`: Connection issues
+- `TOOL_ERROR`: Health data tool failure
 
 ## Rate Limiting
 
-- **Global**: 100 requests per minute per IP
-- **Streaming**: 10 concurrent SSE connections per IP
-- **Export**: 5 exports per hour per IP
-
-**Rate Limit Headers:**
-```http
+```
 X-RateLimit-Limit: 100
 X-RateLimit-Remaining: 95
-X-RateLimit-Reset: 1736943000
+X-RateLimit-Reset: 1719536400
 ```
 
-## Error Codes
+- Standard users: 100 requests per hour
+- Health queries: 20 per hour
+- PDF exports: 10 per day
 
-| Code | Description | HTTP Status |
-|------|-------------|-------------|
-| `INVALID_REQUEST` | Malformed request data | 400 |
-| `THREAD_NOT_FOUND` | Thread ID doesn't exist | 404 |
-| `QUERY_TOO_LONG` | Query exceeds 1000 characters | 400 |
-| `TOOL_ERROR` | Health data tool failed | 503 |
-| `AGENT_ERROR` | AI agent processing failed | 500 |
-| `RATE_LIMITED` | Too many requests | 429 |
-| `STREAM_TIMEOUT` | SSE connection timed out | 408 |
-| `EXPORT_FAILED` | PDF generation failed | 500 |
+## Webhook Events (Future)
 
-## CORS Configuration
+For integration with external systems:
 
-```python
-cors_config = {
-    "allow_origins": ["http://localhost:5173", "https://app.healthinsight.app"],
-    "allow_methods": ["GET", "POST", "DELETE"],
-    "allow_headers": ["Content-Type", "X-Request-ID"],
-    "expose_headers": ["X-RateLimit-Limit", "X-RateLimit-Remaining"],
-    "allow_credentials": False
+```json
+{
+  "event": "analysis.completed",
+  "thread_id": "550e8400-e29b-41d4-a716-446655440000",
+  "query_id": "qry_001",
+  "timestamp": 1719532850000,
+  "summary": {
+    "specialists_used": 3,
+    "findings_count": 5,
+    "high_priority_findings": 1
+  }
 }
 ```
 
-## Example Integration
+## Performance SLAs
 
-### JavaScript/TypeScript Client
-```typescript
-// Starting a health analysis
-const eventSource = new EventSource(
-  `/api/chat/stream?message=${encodeURIComponent(query)}&thread_id=new`
-);
+- Simple queries: < 5 seconds
+- Standard queries: < 15 seconds  
+- Complex queries: < 30 seconds
+- PDF export: < 10 seconds
+- API response time (non-streaming): < 200ms P95
 
-eventSource.addEventListener('agent_activated', (event) => {
-  const data = JSON.parse(event.data);
-  console.log(`${data.name} is now analyzing your health data...`);
-});
+## Security Headers
 
-eventSource.addEventListener('visualization_ready', (event) => {
-  const data = JSON.parse(event.data);
-  renderVisualization(data.component);
-});
-
-eventSource.addEventListener('done', (event) => {
-  eventSource.close();
-});
-
-eventSource.addEventListener('error', (event) => {
-  console.error('Stream error:', event);
-  eventSource.close();
-});
+All responses include:
+```
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+X-XSS-Protection: 1; mode=block
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+Content-Security-Policy: default-src 'self'
 ```
 
-This API specification provides a complete interface for the Health Insight Assistant, supporting real-time streaming analysis, conversation management, and comprehensive health data visualization.
+## Versioning
+
+API versions in URL path: `/api/v1/...`
+Breaking changes require new version.
+Deprecation notices via `X-API-Deprecation` header.

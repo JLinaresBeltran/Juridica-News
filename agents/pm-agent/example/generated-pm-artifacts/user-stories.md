@@ -1,224 +1,273 @@
-# User Stories - Health Insight Assistant
+# User Stories - Multi-Agent Health Insight System
 
 ## Epic: Conversation Management
 
-### User Story: Health Consultation History
-**As a** patient managing chronic conditions  
+### User Story: Health Consultation Thread Management
+**As a** patient using the health insight system  
 **I want** to see all my previous health consultations organized by date  
-**So that** I can track my health journey and reference past analyses
+**So that** I can easily track my health journey and continue past analyses
 
 #### Acceptance Criteria
-- [ ] Conversations automatically save to localStorage with UUID identifiers
-- [ ] Threads organize into date categories (Today, Yesterday, Past 7 Days, Past 30 Days)
-- [ ] Each thread shows preview of first health query
-- [ ] Thread titles auto-generate from initial question
-- [ ] Deletion requires confirmation dialog
-- [ ] Search returns results across all conversation content
-- [ ] Export generates PDF with conversation history
+- [ ] Conversations automatically save with UUID identifiers
+- [ ] Threads organize into date categories: Today, Yesterday, Past 7 Days, Past 30 Days
+- [ ] Search functionality returns results from conversation content
+- [ ] Thread titles auto-generate from the first health query
+- [ ] Deletion shows confirmation dialog: "Delete this health consultation?"
+- [ ] Deleted threads move to trash (soft delete) with 30-day recovery
+- [ ] Active thread highlights with blue border
+- [ ] Thread preview shows last message and timestamp
 
-### User Story: Resuming Health Analysis
-**As a** busy healthcare consumer  
-**I want** to continue my health analysis from where I left off  
-**So that** I don't lose progress on complex health investigations
+### User Story: Health Data Export
+**As a** patient preparing for a doctor's appointment  
+**I want** to export my health analyses as a PDF report  
+**So that** I can share AI insights with my healthcare provider
 
 #### Acceptance Criteria
-- [ ] Clicking a thread loads full conversation history
-- [ ] Scroll position maintained when returning to thread
-- [ ] All visualizations reload with conversation
-- [ ] Medical team status preserved
-- [ ] New queries append to existing thread
-- [ ] Clear indication of active thread
+- [ ] Export button visible on completed analyses
+- [ ] PDF includes: query, all specialist findings, visualizations, timestamps
+- [ ] Professional medical report formatting
+- [ ] Disclaimer included: "AI-generated analysis for discussion with healthcare provider"
+- [ ] File naming: HealthInsight_[Date]_[ThreadTitle].pdf
+- [ ] Export completes within 5 seconds
+- [ ] Success toast: "Report downloaded successfully"
 
 ## Epic: Multi-Agent Health Analysis
 
-### User Story: Simple Health Query
-**As a** health-conscious individual  
-**I want** to quickly check my latest lab results  
-**So that** I can monitor my health metrics
+### User Story: Real-Time Medical Team Visualization
+**As a** patient asking a health question  
+**I want** to see which medical specialists are analyzing my data in real-time  
+**So that** I understand the comprehensive nature of my health analysis
 
 #### Acceptance Criteria
-- [ ] Query classified as "Simple" by CMO
-- [ ] Single specialist activated (Lab Medicine)
-- [ ] Results returned in < 5 seconds
-- [ ] Clear presentation of values with reference ranges
-- [ ] Status indicators for normal/abnormal values
-- [ ] Option to see trend if historical data exists
+- [ ] Medical team panel shows CMO at center with specialists in arc
+- [ ] Specialist cards show: name, specialty icon, current status
+- [ ] Status states: Waiting (gray), Active (pulsing animation), Complete (checkmark)
+- [ ] Progress bar for each active specialist (0-100%)
+- [ ] Connection lines animate when specialist activates
+- [ ] Specialist uses designated color (e.g., Cardiology = red)
+- [ ] Completed analyses appear in "Analysis Results" section
+- [ ] Confidence percentage displays for each specialist result
 
-### User Story: Complex Health Analysis
-**As a** patient with multiple health conditions  
-**I want** comprehensive analysis of how my conditions interact  
-**So that** I can better manage my overall health
+### User Story: Progressive Health Insights
+**As a** patient with complex health concerns  
+**I want** to receive specialist insights as they complete  
+**So that** I can start understanding my health without waiting for full analysis
 
 #### Acceptance Criteria
-- [ ] Query classified as "Complex" by CMO
-- [ ] 4-6 relevant specialists activated
-- [ ] Real-time progress shown for each specialist
-- [ ] Progressive disclosure of findings
-- [ ] Synthesis provided by CMO after all specialists complete
-- [ ] Interactive visualizations for multi-dimensional data
-- [ ] Actionable recommendations with evidence
+- [ ] First insights appear within 5 seconds of query submission
+- [ ] Each specialist result streams as completed
+- [ ] Results include: finding summary, confidence level, key metrics
+- [ ] Clear section headers: "Cardiology Analysis", "Lab Results Interpretation"
+- [ ] Visual separator between specialist findings
+- [ ] CMO synthesis appears last with comprehensive summary
+- [ ] Loading skeleton shows while specialist is working
+- [ ] Error state if specialist fails: "Unable to complete [specialty] analysis"
 
-### User Story: Medication Correlation
+## Epic: Health Data Visualization
+
+### User Story: Interactive Lab Trend Charts
+**As a** patient tracking my cholesterol  
+**I want** to see interactive visualizations of my lab trends over time  
+**So that** I can understand how my values change and compare to normal ranges
+
+#### Acceptance Criteria
+- [ ] Time series chart shows selected lab values over time
+- [ ] Reference ranges display as shaded areas (green = normal)
+- [ ] Abnormal values highlight in red/amber
+- [ ] Hover shows exact value, date, and reference range
+- [ ] Zoom and pan functionality with smooth animations
+- [ ] Toggle between different lab metrics
+- [ ] Export chart as PNG image
+- [ ] Chart title includes metric name and time range
+
+### User Story: Medication Adherence Correlation
 **As a** patient on multiple medications  
-**I want** to understand how my medications affect my lab results  
-**So that** I can discuss optimization with my doctor
+**I want** to see how my medication adherence correlates with health outcomes  
+**So that** I can understand the importance of taking medications consistently
 
 #### Acceptance Criteria
-- [ ] Pharmacy specialist analyzes medication timeline
-- [ ] Data Analytics specialist identifies correlations
-- [ ] Visualization shows medication periods overlaid with lab trends
-- [ ] Clear identification of potential medication effects
-- [ ] Adherence patterns calculated and displayed
-- [ ] Interaction warnings if applicable
+- [ ] Dual-axis chart shows adherence % and health metrics
+- [ ] Clear visual correlation between adherence and improvements
+- [ ] Medication timeline shows start/stop/change dates
+- [ ] Adherence gaps highlight in visualization
+- [ ] Statistical correlation coefficient displays
+- [ ] Key insights summarize in bullet points below chart
+- [ ] Time range selector (1 month, 3 months, 1 year)
+- [ ] Chart updates smoothly when changing parameters
 
-## Epic: Visualization & Results
+## Epic: Query-Based History
 
-### User Story: Health Trend Visualization
-**As a** user tracking my health  
-**I want** to see interactive visualizations of my health trends  
-**So that** I can identify patterns and improvements
-
-#### Acceptance Criteria
-- [ ] Visualization agent generates appropriate chart types
-- [ ] Charts are interactive (zoom, pan, hover details)
-- [ ] Time period selection available
-- [ ] Multiple metrics can be compared
-- [ ] Visualizations link to source queries
-- [ ] Export functionality for sharing with healthcare providers
-
-### User Story: Query-Based Result History
-**As a** user with ongoing health concerns  
-**I want** to filter my results by specific health queries  
-**So that** I can track how specific concerns evolve over time
+### User Story: Health Query History Navigation
+**As a** patient who asks multiple health questions  
+**I want** to filter my results by specific queries  
+**So that** I can compare analyses and track specific health concerns
 
 #### Acceptance Criteria
-- [ ] Query selector shows all past health questions
-- [ ] Selecting query filters results to that analysis
-- [ ] Visualizations update to show selected query results
-- [ ] Timestamps clearly displayed
-- [ ] Ability to compare results across queries
-- [ ] Export filtered results
+- [ ] Query selector dropdown lists all queries in current thread
+- [ ] Queries display with timestamp and truncated text
+- [ ] Selecting query filters visualizations to that analysis
+- [ ] Chat scrolls to selected query position
+- [ ] URL updates to include query ID (shareable links)
+- [ ] "All Queries" option shows complete history
+- [ ] Query count badge shows number of analyses
+- [ ] Loading state while filtering results
 
-## Epic: Error Handling & Reliability
+### User Story: Visualization History by Health Metric
+**As a** patient monitoring multiple health conditions  
+**I want** to see all visualizations grouped by health metric type  
+**So that** I can track specific aspects of my health over time
+
+#### Acceptance Criteria
+- [ ] Visualizations categorize: Lab Trends, Vital Signs, Risk Scores, Medications
+- [ ] Tab interface for switching between categories
+- [ ] Each visualization shows query context and date
+- [ ] Thumbnail preview before full visualization loads
+- [ ] Compare mode allows side-by-side viewing
+- [ ] Filter by date range
+- [ ] Export all visualizations in category as PDF
+- [ ] Empty state: "No [category] visualizations yet"
+
+## Epic: Error Handling & Recovery
+
+### User Story: Graceful Specialist Failure Handling
+**As a** patient experiencing technical issues  
+**I want** the system to handle specialist failures gracefully  
+**So that** I still receive partial results and understand what happened
+
+#### Acceptance Criteria
+- [ ] Failed specialist shows error state with retry button
+- [ ] Error message: "Dr. [Specialist] encountered an issue. [Retry]"
+- [ ] Other specialists continue analysis independently
+- [ ] Partial results display with notice of incomplete analysis
+- [ ] Retry attempts up to 3 times with exponential backoff
+- [ ] After 3 failures: "Unable to complete [specialty] analysis at this time"
+- [ ] CMO synthesis notes which specialists couldn't complete
+- [ ] System logs error without exposing health data
 
 ### User Story: Network Interruption Recovery
-**As a** user with unreliable internet  
-**I want** the system to gracefully handle connection issues  
-**So that** I don't lose my analysis progress
+**As a** patient with unstable internet  
+**I want** the system to recover from connection losses  
+**So that** my health analysis continues without starting over
 
 #### Acceptance Criteria
-- [ ] SSE reconnection happens automatically
-- [ ] User notified of connection issues
-- [ ] Partial results preserved and displayed
-- [ ] Retry button available for failed operations
-- [ ] Maximum 3 retry attempts with exponential backoff
-- [ ] Clear messaging about what failed and why
+- [ ] Connection loss shows banner: "Connection interrupted. Reconnecting..."
+- [ ] Analysis state persists during disconnection
+- [ ] Automatic reconnection attempts every 5 seconds
+- [ ] Successful reconnection shows: "Connection restored"
+- [ ] Analysis resumes from last checkpoint
+- [ ] Maximum 5 reconnection attempts before manual intervention
+- [ ] "Retry Connection" button after max attempts
+- [ ] Partial results remain visible during disconnection
 
-### User Story: Partial Data Availability
-**As a** user with incomplete health records  
-**I want** to receive the best analysis possible with available data  
-**So that** I still get valuable insights
-
-#### Acceptance Criteria
-- [ ] System identifies missing data types
-- [ ] Analysis proceeds with available information
-- [ ] Clear indication of what data would improve analysis
-- [ ] Confidence levels adjusted based on data completeness
-- [ ] Recommendations for obtaining missing data
-- [ ] No critical errors from missing data
-
-## Epic: User Experience Polish
-
-### User Story: First-Time User Onboarding
-**As a** new user  
-**I want** to understand how to use the Health Insight Assistant  
-**So that** I can start getting value immediately
-
-#### Acceptance Criteria
-- [ ] Welcome screen explains the multi-agent system
-- [ ] Example queries provided for different complexity levels
-- [ ] Visual diagram of medical team structure
-- [ ] Clear privacy and security information
-- [ ] Option to import health data shown
-- [ ] First query gets helpful coaching
+## Epic: Mobile Experience
 
 ### User Story: Mobile Health Monitoring
-**As a** user who travels frequently  
-**I want** to access my health insights on my phone  
-**So that** I can monitor my health anywhere
+**As a** patient checking my health on my phone  
+**I want** a responsive mobile interface  
+**So that** I can access health insights anywhere
 
 #### Acceptance Criteria
-- [ ] Responsive design works on all screen sizes
-- [ ] Touch-optimized controls
-- [ ] Panels stack appropriately on mobile
-- [ ] Visualizations remain interactive
-- [ ] Performance optimized for mobile devices
-- [ ] Offline access to recent conversations
+- [ ] Single column layout on screens < 768px
+- [ ] Collapsible panels for threads and medical team
+- [ ] Touch-friendly buttons (minimum 44x44px)
+- [ ] Swipe gestures for panel navigation
+- [ ] Pinch-to-zoom on visualizations
+- [ ] Simplified medical team view (list instead of arc)
+- [ ] Core features accessible within thumb reach
+- [ ] Offline mode shows cached recent analyses
 
-## Epic: Healthcare Provider Integration
+## Epic: Accessibility
 
-### User Story: Shareable Health Reports
-**As a** patient preparing for a doctor visit  
-**I want** to generate a professional health summary  
-**So that** I can share insights with my healthcare provider
-
-#### Acceptance Criteria
-- [ ] Export generates professional PDF report
-- [ ] Report includes relevant visualizations
-- [ ] Medical terminology included with lay explanations
-- [ ] Timestamp and data sources clearly marked
-- [ ] Disclaimer about AI analysis included
-- [ ] Option to select specific analyses to include
-
-### User Story: Emergency Information Access
-**As a** user with chronic conditions  
-**I want** quick access to critical health information  
-**So that** emergency responders can help me effectively
+### User Story: Screen Reader Health Navigation
+**As a** visually impaired patient  
+**I want** full screen reader support  
+**So that** I can independently manage my health insights
 
 #### Acceptance Criteria
-- [ ] Critical health summary always accessible
-- [ ] Medication list with dosages
-- [ ] Allergy information prominently displayed
-- [ ] Recent vital signs and lab results
-- [ ] Emergency contact information
-- [ ] Printable wallet card format available
+- [ ] All interactive elements have descriptive labels
+- [ ] Medical specialist status announced: "Dr. Heart is analyzing your data"
+- [ ] Chart data available in table format
+- [ ] Keyboard shortcuts for common actions (Ctrl+N for new query)
+- [ ] Focus indicators visible on all interactive elements
+- [ ] Skip links to main content areas
+- [ ] ARIA live regions for real-time updates
+- [ ] Alternative text for all medical icons
 
-## Technical Debt & Performance Stories
-
-### User Story: Large Dataset Performance
-**As a** long-term user with years of health data  
-**I want** the system to remain fast and responsive  
-**So that** I can analyze my complete health history
-
-#### Acceptance Criteria
-- [ ] 10+ years of data loads without performance degradation
-- [ ] Pagination implemented for large result sets
-- [ ] Efficient data structures in localStorage
-- [ ] Background optimization of stored data
-- [ ] Clear indication when processing large datasets
-- [ ] Option to archive older data
-
-### User Story: Accessibility Compliance
-**As a** user with visual impairments  
-**I want** to use screen readers with the Health Insight Assistant  
-**So that** I can independently manage my health
+### User Story: Medical Term Assistance
+**As a** patient unfamiliar with medical terminology  
+**I want** plain language explanations of medical terms  
+**So that** I can understand my health insights
 
 #### Acceptance Criteria
-- [ ] All interactive elements have proper ARIA labels
-- [ ] Keyboard navigation fully supported
-- [ ] Color contrast meets WCAG AA standards
-- [ ] Focus indicators clearly visible
-- [ ] Screen reader announces medical team updates
-- [ ] Alternative text for all visualizations
+- [ ] Medical terms show dotted underline
+- [ ] Hover/tap reveals plain language tooltip
+- [ ] "Explain in Simple Terms" toggle for entire interface
+- [ ] Glossary accessible from help menu
+- [ ] Examples provided for complex concepts
+- [ ] Pronunciation guide for difficult terms
+- [ ] Related educational links for deeper learning
+- [ ] Simplified mode remembers user preference
 
-## Definition of Done
-- Feature implemented according to acceptance criteria
-- Unit tests written with >80% coverage
-- Integration tests for critical paths
-- Accessibility tested with screen readers
-- Performance tested with large datasets
-- Error scenarios handled gracefully
-- Documentation updated
-- Code reviewed and approved
-- Deployed to staging environment
-- Product owner acceptance received
+## Epic: Performance & Polish
+
+### User Story: Fast Health Query Response
+**As a** patient asking about my health  
+**I want** quick responses to my queries  
+**So that** I can get timely health insights
+
+#### Acceptance Criteria
+- [ ] First specialist activates within 2 seconds
+- [ ] Simple queries complete in under 5 seconds
+- [ ] Complex queries show progress: "Analyzing 5 aspects of your health..."
+- [ ] Smooth animations without jank (60 fps)
+- [ ] Loading skeletons prevent layout shift
+- [ ] Results stream progressively without waiting
+- [ ] Background prefetch for common visualizations
+- [ ] Cancel button for long-running analyses
+
+### User Story: Professional Medical Interface
+**As a** patient trusting the system with health data  
+**I want** a polished, medical-grade interface  
+**So that** I feel confident in the analysis quality
+
+#### Acceptance Criteria
+- [ ] Zero runtime errors in production
+- [ ] All actions provide immediate feedback
+- [ ] Smooth transitions between states (300ms)
+- [ ] Consistent medical color scheme throughout
+- [ ] Professional typography and spacing
+- [ ] Loading states for all async operations
+- [ ] Success confirmations for user actions
+- [ ] Helpful empty states with health tips
+
+## Epic: Trust & Transparency
+
+### User Story: Analysis Transparency
+**As a** patient reviewing health insights  
+**I want** to understand how conclusions were reached  
+**So that** I can trust the analysis and discuss with my doctor
+
+#### Acceptance Criteria
+- [ ] Each insight shows data sources used
+- [ ] Confidence levels display as percentages
+- [ ] "How we analyzed this" expandable section
+- [ ] Number of data points analyzed shown
+- [ ] Time range of data clearly indicated
+- [ ] Limitations noted when applicable
+- [ ] Links to medical references when cited
+- [ ] Specialist reasoning available on demand
+
+### User Story: Emergency Health Redirect
+**As a** patient with urgent symptoms  
+**I want** immediate redirection to emergency care  
+**So that** I get appropriate medical attention quickly
+
+#### Acceptance Criteria
+- [ ] System detects emergency keywords (chest pain, severe bleeding, etc.)
+- [ ] Immediate modal: "This requires immediate medical attention"
+- [ ] Emergency resources display (911, nearest ER)
+- [ ] Analysis stops with clear message
+- [ ] No delay in showing emergency information
+- [ ] Option to continue for non-emergency tracking
+- [ ] Emergency detection bypasses all other processing
+- [ ] Clear visual distinction (red borders, warning icons)

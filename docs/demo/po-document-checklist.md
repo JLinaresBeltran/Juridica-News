@@ -109,7 +109,7 @@ Step 2: PM Agent Creates
 ├── api-specification.md
 └── [other PM outputs]
 
-Step 3: Attach to UX Agent message (11 documents)
+Step 3: Attach to UX Agent message (12 documents)
 ├── PRD.md (from PM)
 ├── user-stories.md (from PM)
 ├── system-architecture.md (from PM)
@@ -117,6 +117,7 @@ Step 3: Attach to UX Agent message (11 documents)
 ├── data-models.md (from PM)
 ├── feature-priority.md (from PM)
 ├── tool-interface.md (from PM)
+├── component-architecture.md (from PM)
 ├── health-user-stories.pdf
 ├── technology-requirements.md
 ├── health-design-requirements.md
