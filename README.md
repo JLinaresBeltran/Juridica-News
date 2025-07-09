@@ -11,8 +11,6 @@
 - [Health Insight System Demo](#-health-insight-system-demo)
 - [Creating Your Own Use Case](#-creating-your-own-use-case)
 - [Technical Architecture](#-technical-architecture)
-- [FAQ](#-faq)
-- [Contributing](#-contributing)
 - [Resources](#-resources)
 
 ## 🌟 Overview
@@ -402,75 +400,13 @@ Orchestrator (CMO/CIO/Senior Counsel)
 - **Streaming**: GET endpoints with EventSource, X-Accel-Buffering headers
 - **Based on**: [Anthropic's Research](https://www.anthropic.com/engineering/built-multi-agent-research-system)
 
-## ❓ FAQ
-
-<details>
-<summary><b>Do I need to create brand guidelines?</b></summary>
-
-It's highly recommended! If you have screenshots or visual references of your desired UI, create a brand guidelines document (see health example). This ensures the UX Designer Agent creates consistent, on-brand designs that match your vision.
-</details>
-
-<details>
-<summary><b>Can I use this for non-health domains?</b></summary>
-
-Absolutely! The 3 AI Amigos is domain-agnostic. Just create your own domain documents and follow the same process. We've included examples for finance, legal, and education systems.
-</details>
-
-<details>
-<summary><b>Do I need to know how to code?</b></summary>
-
-No! The AI agents handle all the coding. You just need to understand your domain and be able to describe what you want to build.
-</details>
-
-<details>
-<summary><b>What if I already have some tools/APIs?</b></summary>
-
-Perfect! Document them in a tool-interface-document.md and place any pre-built tools in backend/tools/. The agents will use them.
-</details>
-
-<details>
-<summary><b>How long does the whole process take?</b></summary>
-
-Typically 2-4 hours from start to working system:
-- PM Agent: 30-45 minutes
-- UX Agent: 30-45 minutes  
-- Workspace setup: 15 minutes
-- Claude Code: 45-90 minutes
-</details>
-
-<details>
-<summary><b>Can I modify the agent instructions?</b></summary>
-
-Yes! The agent instructions in `agents/*/config/` can be customized for your needs. Just maintain the core structure.
-</details>
-
-## 🤝 Contributing
-
-We welcome contributions! See our [Contributing Guide](CONTRIBUTING.md) for details.
-
-### Ways to Contribute
-
-- 🎯 Add new use cases
-- 📚 Improve documentation
-- 🐛 Report issues
-- ⭐ Star this repo!
 
 ## 📚 Resources
 
 ### Essential Reading
-- 📖 [Blog: Building Multi-Agent Systems with 3 AI Amigos](#) *(Coming Soon)*
-- 🎥 [Video: Complete Demo Walkthrough](#) *(Coming Soon)*
 - 📄 [Anthropic's Multi-Agent Research](https://www.anthropic.com/engineering/built-multi-agent-research-system)
-
-### Get Help
-- 💬 [Discussions](https://github.com/your-username/3-AMIGO-AGENTS/discussions)
-- 🐛 [Issues](https://github.com/your-username/3-AMIGO-AGENTS/issues)
-- 📧 Email: your.email@example.com
-
-### Connect
-- 🐦 Twitter: [@yourhandle](#)
-- 💼 LinkedIn: [Your Name](#)
-- 🌐 Website: [yourwebsite.com](#)
+- 📖 Blog post coming soon
+- 🎥 Video walkthrough coming soon
 
 ---
 
@@ -479,7 +415,7 @@ We welcome contributions! See our [Contributing Guide](CONTRIBUTING.md) for deta
 </p>
 
 <p align="center">
-  Made with ❤️ by [Your Name] using the 3 AI Amigos
+  Made with ❤️ by the 3 AI Amigos Community
 </p>
 
 <p align="center">
