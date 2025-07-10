@@ -2,6 +2,8 @@
 
 > Transform your development workflow with AI-powered Product Manager, UX Designer, and Claude Code working in perfect harmony. Build production-ready multi-agent systems in hours, not months.
 
+📖 **[Read the blog post](https://medium.com/@george.vetticaden/the-3-amigo-agents-the-claude-code-development-pattern-i-discovered-while-implementing-anthropics-67b392ab4e3f)** | 🎥 **[Watch the video](https://youtu.be/-Ffa56oaiIs)** | 🚀 **[See it in action](https://github.com/georgevetticaden/3-amigo-agents)**
+
 ## 📖 Table of Contents
 
 - [Overview](#-overview)
@@ -404,9 +406,10 @@ Orchestrator (CMO/CIO/Senior Counsel)
 ## 📚 Resources
 
 ### Essential Reading
+- 📖 [Blog: The 3 Amigo Agents - The Claude Code Development Pattern](https://medium.com/@george.vetticaden/the-3-amigo-agents-the-claude-code-development-pattern-i-discovered-while-implementing-anthropics-67b392ab4e3f)
+- 🎥 [Video: 3 Amigo Agents Pattern Walkthrough](https://youtu.be/-Ffa56oaiIs)
 - 📄 [Anthropic's Multi-Agent Research](https://www.anthropic.com/engineering/built-multi-agent-research-system)
-- 📖 Blog post coming soon
-- 🎥 Video walkthrough coming soon
+- 🚀 [Live Demo: Multi-Agent Health Insight System](https://github.com/georgevetticaden/3-amigo-agents)
 
 ---
 
@@ -415,7 +418,7 @@ Orchestrator (CMO/CIO/Senior Counsel)
 </p>
 
 <p align="center">
-  Made with ❤️ by the 3 AI Amigos Community
+  Made with ❤️ by <a href="https://medium.com/@george.vetticaden">George Vetticaden</a> and the 3 AI Amigos Community
 </p>
 
 <p align="center">
