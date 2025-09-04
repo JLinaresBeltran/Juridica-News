@@ -1,0 +1,186 @@
+// SQLite-compatible Prisma schema for development
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Models with SQLite compatibility
+model User {
+  id                   String              @id @default(cuid())
+  email                String              @unique
+  password             String              
+  firstName            String              @map("first_name")
+  lastName             String              @map("last_name")
+  role                 String              @default("EDITOR") // Instead of enum
+  status               String              @default("ACTIVE") // Instead of enum
+  avatar               String?
+  department           String?
+  
+  // Auth fields
+  emailVerified        DateTime?           @map("email_verified")
+  emailVerificationToken String?           @unique @map("email_verification_token")
+  passwordResetToken   String?             @unique @map("password_reset_token")
+  passwordResetExpires DateTime?           @map("password_reset_expires")
+  refreshTokens        RefreshToken[]
+  
+  // Activity timestamps
+  lastLogin            DateTime?           @map("last_login")
+  createdAt            DateTime            @default(now()) @map("created_at")
+  updatedAt            DateTime            @updatedAt @map("updated_at")
+  
+  // Relations
+  documentsCreated     Document[]          @relation("DocumentCreator")
+  articlesCreated      Article[]           @relation("ArticleAuthor") 
+  auditLogs            AuditLog[]
+  
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String   @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("refresh_tokens")
+}
+
+model Document {
+  id                 String     @id @default(cuid())
+  title              String
+  url                String     @unique
+  content            String     
+  summary            String?    
+  source             String     // Instead of enum
+  legalArea          String     @map("legal_area") // Instead of enum  
+  documentType       String     @map("document_type") // Instead of enum
+  status             String     @default("PENDING") // Instead of enum
+  priority           String     @default("NORMAL") // Instead of enum
+  publicationDate    DateTime   @map("publication_date")
+  internalId         String?    @map("internal_id")
+  extractionDate     DateTime   @default(now()) @map("extraction_date")
+  lastReviewDate     DateTime?  @map("last_review_date")
+  confidenceScore    Float      @default(0.0) @map("confidence_score")
+  keywords           String     @default("") // Comma-separated instead of array
+  relevanceTags      String     @default("") @map("relevance_tags") // Comma-separated
+  
+  // Relations
+  curatorId          String?    @map("curator_id")
+  curator            User?      @relation("DocumentCreator", fields: [curatorId], references: [id])
+  
+  createdAt          DateTime   @default(now()) @map("created_at")
+  updatedAt          DateTime   @updatedAt @map("updated_at")
+  
+  @@map("documents")
+}
+
+model Article {
+  id                   String         @id @default(cuid())
+  title                String
+  slug                 String         @unique
+  content              String         
+  summary              String         
+  
+  // SEO
+  metaTitle            String?        @map("meta_title")
+  metaDescription      String?        @map("meta_description")
+  keywords             String         @default("") // Comma-separated
+  canonicalUrl         String?        @map("canonical_url")
+  
+  // Publishing
+  status               String         @default("DRAFT") // Instead of enum
+  publicationSection   String         @map("publication_section") // Instead of enum
+  tags                 String         @default("") // Comma-separated
+  
+  // Dates
+  publishedAt          DateTime?      @map("published_at")
+  scheduledAt          DateTime?      @map("scheduled_at")
+  createdAt            DateTime       @default(now()) @map("created_at")
+  updatedAt            DateTime       @updatedAt @map("updated_at")
+  
+  // Stats
+  views                Int            @default(0)
+  likes                Int            @default(0)
+  wordCount            Int            @default(0) @map("word_count")
+  readingTime          Int            @default(0) @map("reading_time")
+  
+  // Relations
+  authorId             String         @map("author_id")
+  author               User           @relation("ArticleAuthor", fields: [authorId], references: [id])
+  versions             ArticleVersion[]
+  mediaAssets          MediaAsset[]
+  
+  @@map("articles")
+}
+
+model ArticleVersion {
+  id                String    @id @default(cuid())
+  articleId         String    @map("article_id")
+  title             String
+  content           String   
+  summary           String   
+  versionNumber     Int       @map("version_number")
+  changeDescription String?   @map("change_description")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  
+  article           Article   @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  
+  @@unique([articleId, versionNumber])
+  @@map("article_versions")
+}
+
+model MediaAsset {
+  id            String   @id @default(cuid())
+  filename      String
+  originalName  String   @map("original_name")
+  mimeType      String   @map("mime_type")
+  size          Int      // in bytes
+  path          String   // file system path or URL
+  assetType     String   @map("asset_type") // Instead of enum
+  tags          String   @default("") // Comma-separated
+  
+  altText       String?  @map("alt_text")
+  caption       String?
+  
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  articleId     String?  @map("article_id")
+  article       Article? @relation(fields: [articleId], references: [id])
+  
+  @@map("media_assets")
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  action      String   // Instead of enum
+  description String?
+  ipAddress   String?  @map("ip_address")
+  userAgent   String?  @map("user_agent")
+  timestamp   DateTime @default(now())
+  
+  // Relations
+  userId      String   @map("user_id")
+  user        User     @relation(fields: [userId], references: [id])
+  
+  @@map("audit_logs")
+}
+
+model SystemConfig {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  description String?
+  category    String   @default("general")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  @@map("system_config")
+}

@@ -1,0 +1,413 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Enums
+enum DocumentSource {
+  BOE
+  TRIBUNAL_SUPREMO
+  TRIBUNAL_CONSTITUCIONAL
+  MINISTERIO_JUSTICIA
+  CCAA
+  OTROS
+}
+
+enum LegalArea {
+  CIVIL
+  PENAL
+  MERCANTIL
+  LABORAL
+  ADMINISTRATIVO
+  FISCAL
+  CONSTITUCIONAL
+}
+
+enum DocumentType {
+  LEY
+  REAL_DECRETO
+  SENTENCIA
+  RESOLUCION
+  CIRCULAR
+  INSTRUCCION
+}
+
+enum DocumentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PROCESSING
+  ERROR
+}
+
+enum Priority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum ArticleStatus {
+  DRAFT
+  IN_REVIEW
+  READY_TO_PUBLISH
+  SCHEDULED
+  PUBLISHED
+  ARCHIVED
+}
+
+enum PublicationSection {
+  ACTUALIZACIONES_NORMATIVAS
+  JURISPRUDENCIA
+  ANALISIS_PRACTICO
+  DOCTRINA
+  MAS_RECIENTES
+}
+
+enum UserRole {
+  ADMIN
+  EDITOR_SENIOR
+  EDITOR
+  REVIEWER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  PENDING_VERIFICATION
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  DOCUMENT
+  AUDIO
+}
+
+enum ActionType {
+  DOCUMENT_CURATED
+  DOCUMENT_REJECTED
+  ARTICLE_CREATED
+  ARTICLE_UPDATED
+  ARTICLE_PUBLISHED
+  ARTICLE_ARCHIVED
+  CONTENT_GENERATED
+  CONTENT_REGENERATED
+  IMAGE_GENERATED
+  USER_LOGIN
+  USER_LOGOUT
+  PREFERENCES_UPDATED
+  AUTO_SAVE_PERFORMED
+  BACKUP_CREATED
+  ERROR_OCCURRED
+}
+
+// Main Models
+
+model User {
+  id                   String     @id @default(cuid())
+  email                String     @unique
+  firstName            String     @map("first_name")
+  lastName             String     @map("last_name")
+  professionalTitle    String?    @map("professional_title")
+  barAssociationNumber String?    @map("bar_association_number")
+  role                 UserRole   @default(EDITOR)
+  status               UserStatus @default(ACTIVE)
+  passwordHash         String     @map("password_hash")
+  
+  // Activity tracking
+  lastLogin            DateTime?  @map("last_login")
+  loginCount           Int        @default(0) @map("login_count")
+  articlesCreated      Int        @default(0) @map("articles_created")
+  articlesPublished    Int        @default(0) @map("articles_published")
+  
+  // Preferences stored as JSON
+  preferences          Json?
+  
+  // Timestamps
+  createdAt            DateTime   @default(now()) @map("created_at")
+  updatedAt            DateTime   @updatedAt @map("updated_at")
+  verifiedAt           DateTime?  @map("verified_at")
+  
+  // Relations
+  documents            Document[] @relation("CuratedBy")
+  articles             Article[]  @relation("AuthorOf")
+  editedArticles       Article[]  @relation("EditorOf")
+  articleVersions      ArticleVersion[]
+  mediaAssets          MediaAsset[]
+  auditLogs            AuditLog[]
+  userSessions         UserSession[]
+  
+  @@map("users")
+}
+
+model Document {
+  id                 String         @id @default(cuid())
+  title              String
+  source             DocumentSource
+  url                String
+  originalFilePath   String?        @map("original_file_path")
+  publicationDate    DateTime       @map("publication_date")
+  legalArea          LegalArea      @map("legal_area")
+  documentType       DocumentType   @map("document_type")
+  priority           Priority       @default(NORMAL)
+  status             DocumentStatus @default(PENDING)
+  
+  // AI Generated Content
+  aiSummary          String         @map("ai_summary")
+  confidenceScore    Float          @default(0.0) @map("confidence_score")
+  keywords           String[]       @default([])
+  relevanceTags      String[]       @default([]) @map("relevance_tags")
+  
+  // Curation
+  curatedById        String?        @map("curated_by_id")
+  curatedAt          DateTime?      @map("curated_at")
+  curationNotes      String?        @map("curation_notes")
+  estimatedEffort    Int?           @map("estimated_effort") // minutes
+  
+  // Metadata as JSON
+  metadata           Json           @default("{}")
+  
+  // Timestamps
+  createdAt          DateTime       @default(now()) @map("created_at")
+  updatedAt          DateTime       @updatedAt @map("updated_at")
+  scrapedAt          DateTime       @default(now()) @map("scraped_at")
+  
+  // Relations
+  curatedBy          User?          @relation("CuratedBy", fields: [curatedById], references: [id])
+  articles           Article[]
+  
+  @@index([status, publicationDate])
+  @@index([legalArea, priority])
+  @@index([source, createdAt])
+  @@map("documents")
+}
+
+model Article {
+  id                   String             @id @default(cuid())
+  sourceDocumentId     String             @map("source_document_id")
+  
+  // Content
+  title                String
+  slug                 String             @unique
+  content              String             @db.Text
+  summary              String             @db.Text
+  
+  // SEO
+  seoTitle             String?            @map("seo_title")
+  metaDescription      String?            @map("meta_description")
+  keywords             String[]           @default([])
+  canonicalUrl         String?            @map("canonical_url")
+  
+  // Categorization
+  legalArea            LegalArea          @map("legal_area")
+  publicationSection   PublicationSection @map("publication_section")
+  tags                 String[]           @default([])
+  
+  // Editorial Status
+  status               ArticleStatus      @default(DRAFT)
+  authorId             String             @map("author_id")
+  editorId             String?            @map("editor_id")
+  
+  // Publication
+  scheduledPublication DateTime?          @map("scheduled_publication")
+  publishedAt          DateTime?          @map("published_at")
+  
+  // Metrics
+  wordCount            Int                @default(0) @map("word_count")
+  readingTime          Int                @default(0) @map("reading_time") // minutes
+  viewCount            Int                @default(0) @map("view_count")
+  engagementScore      Float?             @map("engagement_score")
+  
+  // AI Generation Config as JSON
+  generationParameters Json?              @map("generation_parameters")
+  
+  // Timestamps
+  createdAt            DateTime           @default(now()) @map("created_at")
+  updatedAt            DateTime           @updatedAt @map("updated_at")
+  lastEditedAt         DateTime           @default(now()) @map("last_edited_at")
+  
+  // Relations
+  sourceDocument       Document           @relation(fields: [sourceDocumentId], references: [id])
+  author               User               @relation("AuthorOf", fields: [authorId], references: [id])
+  editor               User?              @relation("EditorOf", fields: [editorId], references: [id])
+  versions             ArticleVersion[]
+  mediaAssets          ArticleMedia[]
+  
+  @@index([status, publishedAt])
+  @@index([legalArea, createdAt])
+  @@index([slug])
+  @@map("articles")
+}
+
+model ArticleVersion {
+  id              String   @id @default(cuid())
+  articleId       String   @map("article_id")
+  versionNumber   Int      @map("version_number")
+  label           String?
+  
+  // Version Content
+  title           String
+  content         String   @db.Text
+  summary         String   @db.Text
+  seoTitle        String?  @map("seo_title")
+  metaDescription String?  @map("meta_description")
+  
+  // Metadata
+  createdById     String   @map("created_by_id")
+  autoGenerated   Boolean  @default(false) @map("auto_generated")
+  changeSummary   String?  @map("change_summary")
+  wordCountDelta  Int      @default(0) @map("word_count_delta")
+  
+  // Timestamps
+  createdAt       DateTime @default(now()) @map("created_at")
+  
+  // Relations
+  article         Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  createdBy       User     @relation(fields: [createdById], references: [id])
+  
+  @@unique([articleId, versionNumber])
+  @@index([articleId, createdAt])
+  @@map("article_versions")
+}
+
+model MediaAsset {
+  id                  String         @id @default(cuid())
+  
+  // File Information
+  filename            String
+  originalFilename    String         @map("original_filename")
+  filePath            String         @map("file_path")
+  fileSize            Int            @map("file_size")
+  mimeType            String         @map("mime_type")
+  
+  // Categorization
+  assetType           MediaType      @map("asset_type")
+  tags                String[]       @default([])
+  
+  // Visual Metadata (JSON for flexibility)
+  dimensions          Json?
+  colorPalette        String[]       @default([]) @map("color_palette")
+  
+  // AI Generation
+  aiGenerated         Boolean        @default(false) @map("ai_generated")
+  generationPrompt    String?        @map("generation_prompt")
+  generationModel     String?        @map("generation_model")
+  generationParams    Json?          @map("generation_parameters")
+  
+  // SEO Data as JSON
+  seoData             Json?          @map("seo_data")
+  
+  // Usage
+  downloadCount       Int            @default(0) @map("download_count")
+  
+  // Timestamps
+  createdAt           DateTime       @default(now()) @map("created_at")
+  uploadedAt          DateTime       @default(now()) @map("uploaded_at")
+  lastUsed            DateTime?      @map("last_used")
+  
+  // Relations
+  createdById         String         @map("created_by_id")
+  createdBy           User           @relation(fields: [createdById], references: [id])
+  articleUsage        ArticleMedia[]
+  
+  @@index([assetType, createdAt])
+  @@index([aiGenerated, createdAt])
+  @@map("media_assets")
+}
+
+// Junction table for Article-MediaAsset many-to-many
+model ArticleMedia {
+  id            String     @id @default(cuid())
+  articleId     String     @map("article_id")
+  mediaAssetId  String     @map("media_asset_id")
+  usage         String     @default("content") // "featured", "gallery", "content", etc.
+  sortOrder     Int        @default(0) @map("sort_order")
+  
+  article       Article    @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  mediaAsset    MediaAsset @relation(fields: [mediaAssetId], references: [id], onDelete: Cascade)
+  
+  @@unique([articleId, mediaAssetId])
+  @@index([articleId, sortOrder])
+  @@map("article_media")
+}
+
+model UserSession {
+  id                 String    @id @default(cuid())
+  userId             String    @map("user_id")
+  
+  // Session State as JSON
+  editorState        Json      @default("{}") @map("editor_state")
+  uiPreferences      Json      @default("{}") @map("ui_preferences")
+  draftChanges       Json      @default("{}") @map("draft_changes")
+  
+  // Session Info
+  ipAddress          String    @map("ip_address")
+  userAgent          String    @map("user_agent")
+  
+  // Timestamps
+  createdAt          DateTime  @default(now()) @map("created_at")
+  lastAccess         DateTime  @default(now()) @map("last_access")
+  expiresAt          DateTime  @map("expires_at")
+  
+  // Relations
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, lastAccess])
+  @@index([expiresAt])
+  @@map("user_sessions")
+}
+
+model AuditLog {
+  id             String     @id @default(cuid())
+  userId         String     @map("user_id")
+  sessionId      String?    @map("session_id")
+  
+  // Action Details
+  actionType     ActionType @map("action_type")
+  resourceType   String     @map("resource_type")
+  resourceId     String     @map("resource_id")
+  
+  // Action Details as JSON
+  details        Json       @default("{}")
+  result         Json       @default("{}")
+  
+  // Context
+  ipAddress      String     @map("ip_address")
+  userAgent      String     @map("user_agent")
+  requestId      String?    @map("request_id")
+  
+  // Timestamp
+  timestamp      DateTime   @default(now())
+  
+  // Relations
+  user           User       @relation(fields: [userId], references: [id])
+  
+  @@index([userId, timestamp])
+  @@index([actionType, timestamp])
+  @@index([resourceType, resourceId])
+  @@map("audit_logs")
+}
+
+// System Configuration
+model SystemConfig {
+  id            String   @id @default(cuid())
+  configKey     String   @unique @map("config_key")
+  configValue   Json     @map("config_value")
+  description   String?
+  
+  // Timestamps
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  activeFrom    DateTime @default(now()) @map("active_from")
+  
+  @@map("system_config")
+}

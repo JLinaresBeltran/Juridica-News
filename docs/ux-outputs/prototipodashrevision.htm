@@ -1,0 +1,1346 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editorial Jurídico Supervisado - Prototipo</title>
+    <style>
+        /* Reset y Base */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            /* Colores */
+            --color-primary: #1e89a7;
+            --color-primary-50: #f0f9fc;
+            --color-primary-100: #ddf0f7;
+            --color-primary-500: #1e89a7;
+            --color-primary-600: #1a758f;
+            --color-success: #10b981;
+            --color-warning: #f59e0b;
+            --color-error: #ef4444;
+            --color-info: #3b82f6;
+            
+            /* Grises */
+            --color-gray-50: #f8fafc;
+            --color-gray-100: #f1f5f9;
+            --color-gray-200: #e2e8f0;
+            --color-gray-300: #cbd5e1;
+            --color-gray-400: #94a3b8;
+            --color-gray-500: #64748b;
+            --color-gray-600: #475569;
+            --color-gray-700: #334155;
+            --color-gray-800: #1e293b;
+            --color-gray-900: #0f172a;
+            
+            /* Superficie */
+            --color-surface: #ffffff;
+            --color-surface-secondary: #f8fafc;
+            --color-border: #e2e8f0;
+            --color-text: #0f172a;
+            --color-text-secondary: #475569;
+            --color-text-tertiary: #64748b;
+            
+            /* Sombras */
+            --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            
+            /* Espaciado */
+            --space-1: 0.25rem;
+            --space-2: 0.5rem;
+            --space-3: 0.75rem;
+            --space-4: 1rem;
+            --space-6: 1.5rem;
+            --space-8: 2rem;
+            --space-12: 3rem;
+            
+            /* Tipografía */
+            --font-primary: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            --text-sm: 0.875rem;
+            --text-base: 1rem;
+            --text-lg: 1.125rem;
+            --text-xl: 1.25rem;
+            --text-2xl: 1.5rem;
+            
+            /* Radios */
+            --radius-base: 0.25rem;
+            --radius-md: 0.375rem;
+            --radius-lg: 0.5rem;
+            --radius-full: 9999px;
+            
+            /* Duraciones */
+            --duration-200: 200ms;
+            --duration-300: 300ms;
+            --ease-out: cubic-bezier(0, 0, 0.2, 1);
+        }
+
+        body {
+            font-family: var(--font-primary);
+            font-size: var(--text-base);
+            line-height: 1.5;
+            color: var(--color-text);
+            background: var(--color-gray-50);
+        }
+
+        /* Layout Principal */
+        .main-layout {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        .header {
+            height: 64px;
+            background: var(--color-surface);
+            border-bottom: 1px solid var(--color-border);
+            display: flex;
+            align-items: center;
+            padding: 0 var(--space-6);
+            box-shadow: var(--shadow-sm);
+            z-index: 50;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: var(--space-4);
+        }
+
+        .logo {
+            font-size: var(--text-xl);
+            font-weight: 700;
+            color: var(--color-primary);
+        }
+
+        .menu-toggle {
+            background: none;
+            border: none;
+            padding: var(--space-2);
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            color: var(--color-gray-600);
+            transition: all var(--duration-200) var(--ease-out);
+        }
+
+        .menu-toggle:hover {
+            background: var(--color-gray-100);
+            color: var(--color-gray-900);
+        }
+
+        .header-center {
+            flex: 1;
+            max-width: 400px;
+            margin: 0 var(--space-8);
+        }
+
+        .search-box {
+            width: 100%;
+            padding: var(--space-3) var(--space-4);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-lg);
+            font-size: var(--text-sm);
+            transition: border-color var(--duration-200) var(--ease-out);
+        }
+
+        .search-box:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px rgb(30 137 167 / 0.1);
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: var(--space-4);
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            font-size: var(--text-sm);
+            color: var(--color-text-secondary);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: var(--radius-full);
+            background: var(--color-success);
+        }
+
+        .status-dot.saving {
+            background: var(--color-warning);
+            animation: pulse 1.2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.7; }
+            50% { opacity: 1; }
+        }
+
+        .layout-body {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 256px;
+            background: var(--color-surface-secondary);
+            border-right: 1px solid var(--color-border);
+            padding: var(--space-4);
+            overflow-y: auto;
+            transition: width var(--duration-300) var(--ease-out);
+        }
+
+        .sidebar.collapsed {
+            width: 64px;
+        }
+
+        .sidebar-section {
+            margin-bottom: var(--space-8);
+        }
+
+        .sidebar-title {
+            font-size: var(--text-sm);
+            font-weight: 600;
+            color: var(--color-text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: var(--space-3);
+        }
+
+        .sidebar.collapsed .sidebar-title {
+            display: none;
+        }
+
+        .sidebar-nav {
+            list-style: none;
+        }
+
+        .nav-item {
+            margin-bottom: var(--space-1);
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: var(--space-3);
+            border-radius: var(--radius-md);
+            text-decoration: none;
+            color: var(--color-text-secondary);
+            transition: all var(--duration-200) var(--ease-out);
+            gap: var(--space-3);
+        }
+
+        .nav-link:hover {
+            background: var(--color-gray-100);
+            color: var(--color-gray-900);
+        }
+
+        .nav-link.active {
+            background: var(--color-primary-100);
+            color: var(--color-primary-600);
+            border-left: 3px solid var(--color-primary);
+        }
+
+        .nav-icon {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+        }
+
+        .nav-text {
+            flex: 1;
+        }
+
+        .sidebar.collapsed .nav-text {
+            display: none;
+        }
+
+        .nav-count {
+            background: var(--color-gray-200);
+            color: var(--color-gray-700);
+            padding: 2px var(--space-2);
+            border-radius: var(--radius-full);
+            font-size: 12px;
+            min-width: 20px;
+            text-align: center;
+        }
+
+        .nav-link.active .nav-count {
+            background: var(--color-primary-200);
+            color: var(--color-primary-700);
+        }
+
+        .sidebar.collapsed .nav-count {
+            display: none;
+        }
+
+        /* Área Principal */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Dashboard */
+        .dashboard {
+            padding: var(--space-6);
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--space-6);
+        }
+
+        .dashboard-title {
+            font-size: var(--text-2xl);
+            font-weight: 600;
+            color: var(--color-text);
+        }
+
+        .filters-bar {
+            display: flex;
+            gap: var(--space-4);
+            margin-bottom: var(--space-6);
+            padding: var(--space-4);
+            background: var(--color-surface);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--color-border);
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-2);
+        }
+
+        .filter-label {
+            font-size: var(--text-sm);
+            font-weight: 500;
+            color: var(--color-text-secondary);
+        }
+
+        .filter-select {
+            padding: var(--space-2) var(--space-3);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-base);
+            font-size: var(--text-sm);
+            background: var(--color-surface);
+        }
+
+        /* Grid de Documentos */
+        .documents-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+            gap: var(--space-4);
+        }
+
+        .document-card {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-lg);
+            padding: var(--space-6);
+            box-shadow: var(--shadow-sm);
+            transition: all var(--duration-200) var(--ease-out);
+            cursor: pointer;
+        }
+
+        .document-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .document-card.selected {
+            border-color: var(--color-primary);
+            background: var(--color-primary-50);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--space-4);
+        }
+
+        .status-badge {
+            padding: var(--space-1) var(--space-2);
+            border-radius: var(--radius-full);
+            font-size: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .status-badge.pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-badge.approved {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .priority-badge {
+            padding: var(--space-1) var(--space-2);
+            border-radius: var(--radius-base);
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .priority-badge.high {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .priority-badge.normal {
+            background: var(--color-gray-100);
+            color: var(--color-gray-700);
+        }
+
+        .document-title {
+            font-size: var(--text-lg);
+            font-weight: 600;
+            color: var(--color-text);
+            margin-bottom: var(--space-3);
+            line-height: 1.4;
+        }
+
+        .document-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--space-2);
+            margin-bottom: var(--space-4);
+        }
+
+        .meta-badge {
+            padding: var(--space-1) var(--space-2);
+            background: var(--color-gray-100);
+            color: var(--color-gray-700);
+            border-radius: var(--radius-base);
+            font-size: 12px;
+        }
+
+        .document-summary {
+            color: var(--color-text-secondary);
+            margin-bottom: var(--space-4);
+            line-height: 1.5;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .confidence-bar {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            margin-bottom: var(--space-4);
+        }
+
+        .confidence-label {
+            font-size: var(--text-sm);
+            color: var(--color-text-secondary);
+        }
+
+        .confidence-track {
+            flex: 1;
+            height: 4px;
+            background: var(--color-gray-200);
+            border-radius: var(--radius-full);
+            overflow: hidden;
+        }
+
+        .confidence-fill {
+            height: 100%;
+            background: var(--color-success);
+            border-radius: var(--radius-full);
+            transition: width var(--duration-300) var(--ease-out);
+        }
+
+        .confidence-value {
+            font-size: var(--text-sm);
+            font-weight: 500;
+            color: var(--color-text-secondary);
+        }
+
+        .card-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: var(--space-3);
+        }
+
+        /* Botones */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-2);
+            padding: var(--space-2) var(--space-4);
+            border-radius: var(--radius-md);
+            font-size: var(--text-sm);
+            font-weight: 500;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all var(--duration-200) var(--ease-out);
+            border: 1px solid transparent;
+            justify-content: center;
+        }
+
+        .btn-primary {
+            background: var(--color-primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--color-primary-600);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border-color: var(--color-border);
+            color: var(--color-text-secondary);
+        }
+
+        .btn-outline:hover {
+            background: var(--color-gray-50);
+            border-color: var(--color-gray-300);
+            color: var(--color-text);
+        }
+
+        .btn-success {
+            background: var(--color-success);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #059669;
+            transform: translateY(-1px);
+        }
+
+        .btn-danger {
+            background: var(--color-error);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+            transform: translateY(-1px);
+        }
+
+        .btn-sm {
+            padding: var(--space-1) var(--space-3);
+            font-size: 12px;
+        }
+
+        .action-group {
+            display: flex;
+            gap: var(--space-2);
+        }
+
+        /* Editor Workspace */
+        .editor-workspace {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .editor-header {
+            background: var(--color-surface);
+            border-bottom: 1px solid var(--color-border);
+            padding: var(--space-4);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .article-title-input {
+            font-size: var(--text-xl);
+            font-weight: 600;
+            border: none;
+            background: transparent;
+            color: var(--color-text);
+            width: 100%;
+            max-width: 600px;
+        }
+
+        .article-title-input:focus {
+            outline: none;
+        }
+
+        .workflow-status {
+            display: flex;
+            align-items: center;
+            gap: var(--space-4);
+        }
+
+        .progress-bar {
+            display: flex;
+            gap: var(--space-2);
+        }
+
+        .progress-step {
+            width: 32px;
+            height: 32px;
+            border-radius: var(--radius-full);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+            border: 2px solid var(--color-gray-300);
+            color: var(--color-gray-500);
+            background: var(--color-surface);
+        }
+
+        .progress-step.completed {
+            background: var(--color-success);
+            border-color: var(--color-success);
+            color: white;
+        }
+
+        .progress-step.current {
+            background: var(--color-primary);
+            border-color: var(--color-primary);
+            color: white;
+        }
+
+        .editor-body {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .editor-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--color-surface);
+        }
+
+        .panel-header {
+            padding: var(--space-4);
+            border-bottom: 1px solid var(--color-border);
+            background: var(--color-surface-secondary);
+        }
+
+        .panel-title {
+            font-size: var(--text-lg);
+            font-weight: 600;
+            color: var(--color-text);
+        }
+
+        .panel-content {
+            flex: 1;
+            padding: var(--space-4);
+            overflow-y: auto;
+        }
+
+        .resize-handle {
+            width: 4px;
+            background: var(--color-border);
+            cursor: col-resize;
+            transition: background-color var(--duration-200) var(--ease-out);
+        }
+
+        .resize-handle:hover {
+            background: var(--color-gray-400);
+        }
+
+        /* Formularios */
+        .form-group {
+            margin-bottom: var(--space-4);
+        }
+
+        .form-label {
+            display: block;
+            font-size: var(--text-sm);
+            font-weight: 500;
+            color: var(--color-text-secondary);
+            margin-bottom: var(--space-2);
+        }
+
+        .form-input,
+        .form-textarea {
+            width: 100%;
+            padding: var(--space-3);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            font-size: var(--text-base);
+            font-family: inherit;
+            transition: border-color var(--duration-200) var(--ease-out);
+        }
+
+        .form-input:focus,
+        .form-textarea:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px rgb(30 137 167 / 0.1);
+        }
+
+        .form-textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        /* Loading States */
+        .skeleton {
+            background: linear-gradient(90deg, 
+                var(--color-gray-200) 25%, 
+                var(--color-gray-100) 50%, 
+                var(--color-gray-200) 75%
+            );
+            background-size: 200px 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: var(--radius-base);
+        }
+
+        @keyframes shimmer {
+            0% { background-position: -200px 0; }
+            100% { background-position: calc(200px + 100%) 0; }
+        }
+
+        .skeleton-card {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-lg);
+            padding: var(--space-6);
+        }
+
+        .skeleton-line {
+            height: 1rem;
+            margin-bottom: var(--space-2);
+        }
+
+        .skeleton-line.short {
+            width: 60%;
+        }
+
+        .skeleton-line.medium {
+            width: 80%;
+        }
+
+        /* Utilidades */
+        .hidden {
+            display: none !important;
+        }
+
+        .flex {
+            display: flex;
+        }
+
+        .items-center {
+            align-items: center;
+        }
+
+        .justify-between {
+            justify-content: space-between;
+        }
+
+        .gap-2 {
+            gap: var(--space-2);
+        }
+
+        .gap-4 {
+            gap: var(--space-4);
+        }
+
+        .text-sm {
+            font-size: var(--text-sm);
+        }
+
+        .font-medium {
+            font-weight: 500;
+        }
+
+        .text-gray-600 {
+            color: var(--color-gray-600);
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .sidebar {
+                width: 64px;
+            }
+
+            .sidebar .nav-text,
+            .sidebar .nav-count,
+            .sidebar .sidebar-title {
+                display: none;
+            }
+
+            .documents-grid {
+                grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header-center {
+                display: none;
+            }
+
+            .documents-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .filters-bar {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="main-layout">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <div class="logo">⚖️ Editorial Jurídico</div>
+                <button class="menu-toggle" onclick="toggleSidebar()">
+                    <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="header-center">
+                <input type="text" class="search-box" placeholder="Buscar documentos y artículos...">
+            </div>
+            
+            <div class="header-right">
+                <div class="status-indicator">
+                    <div class="status-dot" id="statusDot"></div>
+                    <span id="statusText">Guardado</span>
+                </div>
+                <div class="status-indicator">
+                    <div style="width: 32px; height: 32px; background: var(--color-primary-100); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; color: var(--color-primary-600);">AJ</div>
+                </div>
+            </div>
+        </header>
+
+        <div class="layout-body">
+            <!-- Sidebar -->
+            <aside class="sidebar" id="sidebar">
+                <nav>
+                    <div class="sidebar-section">
+                        <h3 class="sidebar-title">Curación</h3>
+                        <ul class="sidebar-nav">
+                            <li class="nav-item">
+                                <a href="#" class="nav-link active" onclick="showView('curation')">
+                                    <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    <span class="nav-text">Por Revisar</span>
+                                    <span class="nav-count">42</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="#" class="nav-link" onclick="showView('approved')">
+                                    <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    <span class="nav-text">Aprobados</span>
+                                    <span class="nav-count">18</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="sidebar-section">
+                        <h3 class="sidebar-title">Editorial</h3>
+                        <ul class="sidebar-nav">
+                            <li class="nav-item">
+                                <a href="#" class="nav-link" onclick="showView('drafts')">
+                                    <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                    </svg>
+                                    <span class="nav-text">Borradores</span>
+                                    <span class="nav-count">8</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="#" class="nav-link" onclick="showView('review')">
+                                    <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                    </svg>
+                                    <span class="nav-text">En Revisión</span>
+                                    <span class="nav-count">3</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="sidebar-section">
+                        <h3 class="sidebar-title">Publicado</h3>
+                        <ul class="sidebar-nav">
+                            <li class="nav-item">
+                                <a href="#" class="nav-link" onclick="showView('published')">
+                                    <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                    </svg>
+                                    <span class="nav-text">Artículos</span>
+                                    <span class="nav-count">156</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </nav>
+            </aside>
+
+            <!-- Contenido Principal -->
+            <main class="main-content">
+                <!-- Vista de Curación -->
+                <div id="curationView" class="dashboard">
+                    <div class="dashboard-header">
+                        <h1 class="dashboard-title">Documentos por Revisar</h1>
+                        <div class="flex items-center gap-4">
+                            <button class="btn btn-outline btn-sm">
+                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                </svg>
+                                Actualizar
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="filters-bar">
+                        <div class="filter-group">
+                            <label class="filter-label">Estado</label>
+                            <select class="filter-select">
+                                <option>Todos</option>
+                                <option>Pendiente</option>
+                                <option>Procesando</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label class="filter-label">Fuente</label>
+                            <select class="filter-select">
+                                <option>Todas</option>
+                                <option>BOE</option>
+                                <option>Tribunal Supremo</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label class="filter-label">Área Legal</label>
+                            <select class="filter-select">
+                                <option>Todas</option>
+                                <option>Civil</option>
+                                <option>Penal</option>
+                                <option>Mercantil</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="documents-grid">
+                        <!-- Documento 1 -->
+                        <div class="document-card" onclick="openEditor('doc1')">
+                            <div class="card-header">
+                                <div class="flex gap-2">
+                                    <span class="status-badge pending">Pendiente</span>
+                                    <span class="priority-badge high">Alta</span>
+                                </div>
+                            </div>
+                            <h3 class="document-title">Ley 4/2024 de protección de datos en el ámbito sanitario</h3>
+                            <div class="document-meta">
+                                <span class="meta-badge">BOE</span>
+                                <span class="meta-badge">Sanitario</span>
+                                <span class="meta-badge">15 Ene 2024</span>
+                            </div>
+                            <p class="document-summary">
+                                Nueva regulación que establece medidas específicas para la protección de datos personales en el sector sanitario, incluyendo tratamientos especiales para datos de salud y consentimiento...
+                            </p>
+                            <div class="confidence-bar">
+                                <span class="confidence-label">Relevancia IA:</span>
+                                <div class="confidence-track">
+                                    <div class="confidence-fill" style="width: 92%"></div>
+                                </div>
+                                <span class="confidence-value">92%</span>
+                            </div>
+                            <div class="card-actions">
+                                <button class="btn btn-outline btn-sm">
+                                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                    </svg>
+                                    Vista Previa
+                                </button>
+                                <div class="action-group">
+                                    <button class="btn btn-success btn-sm" onclick="event.stopPropagation(); curateDocument('doc1', 'approve')">
+                                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                        </svg>
+                                        Aprobar
+                                    </button>
+                                    <button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); curateDocument('doc1', 'reject')">
+                                        <svg width="16" width="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                        </svg>
+                                        Rechazar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Documento 2 -->
+                        <div class="document-card">
+                            <div class="card-header">
+                                <div class="flex gap-2">
+                                    <span class="status-badge pending">Pendiente</span>
+                                    <span class="priority-badge normal">Normal</span>
+                                </div>
+                            </div>
+                            <h3 class="document-title">Real Decreto sobre modificaciones en el procedimiento contencioso-administrativo</h3>
+                            <div class="document-meta">
+                                <span class="meta-badge">Ministerio Justicia</span>
+                                <span class="meta-badge">Administrativo</span>
+                                <span class="meta-badge">14 Ene 2024</span>
+                            </div>
+                            <p class="document-summary">
+                                Modificaciones al procedimiento contencioso-administrativo que afectan a los plazos de interposición de recursos y las medidas cautelares aplicables en casos de urgencia...
+                            </p>
+                            <div class="confidence-bar">
+                                <span class="confidence-label">Relevancia IA:</span>
+                                <div class="confidence-track">
+                                    <div class="confidence-fill" style="width: 78%"></div>
+                                </div>
+                                <span class="confidence-value">78%</span>
+                            </div>
+                            <div class="card-actions">
+                                <button class="btn btn-outline btn-sm">Vista Previa</button>
+                                <div class="action-group">
+                                    <button class="btn btn-success btn-sm">Aprobar</button>
+                                    <button class="btn btn-danger btn-sm">Rechazar</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Loading Cards -->
+                        <div class="skeleton-card">
+                            <div class="skeleton skeleton-line short"></div>
+                            <div class="skeleton skeleton-line"></div>
+                            <div class="skeleton skeleton-line medium"></div>
+                            <div class="skeleton skeleton-line short"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Vista del Editor (inicialmente oculta) -->
+                <div id="editorView" class="editor-workspace hidden">
+                    <div class="editor-header">
+                        <div class="flex items-center gap-4">
+                            <button class="btn btn-outline btn-sm" onclick="showView('curation')">
+                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                                </svg>
+                                Volver
+                            </button>
+                            <input type="text" class="article-title-input" value="Nuevas disposiciones en protección de datos sanitarios" placeholder="Título del artículo...">
+                        </div>
+                        
+                        <div class="workflow-status">
+                            <div class="progress-bar">
+                                <div class="progress-step completed">1</div>
+                                <div class="progress-step current">2</div>
+                                <div class="progress-step">3</div>
+                                <div class="progress-step">4</div>
+                                <div class="progress-step">5</div>
+                                <div class="progress-step">6</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="editor-body">
+                        <div class="editor-panel">
+                            <div class="panel-header">
+                                <h3 class="panel-title">📄 Documento Original</h3>
+                            </div>
+                            <div class="panel-content">
+                                <div style="background: var(--color-gray-100); height: 400px; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; color: var(--color-gray-600);">
+                                    <div style="text-align: center;">
+                                        <svg width="64" height="64" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin: 0 auto 1rem;">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                        </svg>
+                                        <div>Vista previa del documento PDF</div>
+                                        <div style="font-size: var(--text-sm); margin-top: var(--space-2);">Ley 4/2024 - Protección de datos sanitarios</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="resize-handle"></div>
+
+                        <div class="editor-panel">
+                            <div class="panel-header">
+                                <h3 class="panel-title">✍️ Editor de Artículo</h3>
+                            </div>
+                            <div class="panel-content">
+                                <div class="form-group">
+                                    <label class="form-label">Contenido Principal</label>
+                                    <textarea class="form-textarea" style="min-height: 300px;" placeholder="El artículo se generará automáticamente aquí...">La nueva Ley 4/2024 de protección de datos en el ámbito sanitario introduce medidas específicas para garantizar la privacidad y seguridad de la información de salud de los pacientes.
+
+## Principales Novedades
+
+### Consentimiento Específico
+La ley establece que el tratamiento de datos de salud requerirá un consentimiento específico e informado del paciente, que deberá ser:
+- Libre y voluntario
+- Específico para cada finalidad
+- Informado sobre los riesgos y beneficios
+- Revocable en cualquier momento
+
+### Medidas de Seguridad
+Los centros sanitarios deberán implementar:
+- Cifrado de datos en tránsito y reposo
+- Auditorías regulares de acceso
+- Protocolos de respuesta ante incidentes
+
+### Derechos del Paciente
+Se refuerzan los derechos de:
+- Acceso a sus datos
+- Rectificación de información incorrecta
+- Supresión cuando sea legalmente posible
+- Portabilidad de datos médicos</textarea>
+                                </div>
+
+                                <div class="flex justify-between items-center">
+                                    <div class="text-sm text-gray-600">
+                                        Palabras: <span class="font-medium">247</span> • 
+                                        Tiempo de lectura: <span class="font-medium">2 min</span>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <button class="btn btn-outline">
+                                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                                            </svg>
+                                            Regenerar con IA
+                                        </button>
+                                        <button class="btn btn-primary" onclick="simulateAutoSave()">
+                                            Guardar Borrador
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Otras vistas (simplificadas para la demo) -->
+                <div id="approvedView" class="dashboard hidden">
+                    <div class="dashboard-header">
+                        <h1 class="dashboard-title">Documentos Aprobados</h1>
+                    </div>
+                    <div style="text-align: center; padding: var(--space-12); color: var(--color-gray-500);">
+                        <svg width="64" height="64" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin: 0 auto 1rem;">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <h3>18 documentos aprobados</h3>
+                        <p>Listos para proceso editorial</p>
+                    </div>
+                </div>
+
+                <div id="draftsView" class="dashboard hidden">
+                    <div class="dashboard-header">
+                        <h1 class="dashboard-title">Artículos en Borrador</h1>
+                    </div>
+                    <div style="text-align: center; padding: var(--space-12); color: var(--color-gray-500);">
+                        <svg width="64" height="64" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin: 0 auto 1rem;">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                        </svg>
+                        <h3>8 artículos en borrador</h3>
+                        <p>En proceso de edición</p>
+                    </div>
+                </div>
+
+                <div id="reviewView" class="dashboard hidden">
+                    <div class="dashboard-header">
+                        <h1 class="dashboard-title">Artículos en Revisión</h1>
+                    </div>
+                    <div style="text-align: center; padding: var(--space-12); color: var(--color-gray-500);">
+                        <h3>3 artículos en revisión</h3>
+                        <p>Pendientes de aprobación final</p>
+                    </div>
+                </div>
+
+                <div id="publishedView" class="dashboard hidden">
+                    <div class="dashboard-header">
+                        <h1 class="dashboard-title">Artículos Publicados</h1>
+                    </div>
+                    <div style="text-align: center; padding: var(--space-12); color: var(--color-gray-500);">
+                        <h3>156 artículos publicados</h3>
+                        <p>Disponibles en el portal público</p>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        // Estado de la aplicación
+        let currentView = 'curation';
+        let sidebarCollapsed = false;
+
+        // Funciones de navegación
+        function showView(viewId) {
+            // Ocultar todas las vistas
+            const views = ['curationView', 'editorView', 'approvedView', 'draftsView', 'reviewView', 'publishedView'];
+            views.forEach(id => {
+                document.getElementById(id).classList.add('hidden');
+            });
+
+            // Mostrar vista seleccionada
+            const targetView = viewId + 'View';
+            document.getElementById(targetView).classList.remove('hidden');
+
+            // Actualizar navegación activa
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+            });
+            event?.target.closest('.nav-link')?.classList.add('active');
+
+            currentView = viewId;
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebarCollapsed = !sidebarCollapsed;
+            sidebar.classList.toggle('collapsed', sidebarCollapsed);
+        }
+
+        function openEditor(docId) {
+            showView('editor');
+            
+            // Simular carga de documento
+            setTimeout(() => {
+                simulateAutoSave();
+            }, 1000);
+        }
+
+        function curateDocument(docId, action) {
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+            
+            // Simular proceso de curación
+            statusDot.classList.add('saving');
+            statusText.textContent = action === 'approve' ? 'Aprobando...' : 'Rechazando...';
+            
+            setTimeout(() => {
+                statusDot.classList.remove('saving');
+                statusText.textContent = 'Guardado';
+                
+                // Mostrar feedback
+                showToast(
+                    action === 'approve' ? 'Documento aprobado exitosamente' : 'Documento rechazado',
+                    action === 'approve' ? 'success' : 'info'
+                );
+            }, 2000);
+        }
+
+        function simulateAutoSave() {
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+            
+            statusDot.classList.add('saving');
+            statusText.textContent = 'Guardando...';
+            
+            setTimeout(() => {
+                statusDot.classList.remove('saving');
+                statusText.textContent = 'Guardado';
+                showToast('Artículo guardado automáticamente', 'success');
+            }, 1500);
+        }
+
+        function showToast(message, type = 'info') {
+            // Crear elemento toast
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: var(--color-surface);
+                border: 1px solid var(--color-border);
+                border-radius: var(--radius-lg);
+                padding: var(--space-4);
+                box-shadow: var(--shadow-lg);
+                z-index: 1000;
+                min-width: 300px;
+                transform: translateX(100%);
+                transition: transform var(--duration-300) var(--ease-out);
+            `;
+            
+            const iconMap = {
+                success: '✅',
+                error: '❌',
+                info: 'ℹ️',
+                warning: '⚠️'
+            };
+            
+            toast.innerHTML = `
+                <div style="display: flex; align-items: center; gap: var(--space-2);">
+                    <span style="font-size: var(--text-lg);">${iconMap[type]}</span>
+                    <span style="color: var(--color-text);">${message}</span>
+                </div>
+            `;
+            
+            document.body.appendChild(toast);
+            
+            // Animación de entrada
+            setTimeout(() => {
+                toast.style.transform = 'translateX(0)';
+            }, 100);
+            
+            // Auto-remover después de 3 segundos
+            setTimeout(() => {
+                toast.style.transform = 'translateX(100%)';
+                setTimeout(() => {
+                    document.body.removeChild(toast);
+                }, 300);
+            }, 3000);
+        }
+
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', function() {
+            // Simular estado inicial
+            showToast('Sistema listo para trabajar', 'success');
+            
+            // Auto-guardado periódico (demo)
+            setInterval(() => {
+                if (currentView === 'editor') {
+                    // Simular auto-guardado ocasional
+                    if (Math.random() > 0.7) {
+                        simulateAutoSave();
+                    }
+                }
+            }, 30000);
+        });
+
+        // Atajos de teclado
+        document.addEventListener('keydown', function(e) {
+            // Ctrl/Cmd + S para guardar
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                if (currentView === 'editor') {
+                    simulateAutoSave();
+                }
+            }
+            
+            // Escape para volver a la vista anterior
+            if (e.key === 'Escape' && currentView === 'editor') {
+                showView('curation');
+            }
+        });
+    </script>
+</body>
+</html>
