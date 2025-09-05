@@ -48,6 +48,17 @@ dist/
 build/
 *.egg-info/
 
+# TypeScript generated files
+*.d.ts
+*.js.map
+*.d.ts.map
+
+# Test files and backups
+*.backup
+test_*.js
+test_*.py
+test_*.sh
+
 # Temporary files
 *.tmp
 *.temp

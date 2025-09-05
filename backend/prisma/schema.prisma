@@ -34,8 +34,10 @@ model User {
   
   // Relations
   documentsCreated     Document[]          @relation("DocumentCreator")
+  documentsExtracted   Document[]          @relation("DocumentExtractor")
   articlesCreated      Article[]           @relation("ArticleAuthor") 
   auditLogs            AuditLog[]
+  extractionHistory    ExtractionHistory[]
   
   @@map("users")
 }
@@ -71,9 +73,16 @@ model Document {
   keywords           String     @default("") // Comma-separated instead of array
   relevanceTags      String     @default("") @map("relevance_tags") // Comma-separated
   
+  // Additional fields for scraping integration
+  externalId         String?    @unique @map("external_id") // ID from source (e.g., T-123/25)
+  metadata           String     @default("{}") // JSON metadata from extraction
+  extractedAt        DateTime?  @map("extracted_at") // When document was scraped
+  userId             String?    @map("user_id") // User who initiated extraction
+
   // Relations
   curatorId          String?    @map("curator_id")
   curator            User?      @relation("DocumentCreator", fields: [curatorId], references: [id])
+  user               User?      @relation("DocumentExtractor", fields: [userId], references: [id])
   
   createdAt          DateTime   @default(now()) @map("created_at")
   updatedAt          DateTime   @updatedAt @map("updated_at")
@@ -183,4 +192,26 @@ model SystemConfig {
   updatedAt   DateTime @updatedAt @map("updated_at")
   
   @@map("system_config")
+}
+
+model ExtractionHistory {
+  id                 String    @id @default(cuid())
+  source             String    // Source of extraction (e.g., "corte_constitucional")
+  status             String    // Status: "running", "completed", "failed"
+  parameters         String    @default("{}") // JSON parameters used for extraction
+  documentsFound     Int       @default(0) @map("documents_found")
+  documentsProcessed Int       @default(0) @map("documents_processed")
+  executionTime      Float     @default(0.0) @map("execution_time") // in seconds
+  results            String    @default("{}") // JSON results summary
+  error              String?   // Error message if failed
+  
+  // Timestamps
+  startedAt          DateTime  @default(now()) @map("started_at")
+  completedAt        DateTime? @map("completed_at")
+  
+  // Relations
+  userId             String?   @map("user_id")
+  user               User?     @relation(fields: [userId], references: [id])
+  
+  @@map("extraction_history")
 }

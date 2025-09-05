@@ -224,3 +224,5 @@ npm run test:all             # Tests de todo el proyecto (definido)
 - **Arquitectura**: Preparada para servicios reales, solo requiere integración
 - **Calidad de Código**: Alta - TypeScript, validación, logging estructurado
 - **Estado Funcional**: Sistema usable para demo y pruebas de concepto
+
+npm run dev:all

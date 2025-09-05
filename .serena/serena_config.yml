@@ -1,0 +1,88 @@
+# Serena Configuration for Sistema Editorial Jurídico Supervisado
+project_name: "Sistema Editorial Jurídico Supervisado"
+project_root: "/Users/jhonathan/Desktop/Juridica-News"
+
+# Language Server Protocol configuration
+language_servers:
+  typescript:
+    enabled: true
+    command: "npx"
+    args: ["typescript-language-server", "--stdio"]
+    rootPatterns: ["package.json", "tsconfig.json"]
+    filetypes: ["typescript", "typescriptreact", "javascript", "javascriptreact"]
+  
+  python:
+    enabled: true
+    command: "pylsp"
+    args: []
+    rootPatterns: ["pyproject.toml", "setup.py", "requirements.txt"]
+    filetypes: ["python"]
+
+  json:
+    enabled: true
+    command: "vscode-json-languageserver"
+    args: ["--stdio"]
+    filetypes: ["json", "jsonc"]
+
+# Project structure
+directories:
+  source:
+    - "frontend/src"
+    - "backend/src"
+    - "shared"
+  tests:
+    - "frontend/src/**/*.test.*"
+    - "backend/tests"
+  docs:
+    - "docs"
+    - "README.md"
+    - "CLAUDE.md"
+  config:
+    - "*.config.*"
+    - "package.json"
+    - "tsconfig.json"
+    - "prisma"
+
+# Semantic analysis settings
+analysis:
+  max_file_size_kb: 2048
+  exclude_patterns:
+    - "node_modules"
+    - "dist"
+    - "build"
+    - ".git"
+    - "logs"
+    - "*.log"
+    - "coverage"
+    - ".next"
+    - ".vite"
+
+# Context and mode settings
+context: "desktop-app"
+modes:
+  - "interactive"
+  - "editing"
+
+# Server settings
+server:
+  host: "0.0.0.0"
+  port: 8000
+  enable_web_dashboard: true
+  enable_gui_log_window: false
+
+# Logging
+logging:
+  level: "INFO"
+  trace_lsp_communication: false
+
+# Tool settings
+tools:
+  timeout: 30.0
+  max_concurrent: 5
+
+# Project-specific preferences
+preferences:
+  default_language: "typescript"
+  auto_format: true
+  auto_save: true
+  show_diagnostics: true

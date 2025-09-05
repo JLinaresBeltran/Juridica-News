@@ -64,6 +64,11 @@ interface CurationState {
   isDocumentPublished: (docId: string) => boolean
   clearAll: () => void
   resetToInitialState: () => void
+  resetSystemCompletely: () => void
+  
+  // Refresh methods for event system
+  triggerRefresh: () => void
+  forceUpdate: () => void
 }
 
 export const useCurationStore = create<CurationState>()(
@@ -258,6 +263,54 @@ export const useCurationStore = create<CurationState>()(
           publishedDocuments: [],
           archivedDocuments: []
         })
+      },
+
+      // FUNCIÓN TEMPORAL - Reset completo del sistema
+      resetSystemCompletely: () => {
+        // Limpiar todos los datos persistentes relacionados con curación
+        localStorage.removeItem('curation-storage')
+        
+        // Limpiar otros posibles datos en localStorage relacionados al sistema
+        const keysToRemove = [
+          'auth-storage',      // Datos de autenticación (excepto token actual)
+          'app-storage',       // Estado general de la aplicación
+          'preferences-storage', // Preferencias de usuario
+          'temp-data-storage'  // Datos temporales
+        ]
+        
+        keysToRemove.forEach(key => {
+          try {
+            localStorage.removeItem(key)
+          } catch (error) {
+            console.warn(`Failed to remove ${key} from localStorage:`, error)
+          }
+        })
+        
+        // Resetear completamente el estado de curación
+        set({
+          approvedDocuments: [],
+          rejectedDocuments: [],
+          readyDocuments: [],
+          publishedDocuments: [],
+          archivedDocuments: []
+        })
+        
+        console.warn('🧹 FUNCIÓN TEMPORAL: Store de curación reseteado completamente')
+      },
+
+      // Refresh methods for event system
+      triggerRefresh: () => {
+        // Force a re-render by updating a timestamp
+        set((state) => ({ ...state }))
+      },
+
+      forceUpdate: () => {
+        // Force update all components using this store
+        set((state) => ({ 
+          ...state,
+          // Add a timestamp to ensure state change is detected
+          _lastUpdate: Date.now() 
+        }))
       }
     }),
     {

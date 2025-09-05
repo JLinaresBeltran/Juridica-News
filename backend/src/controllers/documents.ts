@@ -111,7 +111,7 @@ router.get('/', validateRequest(documentFiltersSchema, 'query'), async (req: Req
           { createdAt: 'desc' }
         ],
         include: {
-          curatedBy: {
+          curator: {
             select: {
               id: true,
               firstName: true,
@@ -154,6 +154,57 @@ router.get('/', validateRequest(documentFiltersSchema, 'query'), async (req: Req
 
 /**
  * @swagger
+ * /api/documents/stats:
+ *   get:
+ *     summary: Get document statistics
+ *     tags: [Documents]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.get('/stats', async (req: Request, res: Response) => {
+  try {
+    const [
+      totalPending,
+      totalApproved,
+      totalRejected,
+      totalProcessing,
+      recentlyScraped
+    ] = await Promise.all([
+      prisma.document.count({ where: { status: 'PENDING' } }),
+      prisma.document.count({ where: { status: 'APPROVED' } }),
+      prisma.document.count({ where: { status: 'REJECTED' } }),
+      prisma.document.count({ where: { status: 'PROCESSING' } }),
+      prisma.document.count({
+        where: {
+          extractedAt: {
+            gte: new Date(Date.now() - 24 * 60 * 60 * 1000) // Last 24 hours
+          }
+        }
+      })
+    ]);
+
+    const stats = {
+      pending: totalPending,
+      approved: totalApproved,
+      rejected: totalRejected,
+      processing: totalProcessing,
+      total: totalPending + totalApproved + totalRejected + totalProcessing,
+      recentlyScraped
+    };
+
+    res.json({ data: stats });
+
+  } catch (error) {
+    logger.error('Error retrieving document stats', { error, userId: req.user.id });
+    res.status(500).json({
+      error: 'Failed to retrieve document statistics',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
+ * @swagger
  * /api/documents/{id}:
  *   get:
  *     summary: Get document by ID
@@ -172,19 +223,18 @@ router.get('/:id', async (req: Request, res: Response) => {
     const document = await prisma.document.findUnique({
       where: { id: req.params.id },
       include: {
-        curatedBy: {
+        curator: {
           select: {
             id: true,
             firstName: true,
             lastName: true,
           }
         },
-        articles: {
+        user: {
           select: {
             id: true,
-            title: true,
-            status: true,
-            createdAt: true,
+            firstName: true,
+            lastName: true,
           }
         }
       }
@@ -418,55 +468,5 @@ router.post('/batch-curate', validateRequest(batchCurationSchema), async (req: R
   }
 });
 
-/**
- * @swagger
- * /api/documents/stats:
- *   get:
- *     summary: Get document statistics
- *     tags: [Documents]
- *     security:
- *       - bearerAuth: []
- */
-router.get('/stats', async (req: Request, res: Response) => {
-  try {
-    const [
-      totalPending,
-      totalApproved,
-      totalRejected,
-      totalProcessing,
-      recentlyScraped
-    ] = await Promise.all([
-      prisma.document.count({ where: { status: 'PENDING' } }),
-      prisma.document.count({ where: { status: 'APPROVED' } }),
-      prisma.document.count({ where: { status: 'REJECTED' } }),
-      prisma.document.count({ where: { status: 'PROCESSING' } }),
-      prisma.document.count({
-        where: {
-          scrapedAt: {
-            gte: new Date(Date.now() - 24 * 60 * 60 * 1000) // Last 24 hours
-          }
-        }
-      })
-    ]);
-
-    const stats = {
-      pending: totalPending,
-      approved: totalApproved,
-      rejected: totalRejected,
-      processing: totalProcessing,
-      total: totalPending + totalApproved + totalRejected + totalProcessing,
-      recentlyScraped
-    };
-
-    res.json({ data: stats });
-
-  } catch (error) {
-    logger.error('Error retrieving document stats', { error, userId: req.user.id });
-    res.status(500).json({
-      error: 'Failed to retrieve document statistics',
-      message: error instanceof Error ? error.message : 'Unknown error'
-    });
-  }
-});
 
 export default router;

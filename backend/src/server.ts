@@ -21,6 +21,8 @@ import mediaRoutes from '@/controllers/media';
 import authRoutes from '@/controllers/auth';
 import publicRoutes from '@/controllers/public';
 import auditRoutes from '@/controllers/audit';
+import scrapingRoutes from '@/controllers/scraping';
+import adminRoutes from '@/controllers/admin'; // FUNCIÓN TEMPORAL
 import { sseController } from '@/controllers/sse';
 import healthRoutes from '@/controllers/health';
 
@@ -64,7 +66,7 @@ app.use(helmet({
 }));
 
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : ['http://localhost:5173', 'http://localhost:5174'],
   credentials: true,
 }));
 
@@ -95,6 +97,8 @@ app.use('/api/articles', authMiddleware, articleRoutes);
 app.use('/api/ai', authMiddleware, aiRoutes);
 app.use('/api/media', authMiddleware, mediaRoutes);
 app.use('/api/audit', authMiddleware, auditRoutes);
+app.use('/api/scraping', authMiddleware, scrapingRoutes);
+app.use('/api/admin', authMiddleware, adminRoutes); // FUNCIÓN TEMPORAL - Solo para desarrollo
 
 // Static files serving (if needed)
 app.use('/uploads', express.static(process.env.UPLOAD_DIR || './uploads'));

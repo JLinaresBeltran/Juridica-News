@@ -144,11 +144,59 @@ export function DocumentPreviewModal({
                 <div className="flex-1 overflow-auto p-6">
                   {selectedDoc.url ? (
                     <div className="h-full">
-                      <iframe
-                        src={selectedDoc.url}
-                        className="w-full h-full border border-gray-300 rounded-lg"
-                        title={`Vista previa de ${selectedDoc.title}`}
-                      />
+                      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-600 h-full flex flex-col">
+                        {/* PDF Viewer Header */}
+                        <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-750 rounded-t-lg">
+                          <div className="flex items-center justify-between">
+                            <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">Vista Previa del Documento</h4>
+                            <a 
+                              href={selectedDoc.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center px-3 py-1 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                              title="Abrir en nueva ventana"
+                            >
+                              <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                              </svg>
+                              Abrir
+                            </a>
+                          </div>
+                        </div>
+                        
+                        {/* PDF Content */}
+                        <div className="flex-1 bg-gray-100 dark:bg-gray-800">
+                          {/* Try to embed PDF using Google Docs viewer as fallback */}
+                          <iframe
+                            src={`https://docs.google.com/gview?url=${encodeURIComponent(selectedDoc.url)}&embedded=true`}
+                            className="w-full h-full"
+                            title={`Vista previa de ${selectedDoc.title}`}
+                            onError={(e) => {
+                              // Fallback: show download option if embedding fails
+                              const iframe = e.target as HTMLIFrameElement;
+                              iframe.style.display = 'none';
+                              const parent = iframe.parentElement;
+                              if (parent) {
+                                parent.innerHTML = `
+                                  <div class="flex flex-col items-center justify-center h-full text-gray-500 dark:text-gray-400 p-8">
+                                    <svg class="w-16 h-16 mb-4" fill="currentColor" viewBox="0 0 20 20">
+                                      <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"></path>
+                                    </svg>
+                                    <h4 class="text-lg font-medium mb-2 text-gray-900 dark:text-gray-100">Vista previa no disponible</h4>
+                                    <p class="text-center text-gray-600 dark:text-gray-300 mb-4">No se puede mostrar la vista previa del documento en este momento.</p>
+                                    <a href="${selectedDoc.url}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2">
+                                      <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                      </svg>
+                                      Descargar Documento
+                                    </a>
+                                  </div>
+                                `;
+                              }
+                            }}
+                          />
+                        </div>
+                      </div>
                     </div>
                   ) : (
                     <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-gray-400">

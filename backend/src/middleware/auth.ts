@@ -147,7 +147,11 @@ export const requireRole = (allowedRoles: string[]) => {
       });
     }
 
-    if (!allowedRoles.includes(req.user.role)) {
+    // Make role comparison case-insensitive
+    const userRoleUpperCase = req.user.role.toUpperCase();
+    const allowedRolesUpperCase = allowedRoles.map(role => role.toUpperCase());
+
+    if (!allowedRolesUpperCase.includes(userRoleUpperCase)) {
       logger.warn('Insufficient permissions', {
         userId: req.user.id,
         userRole: req.user.role,

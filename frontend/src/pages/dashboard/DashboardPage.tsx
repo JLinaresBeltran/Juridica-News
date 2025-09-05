@@ -9,48 +9,24 @@ import {
   Download,
   Trash2,
   XCircle,
-  ChevronDown
+  X,
+  ChevronDown,
+  Loader2,
+  AlertCircle,
+  CheckCheck,
+  RotateCcw,
+  ShieldAlert,
+  AlertTriangle
 } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useCurationStore } from '../../stores/curationStore'
 import { getEntityColors } from '../../constants/entityColors'
 import { clsx } from 'clsx'
-
-// Mock data
-const stats = [
-  {
-    name: 'Pendientes',
-    value: '42',
-    change: '+12%',
-    changeType: 'increase',
-    icon: Clock,
-    color: 'text-[#3ff3f2] bg-[#04315a]',
-  },
-  {
-    name: 'Aprobados',
-    value: '8',
-    change: '-5%',
-    changeType: 'decrease', 
-    icon: Edit3,
-    color: 'text-[#3ff3f2] bg-[#04315a]',
-  },
-  {
-    name: 'Publicados',
-    value: '23',
-    change: '+18%',
-    changeType: 'increase',
-    icon: CheckCircle,
-    color: 'text-[#3ff3f2] bg-[#04315a]',
-  },
-  {
-    name: 'Total Artículos',
-    value: '156',
-    change: '+8%',
-    changeType: 'increase',
-    icon: FileText,
-    color: 'text-[#3ff3f2] bg-[#04315a]',
-  },
-]
+import scrapingService, { type ExtractionResult } from '../../services/scrapingService'
+import adminService, { type SystemResetResponse, type SystemInfo } from '../../services/adminService' // FUNCIÓN TEMPORAL
+import documentsService, { type DocumentStatsResponse } from '../../services/documentsService' // FUNCIÓN TEMPORAL
+import { useEventStore } from '../../stores/eventStore'
+import { toast } from 'react-hot-toast'
 
 const recentActivity = [
   {
@@ -81,9 +57,286 @@ const recentActivity = [
 export default function DashboardPage() {
   const [showRejectedModal, setShowRejectedModal] = useState(false)
   const [timeFilter, setTimeFilter] = useState('mes')
-  const { rejectedDocuments, undoRejection } = useCurationStore()
-  return (
-    <div className="p-3 pr-4 md:p-5 md:pr-6 lg:p-6 lg:pr-8 space-y-5 md:space-y-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
+  const [isExtracting, setIsExtracting] = useState(false)
+  const [extractionResult, setExtractionResult] = useState<ExtractionResult | null>(null)
+  const [showExtractionModal, setShowExtractionModal] = useState(false)
+  // FUNCIÓN TEMPORAL - Estados para modal de reset del sistema
+  const [showResetModal, setShowResetModal] = useState(false)
+  const [resetConfirmation, setResetConfirmation] = useState('')
+  const [resetReason, setResetReason] = useState('')
+  const [isResetting, setIsResetting] = useState(false)
+  const [resetResult, setResetResult] = useState<SystemResetResponse | null>(null)
+  
+  // Estado para estadísticas dinámicas (FUNCIÓN TEMPORAL)
+  const [systemStats, setSystemStats] = useState<SystemInfo | null>(null)
+  const [documentStats, setDocumentStats] = useState<DocumentStatsResponse['data'] | null>(null)
+  const [, setIsLoadingStats] = useState(false)
+  
+  const { rejectedDocuments, undoRejection, resetSystemCompletely } = useCurationStore()
+  const emit = useEventStore(state => state.emit)
+
+  // FUNCIÓN TEMPORAL - Cargar estadísticas del sistema
+  const loadSystemStats = async () => {
+    try {
+      setIsLoadingStats(true)
+      
+      // Cargar ambas estadísticas en paralelo
+      const [systemResponse, documentResponse] = await Promise.all([
+        adminService.getSystemInfo().catch(() => null),
+        documentsService.getDocumentStats().catch(() => null)
+      ])
+      
+      if (systemResponse) {
+        setSystemStats(systemResponse.data)
+      } else {
+        // Valores por defecto para system stats
+        setSystemStats({
+          documents: 0,
+          articles: 0,
+          articleVersions: 0,
+          mediaAssets: 0,
+          auditLogs: 0,
+          extractions: 0,
+          users: 1,
+          timestamp: new Date().toISOString(),
+          environment: 'development',
+          resetAvailable: true
+        })
+      }
+
+      if (documentResponse) {
+        setDocumentStats(documentResponse.data)
+      } else {
+        // Valores por defecto para document stats
+        setDocumentStats({
+          pending: 0,
+          approved: 0,
+          rejected: 0,
+          processing: 0,
+          total: 0,
+          recentlyScraped: 0
+        })
+      }
+    } catch (error: any) {
+      console.error('Error loading system stats:', error)
+    } finally {
+      setIsLoadingStats(false)
+    }
+  }
+
+  // FUNCIÓN TEMPORAL - Cargar estadísticas al montar el componente
+  useEffect(() => {
+    loadSystemStats()
+  }, [])
+
+  // FUNCIÓN TEMPORAL - Generar estadísticas dinámicas basadas en datos reales
+  const generateDynamicStats = () => {
+    if (!documentStats || !systemStats) {
+      // Datos mock mientras carga
+      return [
+        {
+          name: 'Pendientes',
+          value: '...',
+          change: '0%',
+          changeType: 'neutral' as const,
+          icon: Clock,
+          color: 'text-[#3ff3f2] bg-[#04315a]',
+        },
+        {
+          name: 'Aprobados',
+          value: '...',
+          change: '0%',
+          changeType: 'neutral' as const,
+          icon: Edit3,
+          color: 'text-[#3ff3f2] bg-[#04315a]',
+        },
+        {
+          name: 'Publicados',
+          value: '...',
+          change: '0%',
+          changeType: 'neutral' as const,
+          icon: CheckCircle,
+          color: 'text-[#3ff3f2] bg-[#04315a]',
+        },
+        {
+          name: 'Total Artículos',
+          value: '...',
+          change: '0%',
+          changeType: 'neutral' as const,
+          icon: FileText,
+          color: 'text-[#3ff3f2] bg-[#04315a]',
+        },
+      ]
+    }
+
+    // FUNCIÓN TEMPORAL - Usar datos reales de documentos y sistema
+    return [
+      {
+        name: 'Pendientes',
+        value: String(documentStats.pending),
+        change: documentStats.pending > 0 ? '+100%' : '0%',
+        changeType: documentStats.pending > 0 ? 'increase' : 'neutral',
+        icon: Clock,
+        color: 'text-[#3ff3f2] bg-[#04315a]',
+      },
+      {
+        name: 'Aprobados',
+        value: String(documentStats.approved),
+        change: documentStats.approved > 0 ? '+100%' : '0%',
+        changeType: documentStats.approved > 0 ? 'increase' : 'neutral',
+        icon: Edit3,
+        color: 'text-[#3ff3f2] bg-[#04315a]',
+      },
+      {
+        name: 'Publicados',
+        value: String(systemStats.articles),
+        change: systemStats.articles > 0 ? '+100%' : '0%',
+        changeType: systemStats.articles > 0 ? 'increase' : 'neutral',
+        icon: CheckCircle,
+        color: 'text-[#3ff3f2] bg-[#04315a]',
+      },
+      {
+        name: 'Total Artículos',
+        value: String(systemStats.articles + systemStats.articleVersions),
+        change: (systemStats.articles + systemStats.articleVersions) > 0 ? '+100%' : '0%',
+        changeType: (systemStats.articles + systemStats.articleVersions) > 0 ? 'increase' : 'neutral',
+        icon: FileText,
+        color: 'text-[#3ff3f2] bg-[#04315a]',
+      },
+    ]
+  }
+
+  const handleStartExtraction = async () => {
+    try {
+      setIsExtracting(true)
+      toast.loading('Iniciando extracción de documentos...', { id: 'extraction' })
+      
+      const result = await scrapingService.extractCorteConstitucional(5) // Extraer 5 documentos como ejemplo
+      
+      // Validar respuesta antes de mostrar modal
+      if (!result) {
+        throw new Error('No se recibió respuesta del servicio de extracción')
+      }
+      
+      // Validar estructura de datos básica
+      if (typeof result !== 'object') {
+        throw new Error('Formato de respuesta inválido: respuesta debe ser un objeto')
+      }
+      
+      // Normalizar la respuesta para asegurar que tenga la estructura esperada
+      const normalizedResult: ExtractionResult = {
+        success: result.success !== false, // considerar como éxito si no es explícitamente false
+        documents: Array.isArray(result.documents) ? result.documents : [],
+        downloadedCount: result.downloadedCount || 0,
+        extractionTime: result.extractionTime || 0,
+        totalFound: result.totalFound || (Array.isArray(result.documents) ? result.documents.length : 0)
+      }
+      
+      setExtractionResult(normalizedResult)
+      setShowExtractionModal(true)
+      
+      // ACTUALIZACIÓN: Emitir eventos y recargar estadísticas después de la extracción
+      if (normalizedResult.success) {
+        // Emitir evento de extracción completada para notificar a todos los componentes
+        emit('DOCUMENTS_EXTRACTED', {
+          source: 'dashboard',
+          details: {
+            totalFound: normalizedResult.totalFound,
+            documentsProcessed: normalizedResult.documents.length,
+            downloadedCount: normalizedResult.downloadedCount,
+            extractionTime: normalizedResult.extractionTime
+          }
+        })
+        
+        // Si se procesaron documentos, recargar estadísticas locales
+        if (normalizedResult.documents.length > 0) {
+          toast.loading('Actualizando contadores...', { id: 'extraction' })
+          await loadSystemStats() // Recargar las estadísticas para reflejar los nuevos documentos
+        }
+        
+        console.info('🎉 Document extraction completed, events emitted:', {
+          totalFound: normalizedResult.totalFound,
+          processed: normalizedResult.documents.length
+        })
+      }
+      
+      // Mensajes más descriptivos según el resultado
+      if (normalizedResult.totalFound === 0) {
+        toast.success('Extracción completada: No se encontraron documentos nuevos para las fechas recientes', { id: 'extraction' })
+      } else if (normalizedResult.documents.length === 0) {
+        toast.success(`Extracción completada: ${normalizedResult.totalFound} documentos encontrados pero no se pudieron procesar`, { id: 'extraction' })
+      } else {
+        toast.success(`Extracción completada: ${normalizedResult.totalFound} documentos encontrados y ${normalizedResult.documents.length} procesados`, { id: 'extraction' })
+      }
+    } catch (error: any) {
+      console.error('Error during extraction:', error)
+      
+      // Crear resultado de error para mostrar en el modal
+      const errorResult: ExtractionResult = {
+        success: false,
+        documents: [],
+        downloadedCount: 0,
+        extractionTime: 0,
+        totalFound: 0
+      }
+      
+      setExtractionResult(errorResult)
+      setShowExtractionModal(true)
+      
+      toast.error(error.message || 'Error durante la extracción', { id: 'extraction' })
+    } finally {
+      setIsExtracting(false)
+    }
+  }
+
+  // FUNCIÓN TEMPORAL - Manejar reset del sistema
+  const handleSystemReset = async () => {
+    if (resetConfirmation !== 'RESET' || resetReason.length < 10) {
+      toast.error('Debes escribir "RESET" y proporcionar una razón válida')
+      return
+    }
+
+    try {
+      setIsResetting(true)
+      toast.loading('Reseteando sistema...', { id: 'system-reset' })
+
+      const result = await adminService.resetSystem({
+        confirmation: 'RESET',
+        reason: resetReason
+      })
+
+      // Limpiar stores locales
+      resetSystemCompletely()
+
+      setResetResult(result)
+      toast.success('Sistema reseteado exitosamente', { id: 'system-reset' })
+      
+      // FUNCIÓN TEMPORAL - Recargar estadísticas después del reset
+      await loadSystemStats()
+      
+      // Resetear form
+      setResetConfirmation('')
+      setResetReason('')
+
+    } catch (error: any) {
+      console.error('Error during system reset:', error)
+      toast.error(error.message || 'Error durante el reset del sistema', { id: 'system-reset' })
+    } finally {
+      setIsResetting(false)
+    }
+  }
+
+  // FUNCIÓN TEMPORAL - Resetear modal de reset
+  const resetResetModal = () => {
+    setShowResetModal(false)
+    setResetConfirmation('')
+    setResetReason('')
+    setResetResult(null)
+    setIsResetting(false)
+  }
+  const renderMainContent = () => {
+    return (
+      <div className="p-3 pr-4 md:p-5 md:pr-6 lg:p-6 lg:pr-8 space-y-5 md:space-y-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:justify-between md:items-center space-y-4 md:space-y-0">
         <div className="min-w-0">
@@ -123,7 +376,7 @@ export default function DashboardPage() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 lg:gap-5">
-        {stats.map((stat) => (
+        {generateDynamicStats().map((stat) => (
           <div key={stat.name} className="card dark:bg-gray-800">
             <div className="card-body">
               <div className="flex items-center">
@@ -135,7 +388,9 @@ export default function DashboardPage() {
                   <div className="flex items-baseline">
                     <p className="text-xl lg:text-2xl font-semibold text-gray-900 dark:text-gray-100">{stat.value}</p>
                     <p className={`ml-2 text-xs lg:text-sm font-medium flex-shrink-0 ${
-                      stat.changeType === 'increase' ? 'text-green-600' : 'text-red-600'
+                      stat.changeType === 'increase' ? 'text-green-600' : 
+                      stat.changeType === 'decrease' ? 'text-red-600' : 
+                      'text-gray-500'
                     }`}>
                       {stat.change}
                     </p>
@@ -184,7 +439,7 @@ export default function DashboardPage() {
               <button className="border border-gray-300 dark:border-gray-600 rounded-lg flex flex-col items-center p-3 lg:p-4 h-auto min-h-[80px] lg:min-h-[100px] bg-white dark:bg-gray-700 hover:bg-[#04315a] hover:text-[#3ff3f2] hover:border-[#04315a] transition-all duration-200 group">
                 <Clock className="w-6 h-6 lg:w-8 lg:h-8 mb-2 text-[#04315a] dark:text-white group-hover:text-[#3ff3f2] flex-shrink-0" />
                 <span className="text-xs lg:text-sm font-medium text-center leading-tight text-gray-900 dark:text-white group-hover:text-[#3ff3f2]">Revisar Documentos</span>
-                <span className="text-xs text-gray-500 dark:text-white group-hover:text-[#3ff3f2] mt-1">42 pendientes</span>
+                <span className="text-xs text-gray-500 dark:text-white group-hover:text-[#3ff3f2] mt-1">{documentStats?.pending || 0} pendientes</span>
               </button>
               
               <button className="border border-gray-300 dark:border-gray-600 rounded-lg flex flex-col items-center p-3 lg:p-4 h-auto min-h-[80px] lg:min-h-[100px] bg-white dark:bg-gray-700 hover:bg-[#04315a] hover:text-[#3ff3f2] hover:border-[#04315a] transition-all duration-200 group">
@@ -194,15 +449,39 @@ export default function DashboardPage() {
               </button>
               
               <button 
-                onClick={() => {
-                  console.log('Iniciando extracción manual de documentos...');
-                  // TODO: Implementar lógica de extracción
-                }}
-                className="border border-gray-300 dark:border-gray-600 rounded-lg flex flex-col items-center p-3 lg:p-4 h-auto min-h-[80px] lg:min-h-[100px] bg-white dark:bg-gray-700 hover:bg-[#04315a] hover:text-[#3ff3f2] hover:border-[#04315a] transition-all duration-200 group"
+                onClick={handleStartExtraction}
+                disabled={isExtracting}
+                className={clsx(
+                  "border rounded-lg flex flex-col items-center p-3 lg:p-4 h-auto min-h-[80px] lg:min-h-[100px] transition-all duration-200 group",
+                  {
+                    "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 hover:bg-[#04315a] hover:text-[#3ff3f2] hover:border-[#04315a]": !isExtracting,
+                    "border-blue-300 dark:border-blue-500 bg-blue-50 dark:bg-blue-900/20 cursor-not-allowed": isExtracting
+                  }
+                )}
               >
-                <Download className="w-6 h-6 lg:w-8 lg:h-8 mb-2 text-[#04315a] dark:text-white group-hover:text-[#3ff3f2] flex-shrink-0" />
-                <span className="text-xs lg:text-sm font-medium text-center leading-tight text-gray-900 dark:text-white group-hover:text-[#3ff3f2]">Extracción Documentos</span>
-                <span className="text-xs text-gray-500 dark:text-white group-hover:text-[#3ff3f2] mt-1">Extracción manual</span>
+                {isExtracting ? (
+                  <Loader2 className="w-6 h-6 lg:w-8 lg:h-8 mb-2 text-blue-600 dark:text-blue-400 animate-spin flex-shrink-0" />
+                ) : (
+                  <Download className="w-6 h-6 lg:w-8 lg:h-8 mb-2 text-[#04315a] dark:text-white group-hover:text-[#3ff3f2] flex-shrink-0" />
+                )}
+                <span className={clsx(
+                  "text-xs lg:text-sm font-medium text-center leading-tight",
+                  {
+                    "text-gray-900 dark:text-white group-hover:text-[#3ff3f2]": !isExtracting,
+                    "text-blue-600 dark:text-blue-400": isExtracting
+                  }
+                )}>
+                  {isExtracting ? 'Extrayendo...' : 'Extracción Documentos'}
+                </span>
+                <span className={clsx(
+                  "text-xs mt-1",
+                  {
+                    "text-gray-500 dark:text-white group-hover:text-[#3ff3f2]": !isExtracting,
+                    "text-blue-500 dark:text-blue-300": isExtracting
+                  }
+                )}>
+                  {isExtracting ? 'Corte Constitucional' : 'Extracción manual'}
+                </span>
               </button>
               
               <button className="border border-gray-300 dark:border-gray-600 rounded-lg flex flex-col items-center p-3 lg:p-4 h-auto min-h-[80px] lg:min-h-[100px] bg-white dark:bg-gray-700 hover:bg-[#04315a] hover:text-[#3ff3f2] hover:border-[#04315a] transition-all duration-200 group">
@@ -225,6 +504,16 @@ export default function DashboardPage() {
                 <span className="text-xs lg:text-sm font-medium text-center leading-tight text-gray-900 dark:text-white group-hover:text-[#3ff3f2]">Docs. Rechazados</span>
                 <span className="text-xs text-gray-500 dark:text-white group-hover:text-[#3ff3f2] mt-1">{rejectedDocuments.length} documentos</span>
               </button>
+
+              {/* FUNCIÓN TEMPORAL - Botón Reset del Sistema */}
+              <button 
+                onClick={() => setShowResetModal(true)}
+                className="border border-red-300 dark:border-red-600 rounded-lg flex flex-col items-center p-3 lg:p-4 h-auto min-h-[80px] lg:min-h-[100px] bg-red-50 dark:bg-red-900/20 hover:bg-red-600 hover:text-white hover:border-red-600 transition-all duration-200 group"
+              >
+                <RotateCcw className="w-6 h-6 lg:w-8 lg:h-8 mb-2 text-red-600 dark:text-red-400 group-hover:text-white flex-shrink-0" />
+                <span className="text-xs lg:text-sm font-medium text-center leading-tight text-red-800 dark:text-red-300 group-hover:text-white">Reset Sistema</span>
+                <span className="text-xs text-red-600 dark:text-red-400 group-hover:text-white mt-1">TEMPORAL</span>
+              </button>
             </div>
           </div>
         </div>
@@ -246,28 +535,87 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+      </div>
+    )
+  }
 
-      {/* Rejected Documents Modal */}
+  return (
+    <div>
+      {renderMainContent()}
+      
+      {/* Rejected Documents Modal - Properly placed outside renderMainContent */}
       {showRejectedModal && (
         <div className="fixed inset-0 z-50 overflow-hidden">
           <div className="fixed inset-0 bg-black bg-opacity-50" onClick={() => setShowRejectedModal(false)} />
           <div className="fixed inset-0 overflow-hidden">
             <div className="flex items-center justify-center min-h-full p-2 md:p-4">
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-xs sm:max-w-2xl lg:max-w-4xl max-h-[90vh] md:max-h-[80vh] flex flex-col">
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-xs sm:max-w-md lg:max-w-lg max-h-[90vh] md:max-h-[80vh] flex flex-col">
+                {/* Modal content */}
+                <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <XCircle className="w-5 h-5 text-red-500" />
+                      <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                        Documentos Rechazados
+                      </h2>
+                    </div>
+                    <button
+                      onClick={() => setShowRejectedModal(false)}
+                      className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                    >
+                      <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                    </button>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4">
+                  <div className="text-center py-8">
+                    <AlertTriangle className="w-12 h-12 text-amber-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+                      En Desarrollo
+                    </h3>
+                    <p className="text-gray-500 dark:text-gray-400 mb-6">
+                      La funcionalidad para ver documentos rechazados está en desarrollo.
+                    </p>
+                  </div>
+                </div>
+                <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+                  <div className="flex justify-end space-x-2">
+                    <button
+                      onClick={() => setShowRejectedModal(false)}
+                      className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                    >
+                      Cerrar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* FUNCIÓN TEMPORAL - Modal de Reset del Sistema */}
+      {showResetModal && (
+        <div className="fixed inset-0 z-50 overflow-hidden">
+          <div className="fixed inset-0 bg-black bg-opacity-50" onClick={resetResetModal} />
+          <div className="fixed inset-0 overflow-hidden">
+            <div className="flex items-center justify-center min-h-full p-2 md:p-4">
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-xs sm:max-w-md lg:max-w-lg max-h-[90vh] md:max-h-[80vh] flex flex-col">
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 lg:p-6 border-b border-gray-200 dark:border-gray-700">
                   <div className="flex items-center space-x-3 min-w-0">
                     <div className="p-2 bg-red-100 rounded-lg flex-shrink-0">
-                      <Trash2 className="w-5 h-5 lg:w-6 lg:h-6 text-red-600" />
+                      <ShieldAlert className="w-5 h-5 lg:w-6 lg:h-6 text-red-600" />
                     </div>
                     <div className="min-w-0">
-                      <h2 className="text-lg lg:text-xl font-semibold text-gray-900 dark:text-gray-100 truncate">Documentos Rechazados</h2>
-                      <p className="text-xs lg:text-sm text-gray-600 dark:text-gray-400">{rejectedDocuments.length} documentos rechazados</p>
+                      <h2 className="text-lg lg:text-xl font-semibold text-gray-900 dark:text-gray-100 truncate">Reset del Sistema</h2>
+                      <p className="text-xs lg:text-sm text-red-600 dark:text-red-400 font-medium">⚠️ FUNCIÓN TEMPORAL</p>
                     </div>
                   </div>
                   <button
-                    onClick={() => setShowRejectedModal(false)}
-                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex-shrink-0"
+                    onClick={resetResetModal}
+                    disabled={isResetting}
+                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex-shrink-0 disabled:opacity-50"
                   >
                     <XCircle className="w-5 h-5" />
                   </button>
@@ -275,56 +623,285 @@ export default function DashboardPage() {
 
                 {/* Content */}
                 <div className="flex-1 overflow-auto p-4 lg:p-6">
-                  {rejectedDocuments.length > 0 ? (
+                  {resetResult ? (
+                    /* Resultado del reset */
                     <div className="space-y-4">
-                      {rejectedDocuments.map((doc) => (
-                        <div key={doc.id} className="border border-red-200 dark:border-red-800 rounded-lg p-4 bg-red-50 dark:bg-red-900/20">
-                          <div className="flex justify-between items-start">
-                            <div className="flex-1">
-                              <h3 className="font-medium text-gray-900 dark:text-gray-100 mb-2">{doc.title}</h3>
-                              <div className="grid grid-cols-2 gap-4 text-sm text-gray-600 dark:text-gray-400 mb-3">
-                                <div><strong>ID:</strong> {doc.identifier}</div>
-                                <div><strong>Fuente:</strong> {getEntityColors(doc.source).name}</div>
-                                <div><strong>Área:</strong> {doc.area}</div>
-                                <div><strong>Rechazado:</strong> {new Date(doc.rejectedAt!).toLocaleDateString('es-ES')}</div>
-                              </div>
-                              {doc.rejectedReason && (
-                                <div className="text-sm text-gray-900 dark:text-gray-100">
-                                  <strong>Motivo:</strong> {doc.rejectedReason}
-                                </div>
-                              )}
-                            </div>
-                            <button
-                              onClick={() => {
-                                if (window.confirm('¿Restaurar este documento a la lista de curación?')) {
-                                  undoRejection(doc.id)
-                                }
-                              }}
-                              className="ml-4 px-3 py-1 bg-blue-600 dark:bg-blue-700 text-white rounded hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors text-sm"
-                            >
-                              Restaurar
-                            </button>
+                      <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                        <div className="flex items-center mb-3">
+                          <CheckCheck className="w-5 h-5 text-green-600 dark:text-green-400 mr-2" />
+                          <h3 className="font-medium text-green-800 dark:text-green-300">Sistema reseteado exitosamente</h3>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div className="bg-white dark:bg-gray-800 p-2 rounded">
+                            <div className="font-medium text-blue-600 dark:text-blue-400">{resetResult.statistics.documentsDeleted}</div>
+                            <div className="text-gray-600 dark:text-gray-400 text-xs">Documentos</div>
+                          </div>
+                          <div className="bg-white dark:bg-gray-800 p-2 rounded">
+                            <div className="font-medium text-green-600 dark:text-green-400">{resetResult.statistics.articlesDeleted}</div>
+                            <div className="text-gray-600 dark:text-gray-400 text-xs">Artículos</div>
+                          </div>
+                          <div className="bg-white dark:bg-gray-800 p-2 rounded">
+                            <div className="font-medium text-purple-600 dark:text-purple-400">{resetResult.statistics.auditLogsDeleted}</div>
+                            <div className="text-gray-600 dark:text-gray-400 text-xs">Logs</div>
+                          </div>
+                          <div className="bg-white dark:bg-gray-800 p-2 rounded">
+                            <div className="font-medium text-orange-600 dark:text-orange-400">{resetResult.executionTime}</div>
+                            <div className="text-gray-600 dark:text-gray-400 text-xs">Tiempo</div>
                           </div>
                         </div>
-                      ))}
+                      </div>
                     </div>
                   ) : (
-                    <div className="text-center py-12">
-                      <Trash2 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                      <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No hay documentos rechazados</h3>
-                      <p className="text-gray-500 dark:text-gray-400">Los documentos rechazados aparecerán aquí</p>
+                    /* Formulario de confirmación */
+                    <div className="space-y-4">
+                      <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                        <div className="flex items-start space-x-3">
+                          <ShieldAlert className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
+                          <div>
+                            <h3 className="font-medium text-red-800 dark:text-red-300 mb-2">¡ADVERTENCIA!</h3>
+                            <p className="text-sm text-red-700 dark:text-red-300">
+                              Esta acción eliminará <strong>permanentemente</strong>:
+                            </p>
+                            <ul className="text-sm text-red-700 dark:text-red-300 mt-2 space-y-1 ml-4">
+                              <li>• Todos los documentos</li>
+                              <li>• Todos los artículos y versiones</li>
+                              <li>• Assets multimedia</li>
+                              <li>• Logs de auditoría</li>
+                              <li>• Historial de extracciones</li>
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Razón del reset (mínimo 10 caracteres)
+                          </label>
+                          <textarea
+                            value={resetReason}
+                            onChange={(e) => setResetReason(e.target.value)}
+                            disabled={isResetting}
+                            placeholder="Ej: Limpieza para testing con datos reales"
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 resize-none disabled:opacity-50"
+                            rows={3}
+                          />
+                          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            {resetReason.length}/500 caracteres
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Escribe "RESET" para confirmar
+                          </label>
+                          <input
+                            type="text"
+                            value={resetConfirmation}
+                            onChange={(e) => setResetConfirmation(e.target.value)}
+                            disabled={isResetting}
+                            placeholder="RESET"
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 disabled:opacity-50"
+                          />
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
 
                 {/* Footer */}
                 <div className="border-t border-gray-200 dark:border-gray-700 p-4 lg:p-6">
+                  {resetResult ? (
+                    <button
+                      onClick={resetResetModal}
+                      className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                    >
+                      Cerrar
+                    </button>
+                  ) : (
+                    <div className="flex space-x-3">
+                      <button
+                        onClick={resetResetModal}
+                        disabled={isResetting}
+                        className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        onClick={handleSystemReset}
+                        disabled={isResetting || resetConfirmation !== 'RESET' || resetReason.length < 10}
+                        className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {isResetting ? (
+                          <span className="flex items-center justify-center">
+                            <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                            Reseteando...
+                          </span>
+                        ) : (
+                          'Resetear Sistema'
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Extraction Results Modal */}
+      {showExtractionModal && extractionResult && (
+        <div className="fixed inset-0 z-50 overflow-hidden">
+          <div className="fixed inset-0 bg-black bg-opacity-50" onClick={() => setShowExtractionModal(false)} />
+          <div className="fixed inset-0 overflow-hidden">
+            <div className="flex items-center justify-center min-h-full p-2 md:p-4">
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-xs sm:max-w-md lg:max-w-2xl max-h-[90vh] md:max-h-[80vh] flex flex-col">
+                {/* Header */}
+                <div className="flex items-center justify-between p-4 lg:p-6 border-b border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center space-x-3 min-w-0">
+                    <div className={`p-2 rounded-lg flex-shrink-0 ${extractionResult.success ? 'bg-green-100' : 'bg-red-100'}`}>
+                      {extractionResult.success ? (
+                        <CheckCircle className="w-5 h-5 lg:w-6 lg:h-6 text-green-600" />
+                      ) : (
+                        <AlertCircle className="w-5 h-5 lg:w-6 lg:h-6 text-red-600" />
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <h2 className="text-lg lg:text-xl font-semibold text-gray-900 dark:text-gray-100 truncate">
+                        Resultados de Extracción
+                      </h2>
+                      <p className="text-xs lg:text-sm text-gray-500 dark:text-gray-400">
+                        Corte Constitucional de Colombia
+                      </p>
+                    </div>
+                  </div>
                   <button
-                    onClick={() => setShowRejectedModal(false)}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                    onClick={() => setShowExtractionModal(false)}
+                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex-shrink-0"
                   >
-                    Cerrar
+                    <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
                   </button>
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 overflow-auto p-4 lg:p-6">
+                  {/* Summary Stats */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                    <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg text-center">
+                      <div className="text-lg font-semibold text-blue-600 dark:text-blue-400">
+                        {extractionResult.totalFound}
+                      </div>
+                      <div className="text-xs text-blue-700 dark:text-blue-300">Encontrados</div>
+                    </div>
+                    <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-lg text-center">
+                      <div className="text-lg font-semibold text-green-600 dark:text-green-400">
+                        {extractionResult.downloadedCount}
+                      </div>
+                      <div className="text-xs text-green-700 dark:text-green-300">Descargados</div>
+                    </div>
+                    <div className="bg-purple-50 dark:bg-purple-900/20 p-3 rounded-lg text-center">
+                      <div className="text-lg font-semibold text-purple-600 dark:text-purple-400">
+                        {extractionResult.extractionTime}s
+                      </div>
+                      <div className="text-xs text-purple-700 dark:text-purple-300">Tiempo</div>
+                    </div>
+                    <div className={`p-3 rounded-lg text-center ${extractionResult.success 
+                      ? 'bg-green-50 dark:bg-green-900/20' 
+                      : 'bg-red-50 dark:bg-red-900/20'}`}>
+                      <div className={`text-lg font-semibold ${extractionResult.success 
+                        ? 'text-green-600 dark:text-green-400' 
+                        : 'text-red-600 dark:text-red-400'}`}>
+                        {extractionResult.success ? 'OK' : 'ERROR'}
+                      </div>
+                      <div className={`text-xs ${extractionResult.success 
+                        ? 'text-green-700 dark:text-green-300' 
+                        : 'text-red-700 dark:text-red-300'}`}>
+                        Estado
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Documents List */}
+                  {extractionResult.documents && extractionResult.documents.length > 0 && (
+                    <div className="space-y-3">
+                      <h3 className="font-medium text-gray-900 dark:text-gray-100">
+                        Documentos Extraídos ({extractionResult.documents.length})
+                      </h3>
+                      <div className="max-h-64 overflow-y-auto space-y-2">
+                        {extractionResult.documents.map((doc, index) => (
+                          <div key={doc.document_id || index} className="border border-gray-200 dark:border-gray-600 rounded-lg p-3 bg-gray-50 dark:bg-gray-700">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1 min-w-0">
+                                <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                                  {doc.title || 'Sin título'}
+                                </h4>
+                                <div className="flex items-center space-x-2 mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                  <span>{doc.document_type || 'Documento'}</span>
+                                  <span>•</span>
+                                  <span>{doc.date || 'Sin fecha'}</span>
+                                  {doc.magistrate && (
+                                    <>
+                                      <span>•</span>
+                                      <span>{doc.magistrate}</span>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-center space-x-1 ml-2">
+                                {doc.pdf_url && (
+                                  <div className="w-2 h-2 bg-red-500 rounded-full" title="PDF disponible" />
+                                )}
+                                {doc.html_url && (
+                                  <div className="w-2 h-2 bg-blue-500 rounded-full" title="HTML disponible" />
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* No Documents Message */}
+                  {(!extractionResult.documents || extractionResult.documents.length === 0) && (
+                    <div className="text-center py-8">
+                      <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+                        No se encontraron documentos
+                      </h3>
+                      <p className="text-gray-500 dark:text-gray-400">
+                        {extractionResult.success 
+                          ? 'La extracción fue exitosa pero no se encontraron documentos nuevos.'
+                          : 'Ocurrió un error durante la extracción de documentos.'
+                        }
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Footer */}
+                <div className="border-t border-gray-200 dark:border-gray-700 p-4 lg:p-6">
+                  <div className="flex justify-end space-x-3">
+                    <button
+                      onClick={() => setShowExtractionModal(false)}
+                      className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                    >
+                      Cerrar
+                    </button>
+                    {extractionResult.success && extractionResult.downloadedCount > 0 && (
+                      <button
+                        onClick={() => {
+                          setShowExtractionModal(false)
+                          // Optional: navigate to curation page
+                        }}
+                        className="px-4 py-2 bg-[#04315a] text-[#3ff3f2] rounded-lg hover:bg-[#052143] transition-colors"
+                      >
+                        Ver Documentos
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

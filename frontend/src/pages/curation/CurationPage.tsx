@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import { 
   FileText, 
   AlertCircle, 
@@ -16,12 +16,15 @@ import {
   List,
   ChevronDown,
   ChevronRight,
-  Archive
+  Archive,
+  Loader2
 } from 'lucide-react'
 import { getEntityColors, getStatusColors, getAreaColors } from '../../constants/entityColors'
 import { clsx } from 'clsx'
 import { DocumentPreviewModal } from '../../components/curation/DocumentPreviewModal'
 import { useCurationStore } from '../../stores/curationStore'
+import { useEventStore } from '../../stores/eventStore'
+import documentsService, { type Document as ApiDocument, type DocumentsResponse } from '../../services/documentsService'
 
 // Definir tipos de fuentes de documentos
 interface DocumentSource {
@@ -54,223 +57,62 @@ interface Document {
   decision?: string
 }
 
-// Mock data para fuentes de documentos - ahora usa el sistema de colores centralizado
+// FUNCIÓN TEMPORAL - Fuentes de documentos con contadores en 0 después del reset
 const documentSources: DocumentSource[] = [
   {
     id: 'corte-constitucional',
     ...getEntityColors('corte-constitucional'),
-    count: 15,
-    available: 12,
-    unavailable: 3
+    count: 0,
+    available: 0,
+    unavailable: 0
   },
   {
     id: 'corte-suprema-civil',
     ...getEntityColors('corte-suprema-civil'),
-    count: 8,
-    available: 6,
-    unavailable: 2
+    count: 0,
+    available: 0,
+    unavailable: 0
   },
   {
     id: 'corte-suprema-penal',
     ...getEntityColors('corte-suprema-penal'),
-    count: 12,
-    available: 9,
-    unavailable: 3
+    count: 0,
+    available: 0,
+    unavailable: 0
   },
   {
     id: 'corte-suprema-laboral',
     ...getEntityColors('corte-suprema-laboral'),
-    count: 6,
-    available: 5,
-    unavailable: 1
+    count: 0,
+    available: 0,
+    unavailable: 0
   },
   {
     id: 'dian',
     ...getEntityColors('dian'),
-    count: 9,
-    available: 7,
-    unavailable: 2
+    count: 0,
+    available: 0,
+    unavailable: 0
   },
   {
     id: 'super-servicios',
     ...getEntityColors('super-servicios'),
-    count: 4,
-    available: 4,
+    count: 0,
+    available: 0,
     unavailable: 0
   }
 ]
 
-// Mock data para documentos - 10 documentos pendientes para pruebas
-const mockDocuments: Document[] = [
-  {
-    id: '1',
-    source: 'corte-constitucional',
-    title: 'Sentencia C-055/2025 sobre derechos fundamentales en el trabajo',
-    type: 'Sentencia',
-    publicationDate: '2025-01-15T09:30:00Z',
-    identifier: 'C-055/2025',
-    status: 'available',
-    area: 'CONSTITUCIONAL',
-    summary: 'La Corte declara exequible el artículo 23 de la Ley de reforma laboral que establece limitaciones a los derechos de asociación sindical en empresas de menos de 50 trabajadores.',
-    url: 'https://example.com/doc1',
-    extractionDate: '2025-01-16T14:20:00Z',
-    magistradoPonente: 'Dr. Carlos Bernal Pulido',
-    expediente: 'D-15234',
-    tema: 'Derechos fundamentales en el trabajo - Asociación sindical',
-    decision: 'Declarar EXEQUIBLE'
-  },
-  {
-    id: '2',
-    source: 'corte-constitucional',
-    title: 'Auto 001/2025 sobre admisión de demanda inconstitucional',
-    type: 'Auto',
-    publicationDate: '2025-01-10T11:15:00Z',
-    identifier: 'Auto 001/2025',
-    status: 'unavailable',
-    area: 'CONSTITUCIONAL',
-    extractionDate: '2025-01-11T16:45:00Z',
-    magistradoPonente: 'Dra. Diana Fajardo Rivera',
-    expediente: 'D-15001',
-    tema: 'Admisión de demanda - Control constitucional',
-    summary: 'Auto mediante el cual se admite la demanda de inconstitucionalidad contra varios artículos del Código de Procedimiento Administrativo y de lo Contencioso Administrativo.',
-    decision: 'ADMITIR la demanda'
-  },
-  {
-    id: '3',
-    source: 'corte-suprema-civil',
-    title: 'Sentencia STC-001/2025 sobre contratos de arrendamiento',
-    type: 'Sentencia',
-    publicationDate: '2025-01-12T08:00:00Z',
-    identifier: 'STC-001/2025',
-    status: 'available',
-    area: 'CIVIL',
-    summary: 'Criterios para determinar cláusulas abusivas en contratos de arrendamiento habitacional urbano. Análisis de equilibrio contractual.',
-    url: 'https://example.com/doc3',
-    extractionDate: '2025-01-13T13:30:00Z',
-    magistradoPonente: 'Dr. Luis Armando Tolosa Villabona',
-    expediente: '11001-31-03-001-2024-00456-01',
-    tema: 'Contratos de arrendamiento - Cláusulas abusivas',
-    decision: 'CASAR la sentencia de segunda instancia'
-  },
-  {
-    id: '4',
-    source: 'corte-suprema-penal',
-    title: 'Sentencia SP-045/2025 sobre delitos contra la administración pública',
-    type: 'Sentencia',
-    publicationDate: '2025-01-08T15:20:00Z',
-    identifier: 'SP-045/2025',
-    status: 'available',
-    area: 'PENAL',
-    summary: 'Análisis de los elementos configurativos del delito de cohecho y establecimiento de criterios jurisprudenciales para la configuración del delito en el marco de la administración pública.',
-    url: 'https://example.com/doc4',
-    extractionDate: '2025-01-09T10:15:00Z',
-    magistradoPonente: 'Dr. José Francisco Acuña Vizcaya',
-    expediente: '52750',
-    tema: 'Delitos contra la administración pública - Cohecho',
-    decision: 'CASAR parcialmente la sentencia'
-  },
-  {
-    id: '5',
-    source: 'corte-suprema-laboral',
-    title: 'Sentencia SL-012/2025 sobre estabilidad laboral reforzada',
-    type: 'Sentencia',
-    publicationDate: '2025-01-05T14:45:00Z',
-    identifier: 'SL-012/2025',
-    status: 'available',
-    area: 'LABORAL',
-    summary: 'Criterios para determinar la procedencia de reintegro por fuero sindical y análisis de la estabilidad laboral reforzada en casos de discriminación por actividades sindicales.',
-    url: 'https://example.com/doc5',
-    extractionDate: '2025-01-06T09:20:00Z',
-    magistradoPonente: 'Dra. Clara Cecilia Dueñas Quevedo',
-    expediente: 'SL-001-2024-00123',
-    tema: 'Estabilidad laboral reforzada - Fuero sindical - Discriminación laboral',
-    decision: 'ORDENAR el reintegro inmediato'
-  },
-  {
-    id: '6',
-    source: 'dian',
-    title: 'Resolución DIAN 000123/2025 sobre facturación electrónica',
-    type: 'Resolución',
-    publicationDate: '2025-01-03T12:30:00Z',
-    identifier: 'Res. 000123/2025',
-    status: 'unavailable',
-    area: 'TRIBUTARIO',
-    extractionDate: '2025-01-04T17:10:00Z',
-    magistradoPonente: 'Dr. Luis Carlos Reyes López',
-    expediente: 'DIAN-FE-2025-001',
-    tema: 'Facturación electrónica - Obligaciones tributarias - Medios tecnológicos',
-    summary: 'Resolución que establece nuevos requisitos técnicos y procedimentales para la implementación de la facturación electrónica en empresas del régimen simplificado.',
-    decision: 'ESTABLECER nuevos requisitos'
-  },
-  {
-    id: '7',
-    source: 'super-servicios',
-    title: 'Circular Externa 001/2025 sobre servicios públicos domiciliarios',
-    type: 'Circular',
-    publicationDate: '2025-01-02T10:00:00Z',
-    identifier: 'CE-001/2025',
-    status: 'available',
-    area: 'ADMINISTRATIVO',
-    summary: 'Nuevas directrices para la prestación de servicios públicos en zonas rurales y criterios de calidad en la prestación de servicios esenciales.',
-    url: 'https://example.com/doc7',
-    extractionDate: '2025-01-02T15:30:00Z',
-    magistradoPonente: 'Dr. Jorge Armando Otálora Gómez',
-    expediente: 'SSPD-2025-001',
-    tema: 'Servicios públicos domiciliarios - Zonas rurales - Calidad del servicio',
-    decision: 'IMPLEMENTAR nuevas directrices'
-  },
-  {
-    id: '8',
-    source: 'corte-constitucional',
-    title: 'Sentencia T-089/2025 sobre derecho fundamental a la salud',
-    type: 'Sentencia',
-    publicationDate: '2025-01-18T16:00:00Z',
-    identifier: 'T-089/2025',
-    status: 'available',
-    area: 'CONSTITUCIONAL',
-    summary: 'Tutela que ordena el suministro inmediato de medicamentos no incluidos en el POS para el tratamiento de una enfermedad huérfana. Se establece jurisprudencia sobre el acceso a tratamientos especializados.',
-    url: 'https://example.com/doc8',
-    extractionDate: '2025-01-19T11:25:00Z',
-    magistradoPonente: 'Dra. Cristina Pardo Schlesinger',
-    expediente: 'T-8.456.789',
-    tema: 'Derecho fundamental a la salud - Enfermedades huérfanas - Medicamentos no POS',
-    decision: 'CONCEDER la tutela y ORDENAR suministro'
-  },
-  {
-    id: '9',
-    source: 'super-financiera',
-    title: 'Circular Externa 005/2025 sobre regulación fintech',
-    type: 'Circular Externa',
-    publicationDate: '2025-01-20T09:15:00Z',
-    identifier: 'CE-005/2025',
-    status: 'available',
-    area: 'FINANCIERO',
-    summary: 'Nuevas regulaciones para empresas de tecnología financiera en Colombia. Establece requisitos de licenciamiento y supervisión para plataformas de pagos digitales.',
-    url: 'https://example.com/doc9',
-    extractionDate: '2025-01-21T14:40:00Z',
-    magistradoPonente: 'Dr. César Ferrari Quimbaya',
-    expediente: 'SFC-REG-2025-001',
-    tema: 'Regulación financiera - Fintech - Pagos digitales',
-    decision: 'ESTABLECER marco regulatorio'
-  },
-  {
-    id: '10',
-    source: 'consejo-estado',
-    title: 'Sentencia No. 2025-00001 sobre contratación pública',
-    type: 'Sentencia',
-    publicationDate: '2025-01-22T13:30:00Z',
-    identifier: '2025-00001',
-    status: 'available',
-    area: 'ADMINISTRATIVO',
-    summary: 'Análisis sobre la aplicación del principio de transparencia en procesos de contratación estatal. Criterios para evaluar ofertas en licitaciones públicas.',
-    url: 'https://example.com/doc10',
-    extractionDate: '2025-01-23T10:50:00Z',
-    magistradoPonente: 'Dr. William Hernández Gómez',
-    expediente: 'CE-SEC3-EXP-2024-11250',
-    tema: 'Contratación pública - Transparencia - Licitaciones',
-    decision: 'ANULAR el proceso licitatorio'
-  }
-]
+// Estado para documentos reales de la API
+interface RealDocument extends Document {
+  curatedBy?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+  };
+}
+
+const mockDocuments: Document[] = []
 
 export default function CurationPage() {
   const [selectedSource, setSelectedSource] = useState<string | null>(null)
@@ -282,7 +124,12 @@ export default function CurationPage() {
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null)
   const [refreshCounter, setRefreshCounter] = useState(0)
   
-  // Zustand store
+  // Estados para documentos reales
+  const [realDocuments, setRealDocuments] = useState<RealDocument[]>([])
+  const [isLoadingDocuments, setIsLoadingDocuments] = useState(false)
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  
+  // Zustand stores
   const { 
     approveDocument, 
     rejectDocument, 
@@ -291,10 +138,115 @@ export default function CurationPage() {
     clearAll,
     resetToInitialState
   } = useCurationStore()
+  const subscribe = useEventStore(state => state.subscribe)
+  
+  // Cargar documentos pendientes de la API
+  const loadPendingDocuments = useCallback(async () => {
+    try {
+      setIsLoadingDocuments(true)
+      const response = await documentsService.getDocuments({
+        status: 'PENDING',
+        limit: 100
+      })
+      
+      // Mapear documentos de la API al formato esperado por la UI
+      const mappedDocs: RealDocument[] = response.data.map((doc: ApiDocument) => ({
+        id: doc.id,
+        source: mapBackendSource(doc.source),
+        title: doc.title,
+        type: doc.documentType,
+        publicationDate: doc.publicationDate,
+        identifier: doc.externalId || doc.id,
+        status: 'available' as const,
+        area: mapLegalArea(doc.legalArea),
+        summary: doc.summary || '',
+        url: doc.url,
+        extractionDate: doc.extractedAt || doc.createdAt,
+        curatedBy: (doc as any).curatedBy
+      }))
+      
+      setRealDocuments(mappedDocs)
+      setLastUpdated(new Date())
+      
+      // Actualizar contadores de fuentes
+      updateSourceCounts(mappedDocs)
+      
+    } catch (error) {
+      console.error('Error cargando documentos:', error)
+    } finally {
+      setIsLoadingDocuments(false)
+    }
+  }, [])
+  
+  // Funciones de mapeo
+  const mapBackendSource = (source: string): string => {
+    const sourceMap: Record<string, string> = {
+      'corte_constitucional': 'corte-constitucional',
+      'consejo_estado': 'consejo-estado',
+      'corte_suprema': 'corte-suprema-civil'
+    }
+    return sourceMap[source] || source
+  }
+  
+  const mapLegalArea = (area: string): string => {
+    const areaMap: Record<string, string> = {
+      'CONSTITUTIONAL': 'constitucional',
+      'CIVIL': 'civil',
+      'PENAL': 'penal',
+      'LABORAL': 'laboral',
+      'ADMINISTRATIVO': 'administrativo'
+    }
+    return areaMap[area] || area
+  }
+  
+  // Actualizar contadores de fuentes con documentos reales
+  const updateSourceCounts = (documents: RealDocument[]) => {
+    documentSources.forEach(source => {
+      const docsForSource = documents.filter(doc => doc.source === source.id)
+      source.count = docsForSource.length
+      source.available = docsForSource.filter(doc => doc.status === 'available').length
+      source.unavailable = docsForSource.filter(doc => doc.status === 'unavailable').length
+    })
+    
+    // No trigger refresh counter to avoid infinite loop
+    // setRefreshCounter(prev => prev + 1) // REMOVED TO FIX INFINITE LOOP
+  }
+  
+  // Efecto para cargar documentos al montar el componente
+  useEffect(() => {
+    loadPendingDocuments()
+    
+    // Suscribirse a eventos de extracción para actualización inmediata
+    const unsubscribeExtraction = subscribe('DOCUMENTS_EXTRACTED', () => {
+      console.debug('🔔 CurationPage: Documents extracted event received, refreshing list')
+      loadPendingDocuments()
+    })
+    
+    const unsubscribeRefresh = subscribe('REFRESH_CURATION_LIST', () => {
+      console.debug('🔔 CurationPage: Refresh curation list event received')
+      loadPendingDocuments()
+    })
+    
+    // Recargar cada 30 segundos (backup)
+    const interval = setInterval(loadPendingDocuments, 30000)
+    
+    return () => {
+      clearInterval(interval)
+      unsubscribeExtraction()
+      unsubscribeRefresh()
+    }
+  }, [loadPendingDocuments, subscribe])
+  
+  // Efecto para recargar cuando cambie el refreshCounter (desde otras páginas)
+  useEffect(() => {
+    if (refreshCounter > 0) {
+      loadPendingDocuments()
+    }
+  }, [refreshCounter])
 
-  // Filtrar documentos por fuente seleccionada
+  // Filtrar documentos por fuente seleccionada (usar documentos reales)
   const filteredDocuments = useMemo(() => {
-    let docs = mockDocuments
+    let docs = realDocuments.length > 0 ? realDocuments : mockDocuments
 
     // Excluir documentos aprobados y rechazados de la vista principal
     docs = docs.filter(doc => !isDocumentApproved(doc.id) && !isDocumentRejected(doc.id))
@@ -310,10 +262,10 @@ export default function CurationPage() {
     }
 
     return docs
-  }, [selectedSource, statusFilter, isDocumentApproved, isDocumentRejected, refreshCounter])
+  }, [realDocuments, selectedSource, statusFilter, isDocumentApproved, isDocumentRejected, refreshCounter])
 
   const handleDocumentAction = (docId: string, action: 'approve' | 'reject' | 'preview') => {
-    const document = mockDocuments.find(doc => doc.id === docId)
+    const document = (realDocuments.length > 0 ? realDocuments : mockDocuments).find(doc => doc.id === docId)
     
     if (action === 'preview' && document) {
       setSelectedDocument(document)
@@ -326,7 +278,7 @@ export default function CurationPage() {
   }
 
   const handleApproveDocument = async (docId: string) => {
-    const document = mockDocuments.find(doc => doc.id === docId)
+    const document = (realDocuments.length > 0 ? realDocuments : mockDocuments).find(doc => doc.id === docId)
     if (document) {
       approveDocument(document)
       console.log(`Documento ${docId} aprobado`)
@@ -338,7 +290,7 @@ export default function CurationPage() {
   }
 
   const handleRejectDocument = async (docId: string) => {
-    const document = mockDocuments.find(doc => doc.id === docId)
+    const document = (realDocuments.length > 0 ? realDocuments : mockDocuments).find(doc => doc.id === docId)
     if (document) {
       rejectDocument(document, 'Rechazado desde curación')
       console.log(`Documento ${docId} rechazado`)
@@ -365,7 +317,8 @@ export default function CurationPage() {
   }
 
   const getDocumentsBySource = useCallback((sourceId: string) => {
-    return mockDocuments.filter(doc => {
+    const docs = realDocuments.length > 0 ? realDocuments : mockDocuments
+    return docs.filter(doc => {
       const matchesSource = doc.source === sourceId
       const matchesSearch = true
       const matchesStatus = statusFilter === 'all' || doc.status === statusFilter
@@ -377,7 +330,9 @@ export default function CurationPage() {
 
   // Función para calcular contadores dinámicos por fuente
   const getSourceStats = useCallback((sourceId: string) => {
-    const allSourceDocs = mockDocuments.filter(doc => doc.source === sourceId)
+    // Usar documentos reales si están disponibles, sino usar mock
+    const documentsToUse = realDocuments.length > 0 ? realDocuments : mockDocuments
+    const allSourceDocs = documentsToUse.filter(doc => doc.source === sourceId)
     const activeSourceDocs = allSourceDocs.filter(doc => 
       !isDocumentApproved(doc.id) && !isDocumentRejected(doc.id)
     )
@@ -387,7 +342,7 @@ export default function CurationPage() {
       available: activeSourceDocs.filter(doc => doc.status === 'available').length,
       unavailable: activeSourceDocs.filter(doc => doc.status === 'unavailable').length
     }
-  }, [isDocumentApproved, isDocumentRejected, refreshCounter])
+  }, [realDocuments, isDocumentApproved, isDocumentRejected, refreshCounter])
 
   return (
     <div className="p-6 space-y-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
@@ -711,17 +666,29 @@ export default function CurationPage() {
       {viewMode === 'grid' && selectedSource && (
         <div className="card dark:bg-gray-800">
           <div className="card-header">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 flex items-center gap-2">
               Documentos de {documentSources.find(s => s.id === selectedSource)?.name}
+              {isLoadingDocuments && <Loader2 className="w-4 h-4 animate-spin text-primary-600" />}
             </h3>
             <p className="text-sm text-gray-500 dark:text-gray-300">
-              {filteredDocuments.length} documentos disponibles
+              {isLoadingDocuments ? 'Cargando...' : `${filteredDocuments.length} documentos disponibles`}
+              {lastUpdated && !isLoadingDocuments && (
+                <span className="ml-2 text-xs text-green-600">
+                  • Actualizado {lastUpdated.toLocaleTimeString()}
+                </span>
+              )}
             </p>
           </div>
           
           <div className="card-body p-0">
-            <div className="space-y-0">
-              {filteredDocuments.map((doc, index) => (
+            {isLoadingDocuments ? (
+              <div className="p-8 text-center">
+                <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary-600" />
+                <p className="text-gray-500">Cargando documentos pendientes...</p>
+              </div>
+            ) : (
+              <div className="space-y-0">
+                {filteredDocuments.map((doc, index) => (
                 <div 
                   key={doc.id}
                   className={clsx(
@@ -860,8 +827,9 @@ export default function CurationPage() {
                     </div>
                   </div>
                 </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
