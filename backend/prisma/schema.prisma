@@ -79,6 +79,18 @@ model Document {
   extractedAt        DateTime?  @map("extracted_at") // When document was scraped
   userId             String?    @map("user_id") // User who initiated extraction
 
+  // AI Analysis fields
+  numeroSentencia    String?    @map("numero_sentencia") // No. de Sentencia extraído
+  magistradoPonente  String?    @map("magistrado_ponente") // Magistrado Ponente
+  salaRevision       String?    @map("sala_revision") // Sala de Revisión
+  temaPrincipal      String?    @map("tema_principal") // Tema Principal (IA)
+  resumenIA          String?    @map("resumen_ia") // Resumen generado por IA
+  decision           String?    @map("decision") // Decisión del tribunal (IA)
+  aiAnalysisStatus   String?    @default("PENDING") @map("ai_analysis_status") // PENDING, PROCESSING, COMPLETED, FAILED
+  aiAnalysisDate     DateTime?  @map("ai_analysis_date") // Fecha del análisis de IA
+  aiModel            String?    @map("ai_model") // Modelo usado (gpt-4-mini, gemini, etc.)
+  fragmentosAnalisis String?    @default("") @map("fragmentos_analisis") // Fragmentos clave analizados
+
   // Relations
   curatorId          String?    @map("curator_id")
   curator            User?      @relation("DocumentCreator", fields: [curatorId], references: [id])

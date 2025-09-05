@@ -38,6 +38,18 @@ export interface Document {
   curatorId?: string;
   createdAt: string;
   updatedAt: string;
+  
+  // AI Analysis Fields
+  numeroSentencia?: string;
+  magistradoPonente?: string;
+  salaRevision?: string;
+  temaPrincipal?: string;
+  resumenIA?: string;
+  decision?: string;
+  aiAnalysisStatus?: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+  aiAnalysisDate?: string;
+  aiModel?: string;
+  fragmentosAnalisis?: string;
 }
 
 export interface DocumentsResponse {
@@ -175,6 +187,69 @@ class DocumentsService {
     } catch (error: any) {
       console.error('❌ Error in batch curation:', error.response?.data || error.message);
       throw new Error(error.response?.data?.message || 'Failed to process batch curation');
+    }
+  }
+
+  /**
+   * Analizar documento con IA para extraer metadatos y generar resumen
+   */
+  async analyzeDocument(id: string, model?: 'openai' | 'gemini'): Promise<{
+    success: boolean;
+    message?: string;
+    data?: {
+      document: Document;
+      analysis: {
+        metadata: any;
+        aiAnalysis: any;
+      };
+    };
+  }> {
+    try {
+      const queryParams = model ? `?model=${model}` : '';
+      const response = await api.post(`/documents/${id}/analyze${queryParams}`);
+      
+      return {
+        success: true,
+        data: response.data.data
+      };
+    } catch (error: any) {
+      console.error('❌ Error analyzing document:', error.response?.data || error.message);
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Failed to analyze document'
+      };
+    }
+  }
+
+  /**
+   * Analizar múltiples documentos en lote con IA
+   */
+  async batchAnalyze(documentIds: string[], model?: 'openai' | 'gemini'): Promise<{
+    success: boolean;
+    message?: string;
+    data?: {
+      successful: number;
+      failed: number;
+      results: Array<{ id: string; title: string; success: boolean; analysis: any }>;
+      errors: Array<{ id: string; title: string; error: string }>;
+    };
+  }> {
+    try {
+      const response = await api.post('/documents/batch-analyze', {
+        documentIds,
+        model
+      });
+      
+      return {
+        success: true,
+        data: response.data.data
+      };
+    } catch (error: any) {
+      console.error('❌ Error in batch analysis:', error.response?.data || error.message);
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Failed to process batch analysis'
+      };
     }
   }
 }

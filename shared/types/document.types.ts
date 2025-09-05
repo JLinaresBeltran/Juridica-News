@@ -52,6 +52,13 @@ export interface DocumentMetadata {
   sourceReliability: number;
 }
 
+export enum AIAnalysisStatus {
+  PENDING = 'PENDING',
+  PROCESSING = 'PROCESSING',
+  COMPLETED = 'COMPLETED',
+  FAILED = 'FAILED'
+}
+
 export interface Document {
   id: string;
   title: string;
@@ -75,6 +82,18 @@ export interface Document {
   curatedAt?: string;
   curationNotes?: string;
   estimatedEffort?: number;
+  
+  // AI Analysis Fields (New)
+  numeroSentencia?: string;
+  magistradoPonente?: string;
+  salaRevision?: string;
+  temaPrincipal?: string;
+  resumenIA?: string;
+  decision?: string;
+  aiAnalysisStatus?: AIAnalysisStatus;
+  aiAnalysisDate?: string;
+  aiModel?: string;
+  fragmentosAnalisis?: string;
   
   // Metadata
   metadata: DocumentMetadata;

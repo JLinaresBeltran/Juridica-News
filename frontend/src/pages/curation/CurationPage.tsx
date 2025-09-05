@@ -55,6 +55,16 @@ interface Document {
   expediente?: string
   tema?: string
   decision?: string
+  
+  // AI Analysis Fields
+  numeroSentencia?: string
+  salaRevision?: string
+  temaPrincipal?: string
+  resumenIA?: string
+  aiAnalysisStatus?: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED'
+  aiAnalysisDate?: string
+  aiModel?: string
+  fragmentosAnalisis?: string
 }
 
 // FUNCIÓN TEMPORAL - Fuentes de documentos con contadores en 0 después del reset
@@ -162,7 +172,19 @@ export default function CurationPage() {
         summary: doc.summary || '',
         url: doc.url,
         extractionDate: doc.extractedAt || doc.createdAt,
-        curatedBy: (doc as any).curatedBy
+        curatedBy: (doc as any).curatedBy,
+        
+        // Campos de análisis IA
+        numeroSentencia: doc.numeroSentencia,
+        magistradoPonente: doc.magistradoPonente,
+        salaRevision: doc.salaRevision,
+        temaPrincipal: doc.temaPrincipal,
+        resumenIA: doc.resumenIA,
+        decision: doc.decision,
+        aiAnalysisStatus: doc.aiAnalysisStatus,
+        aiAnalysisDate: doc.aiAnalysisDate,
+        aiModel: doc.aiModel,
+        fragmentosAnalisis: doc.fragmentosAnalisis
       }))
       
       setRealDocuments(mappedDocs)
@@ -264,7 +286,7 @@ export default function CurationPage() {
     return docs
   }, [realDocuments, selectedSource, statusFilter, isDocumentApproved, isDocumentRejected, refreshCounter])
 
-  const handleDocumentAction = (docId: string, action: 'approve' | 'reject' | 'preview') => {
+  const handleDocumentAction = (docId: string, action: 'approve' | 'reject' | 'preview' | 'analyze') => {
     const document = (realDocuments.length > 0 ? realDocuments : mockDocuments).find(doc => doc.id === docId)
     
     if (action === 'preview' && document) {
@@ -274,6 +296,8 @@ export default function CurationPage() {
       handleApproveDocument(docId)
     } else if (action === 'reject') {
       handleRejectDocument(docId)
+    } else if (action === 'analyze') {
+      handleAnalyzeDocument(docId)
     }
   }
 
@@ -298,6 +322,96 @@ export default function CurationPage() {
       setRefreshCounter(prev => prev + 1)
       // Cerrar modal automáticamente después de rechazar
       handleClosePreview()
+    }
+  }
+
+  const handleAnalyzeDocument = async (docId: string) => {
+    try {
+      console.log(`🔍 Iniciando análisis de IA para documento: ${docId}`)
+      
+      // Actualizar el estado local inmediatamente para mostrar "Procesando"
+      setRealDocuments(prev => 
+        prev.map(doc => 
+          doc.id === docId 
+            ? { ...doc, aiAnalysisStatus: 'PROCESSING' as any }
+            : doc
+        )
+      )
+
+      // Llamar al endpoint de análisis
+      const response = await documentsService.analyzeDocument(docId)
+      
+      if (response.success) {
+        console.log('✅ Análisis completado exitosamente', response.data)
+        
+        // Extraer datos del análisis IA
+        const aiAnalysis = response.data?.analysis?.aiAnalysis
+        const updatedDocument = response.data?.document
+        
+        // Crear el documento actualizado con los resultados del análisis
+        const updatedDoc = {
+          ...realDocuments.find(doc => doc.id === docId),
+          ...(updatedDocument || {}),
+          // Mapear campos del análisis IA si están disponibles
+          ...(aiAnalysis && {
+            temaPrincipal: aiAnalysis.temaPrincipal,
+            resumenIA: aiAnalysis.resumenIA,
+            decision: aiAnalysis.decision,
+            numeroSentencia: aiAnalysis.numeroSentencia,
+            magistradoPonente: aiAnalysis.magistradoPonente,
+            salaRevision: aiAnalysis.salaRevision,
+            expediente: aiAnalysis.expediente,
+            aiModel: aiAnalysis.modeloUsado
+          }),
+          aiAnalysisStatus: 'COMPLETED' as any,
+          aiAnalysisDate: new Date().toISOString()
+        }
+
+        // Actualizar el documento en la lista
+        setRealDocuments(prev => 
+          prev.map(doc => doc.id === docId ? updatedDoc : doc)
+        )
+        
+        // Si este documento está seleccionado en el modal, actualizarlo también
+        if (selectedDocument && selectedDocument.id === docId) {
+          setSelectedDocument(updatedDoc as any)
+        }
+        
+        // Forzar re-render
+        setRefreshCounter(prev => prev + 1)
+        
+        // Obtener información del modelo y fecha para mostrar al usuario
+        const modelUsed = aiAnalysis?.modeloUsado || updatedDocument?.aiModel || 'IA'
+        const documentTitle = updatedDocument?.title || 'documento'
+        
+        // Mostrar notificación de éxito más informativa
+        console.log(`✅ Análisis de IA completado para: ${documentTitle}`)
+        console.log(`📊 Modelo utilizado: ${modelUsed}`)
+        
+      } else {
+        const errorMsg = response.message || 'Error desconocido en el análisis'
+        throw new Error(errorMsg)
+      }
+      
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido'
+      console.error('❌ Error en análisis de IA:', {
+        documentId: docId,
+        error: errorMessage,
+        fullError: error
+      })
+      
+      // Marcar como fallido
+      setRealDocuments(prev => 
+        prev.map(doc => 
+          doc.id === docId 
+            ? { ...doc, aiAnalysisStatus: 'FAILED' as any }
+            : doc
+        )
+      )
+      
+      // Mostrar error al usuario de forma menos intrusiva
+      console.warn(`❌ Error en el análisis de IA: ${errorMessage}`)
     }
   }
 
@@ -522,11 +636,17 @@ export default function CurationPage() {
                                     {/* Nombre del documento */}
                                     <div className="space-y-2">
                                       <div className="font-semibold text-lg text-gray-900 dark:text-gray-100">
-                                        {doc.type} No. {doc.identifier}
+                                        {doc.numeroSentencia || `${doc.type} No. ${doc.identifier}`}
                                       </div>
+                                      {/* Metadatos estructurales extraídos automáticamente */}
                                       {doc.magistradoPonente && (
                                         <div className="text-sm text-gray-600 dark:text-gray-300">
-                                          <span className="font-medium">Magistrado P.:</span> {doc.magistradoPonente}
+                                          <span className="font-medium">Magistrado Ponente:</span> {doc.magistradoPonente}
+                                        </div>
+                                      )}
+                                      {doc.salaRevision && (
+                                        <div className="text-sm text-gray-600 dark:text-gray-300">
+                                          <span className="font-medium">Sala de Revisión:</span> {doc.salaRevision}
                                         </div>
                                       )}
                                       {doc.expediente && (
@@ -536,27 +656,73 @@ export default function CurationPage() {
                                       )}
                                     </div>
 
-                                    {/* Tema incluido en el fondo gris */}
-                                    {doc.tema && (
+                                    {/* Tema Principal - Análisis de IA */}
+                                    {doc.temaPrincipal && (
                                       <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-600">
-                                        <span className="font-medium text-gray-900 dark:text-gray-100">Tema:</span>
-                                        <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">{doc.tema}</p>
+                                        <div className="flex items-center space-x-2 mb-1">
+                                          <span className="font-medium text-gray-900 dark:text-gray-100">Tema Principal:</span>
+                                          <span className="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded-full">IA</span>
+                                        </div>
+                                        <p className="text-sm text-gray-700 dark:text-gray-300">{doc.temaPrincipal}</p>
                                       </div>
                                     )}
 
-                                    {/* Resumen incluido en el fondo gris */}
-                                    {doc.summary && (
+                                    {/* Resumen IA incluido en el fondo gris */}
+                                    {doc.resumenIA ? (
+                                      <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-600">
+                                        <div className="flex items-center space-x-2 mb-1">
+                                          <span className="font-medium text-gray-900 dark:text-gray-100">Resumen:</span>
+                                          <span className="px-2 py-0.5 text-xs bg-green-100 text-green-700 rounded-full flex items-center space-x-1">
+                                            <span>IA</span>
+                                            {doc.aiModel && <span className="text-xs">({doc.aiModel})</span>}
+                                          </span>
+                                        </div>
+                                        <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{doc.resumenIA}</p>
+                                      </div>
+                                    ) : doc.summary && (
                                       <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-600">
                                         <span className="font-medium text-gray-900 dark:text-gray-100">Resumen:</span>
                                         <p className="text-sm text-gray-700 dark:text-gray-300 mt-1 leading-relaxed">{doc.summary}</p>
                                       </div>
                                     )}
 
-                                    {/* Decisión incluida en el fondo gris */}
+                                    {/* Decisión - Análisis de IA incluida en el fondo gris */}
                                     {doc.decision && (
                                       <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-600">
-                                        <span className="font-medium text-gray-900 dark:text-gray-100">Decisión:</span>
-                                        <span className="text-sm text-gray-700 dark:text-gray-300 ml-2">{doc.decision}</span>
+                                        <div className="flex items-center space-x-2 mb-1">
+                                          <span className="font-medium text-gray-900 dark:text-gray-100">Decisión:</span>
+                                          <span className="px-2 py-0.5 text-xs bg-purple-100 text-purple-700 rounded-full">IA</span>
+                                        </div>
+                                        <p className="text-sm text-gray-700 dark:text-gray-300">{doc.decision}</p>
+                                      </div>
+                                    )}
+
+                                    {/* Estado de análisis de IA */}
+                                    {doc.aiAnalysisStatus && (
+                                      <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-600">
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-xs text-gray-500">Estado de análisis IA:</span>
+                                          <div className={clsx(
+                                            'px-2 py-1 text-xs rounded-full flex items-center space-x-1',
+                                            doc.aiAnalysisStatus === 'COMPLETED' && 'bg-green-100 text-green-700',
+                                            doc.aiAnalysisStatus === 'PROCESSING' && 'bg-yellow-100 text-yellow-700',
+                                            doc.aiAnalysisStatus === 'FAILED' && 'bg-red-100 text-red-700',
+                                            doc.aiAnalysisStatus === 'PENDING' && 'bg-gray-100 text-gray-700'
+                                          )}>
+                                            {doc.aiAnalysisStatus === 'PROCESSING' && <Loader2 className="w-3 h-3 animate-spin" />}
+                                            <span>
+                                              {doc.aiAnalysisStatus === 'COMPLETED' && 'Completado'}
+                                              {doc.aiAnalysisStatus === 'PROCESSING' && 'Procesando'}
+                                              {doc.aiAnalysisStatus === 'FAILED' && 'Fallido'}
+                                              {doc.aiAnalysisStatus === 'PENDING' && 'Pendiente'}
+                                            </span>
+                                          </div>
+                                        </div>
+                                        {doc.aiAnalysisDate && (
+                                          <div className="text-xs text-gray-400 mt-1">
+                                            Analizado: {new Date(doc.aiAnalysisDate).toLocaleString('es-ES')}
+                                          </div>
+                                        )}
                                       </div>
                                     )}
                                   </div>
@@ -599,6 +765,26 @@ export default function CurationPage() {
                                     >
                                       <Eye className="w-3 h-3 mr-1 inline" />
                                       Previsualizar
+                                    </button>
+                                  )}
+
+                                  {/* Botón de análisis de IA */}
+                                  {doc.status === 'available' && doc.aiAnalysisStatus !== 'PROCESSING' && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleDocumentAction(doc.id, 'analyze')
+                                      }}
+                                      className={clsx(
+                                        'px-4 py-2 text-xs border rounded-full transition-all duration-200',
+                                        doc.aiAnalysisStatus === 'COMPLETED'
+                                          ? 'text-blue-700 border-blue-300 hover:bg-blue-50'
+                                          : 'text-purple-700 border-purple-300 hover:bg-purple-50'
+                                      )}
+                                      title={doc.aiAnalysisStatus === 'COMPLETED' ? 'Reanalizar con IA' : 'Analizar con IA'}
+                                    >
+                                      <AlertTriangle className="w-3 h-3 mr-1 inline" />
+                                      {doc.aiAnalysisStatus === 'COMPLETED' ? 'Reanalizar IA' : 'Analizar IA'}
                                     </button>
                                   )}
                                   
@@ -726,11 +912,17 @@ export default function CurationPage() {
                         {/* Nombre del documento */}
                         <div className="space-y-2">
                           <div className="font-semibold text-lg text-gray-900 dark:text-gray-100">
-                            {doc.type} No. {doc.identifier}
+                            {doc.numeroSentencia || `${doc.type} No. ${doc.identifier}`}
                           </div>
+                          {/* Metadatos estructurales extraídos automáticamente */}
                           {doc.magistradoPonente && (
                             <div className="text-sm text-gray-600 dark:text-gray-300">
-                              <span className="font-medium">Magistrado P.:</span> {doc.magistradoPonente}
+                              <span className="font-medium">Magistrado Ponente:</span> {doc.magistradoPonente}
+                            </div>
+                          )}
+                          {doc.salaRevision && (
+                            <div className="text-sm text-gray-600 dark:text-gray-300">
+                              <span className="font-medium">Sala de Revisión:</span> {doc.salaRevision}
                             </div>
                           )}
                           {doc.expediente && (
@@ -740,27 +932,73 @@ export default function CurationPage() {
                           )}
                         </div>
 
-                        {/* Tema incluido en el fondo gris */}
-                        {doc.tema && (
+                        {/* Tema Principal - Análisis de IA */}
+                        {doc.temaPrincipal && (
                           <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-600">
-                            <span className="font-medium text-gray-900 dark:text-gray-100">Tema:</span>
-                            <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">{doc.tema}</p>
+                            <div className="flex items-center space-x-2 mb-1">
+                              <span className="font-medium text-gray-900 dark:text-gray-100">Tema Principal:</span>
+                              <span className="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded-full">IA</span>
+                            </div>
+                            <p className="text-sm text-gray-700 dark:text-gray-300">{doc.temaPrincipal}</p>
                           </div>
                         )}
 
-                        {/* Resumen incluido en el fondo gris */}
-                        {doc.summary && (
+                        {/* Resumen IA incluido en el fondo gris */}
+                        {doc.resumenIA ? (
+                          <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-600">
+                            <div className="flex items-center space-x-2 mb-1">
+                              <span className="font-medium text-gray-900 dark:text-gray-100">Resumen:</span>
+                              <span className="px-2 py-0.5 text-xs bg-green-100 text-green-700 rounded-full flex items-center space-x-1">
+                                <span>IA</span>
+                                {doc.aiModel && <span className="text-xs">({doc.aiModel})</span>}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{doc.resumenIA}</p>
+                          </div>
+                        ) : doc.summary && (
                           <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-600">
                             <span className="font-medium text-gray-900 dark:text-gray-100">Resumen:</span>
                             <p className="text-sm text-gray-700 dark:text-gray-300 mt-1 leading-relaxed">{doc.summary}</p>
                           </div>
                         )}
 
-                        {/* Decisión incluida en el fondo gris */}
+                        {/* Decisión - Análisis de IA incluida en el fondo gris */}
                         {doc.decision && (
                           <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-600">
-                            <span className="font-medium text-gray-900 dark:text-gray-100">Decisión:</span>
-                            <span className="text-sm text-gray-700 dark:text-gray-300 ml-2">{doc.decision}</span>
+                            <div className="flex items-center space-x-2 mb-1">
+                              <span className="font-medium text-gray-900 dark:text-gray-100">Decisión:</span>
+                              <span className="px-2 py-0.5 text-xs bg-purple-100 text-purple-700 rounded-full">IA</span>
+                            </div>
+                            <p className="text-sm text-gray-700 dark:text-gray-300">{doc.decision}</p>
+                          </div>
+                        )}
+
+                        {/* Estado de análisis de IA */}
+                        {doc.aiAnalysisStatus && (
+                          <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-600">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs text-gray-500">Estado de análisis IA:</span>
+                              <div className={clsx(
+                                'px-2 py-1 text-xs rounded-full flex items-center space-x-1',
+                                doc.aiAnalysisStatus === 'COMPLETED' && 'bg-green-100 text-green-700',
+                                doc.aiAnalysisStatus === 'PROCESSING' && 'bg-yellow-100 text-yellow-700',
+                                doc.aiAnalysisStatus === 'FAILED' && 'bg-red-100 text-red-700',
+                                doc.aiAnalysisStatus === 'PENDING' && 'bg-gray-100 text-gray-700'
+                              )}>
+                                {doc.aiAnalysisStatus === 'PROCESSING' && <Loader2 className="w-3 h-3 animate-spin" />}
+                                <span>
+                                  {doc.aiAnalysisStatus === 'COMPLETED' && 'Completado'}
+                                  {doc.aiAnalysisStatus === 'PROCESSING' && 'Procesando'}
+                                  {doc.aiAnalysisStatus === 'FAILED' && 'Fallido'}
+                                  {doc.aiAnalysisStatus === 'PENDING' && 'Pendiente'}
+                                </span>
+                              </div>
+                            </div>
+                            {doc.aiAnalysisDate && (
+                              <div className="text-xs text-gray-400 mt-1">
+                                Analizado: {new Date(doc.aiAnalysisDate).toLocaleString('es-ES')}
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
@@ -800,6 +1038,23 @@ export default function CurationPage() {
                         >
                           <Eye className="w-3 h-3 mr-1 inline" />
                           Previsualizar
+                        </button>
+                      )}
+
+                      {/* Botón de análisis de IA */}
+                      {doc.status === 'available' && doc.aiAnalysisStatus !== 'PROCESSING' && (
+                        <button
+                          onClick={() => handleDocumentAction(doc.id, 'analyze')}
+                          className={clsx(
+                            'px-4 py-2 text-xs border rounded-full transition-all duration-200',
+                            doc.aiAnalysisStatus === 'COMPLETED'
+                              ? 'text-blue-700 border-blue-300 hover:bg-blue-50'
+                              : 'text-purple-700 border-purple-300 hover:bg-purple-50'
+                          )}
+                          title={doc.aiAnalysisStatus === 'COMPLETED' ? 'Reanalizar con IA' : 'Analizar con IA'}
+                        >
+                          <AlertTriangle className="w-3 h-3 mr-1 inline" />
+                          {doc.aiAnalysisStatus === 'COMPLETED' ? 'Reanalizar IA' : 'Analizar IA'}
                         </button>
                       )}
                       

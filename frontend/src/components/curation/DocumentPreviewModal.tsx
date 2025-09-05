@@ -20,9 +20,13 @@ interface Document {
   summary?: string
   url?: string
   extractionDate: string
+  // Campos del análisis IA
   magistradoPonente?: string
+  salaRevision?: string
   expediente?: string
-  tema?: string
+  numeroSentencia?: string
+  temaPrincipal?: string
+  resumenIA?: string
   decision?: string
 }
 
@@ -245,11 +249,21 @@ export function DocumentPreviewModal({
                         </h4>
                       </div>
 
-                      {/* Magistrado and Expediente */}
+                      {/* Campos del análisis IA */}
                       <div className="space-y-2 mb-4">
+                        {selectedDoc.numeroSentencia && (
+                          <div className="text-sm text-gray-600 dark:text-gray-300">
+                            <span className="font-medium">No. Sentencia:</span> {selectedDoc.numeroSentencia}
+                          </div>
+                        )}
                         {selectedDoc.magistradoPonente && (
                           <div className="text-sm text-gray-600 dark:text-gray-300">
                             <span className="font-medium">Magistrado P.:</span> {selectedDoc.magistradoPonente}
+                          </div>
+                        )}
+                        {selectedDoc.salaRevision && (
+                          <div className="text-sm text-gray-600 dark:text-gray-300">
+                            <span className="font-medium">Sala de Revisión:</span> {selectedDoc.salaRevision}
                           </div>
                         )}
                         {selectedDoc.expediente && (
@@ -259,19 +273,21 @@ export function DocumentPreviewModal({
                         )}
                       </div>
 
-                      {/* Tema */}
-                      {selectedDoc.tema && (
+                      {/* Tema Principal */}
+                      {selectedDoc.temaPrincipal && (
                         <div className="pt-3 border-t border-gray-200 dark:border-gray-600 mb-4">
-                          <span className="font-medium text-gray-900 dark:text-gray-100">Tema:</span>
-                          <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">{selectedDoc.tema}</p>
+                          <span className="font-medium text-gray-900 dark:text-gray-100">Tema Principal:</span>
+                          <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">{selectedDoc.temaPrincipal}</p>
                         </div>
                       )}
 
                       {/* Resumen */}
-                      {selectedDoc.summary && (
+                      {(selectedDoc.resumenIA || selectedDoc.summary) && (
                         <div className="pt-3 border-t border-gray-200 dark:border-gray-600 mb-4">
                           <span className="font-medium text-gray-900 dark:text-gray-100">Resumen:</span>
-                          <p className="text-sm text-gray-700 dark:text-gray-300 mt-1 leading-relaxed">{selectedDoc.summary}</p>
+                          <p className="text-sm text-gray-700 dark:text-gray-300 mt-1 leading-relaxed">
+                            {selectedDoc.resumenIA || selectedDoc.summary}
+                          </p>
                         </div>
                       )}
 

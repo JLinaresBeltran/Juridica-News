@@ -468,5 +468,383 @@ router.post('/batch-curate', validateRequest(batchCurationSchema), async (req: R
   }
 });
 
+/**
+ * @swagger
+ * /api/documents/{id}/analyze:
+ *   post:
+ *     summary: Analyze document with AI for legal content extraction
+ *     tags: [Documents]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: model
+ *         schema:
+ *           type: string
+ *           enum: [openai, gemini]
+ *         description: AI model to use for analysis
+ */
+router.post('/:id/analyze', async (req: Request, res: Response) => {
+  try {
+    const documentId = req.params.id;
+    const model = req.query.model as 'openai' | 'gemini' | undefined;
+
+    // Verificar que el documento existe
+    const document = await prisma.document.findUnique({
+      where: { id: documentId }
+    });
+
+    if (!document) {
+      return res.status(404).json({
+        error: 'Document not found'
+      });
+    }
+
+    // Actualizar estado a PROCESSING
+    await prisma.document.update({
+      where: { id: documentId },
+      data: {
+        aiAnalysisStatus: 'PROCESSING'
+      }
+    });
+
+    logger.info(`🔍 Iniciando análisis de documento: ${documentId}`);
+
+    // Importar servicios de análisis
+    const { aiAnalysisService } = await import('@/services/AiAnalysisService');
+    const { documentMetadataExtractor } = await import('@/services/DocumentMetadataExtractor');
+
+    try {
+      // 1. Extraer metadatos estructurales
+      const metadata = await documentMetadataExtractor.extractMetadata({
+        url: document.url,
+        content: document.content || undefined
+      });
+
+      // 2. Obtener contenido para análisis de IA
+      let contentForAnalysis = document.content;
+      
+      // Verificar si tenemos contenido válido almacenado
+      if (!contentForAnalysis || contentForAnalysis.length < 100) {
+        logger.warn(`⚠️  Documento ${documentId} no tiene contenido almacenado suficiente. Longitud: ${contentForAnalysis?.length || 0}`);
+        
+        // Solo intentar fetch como último recurso y con mejor manejo de errores
+        if (document.url) {
+          try {
+            logger.info(`📡 Intentando obtener contenido desde URL: ${document.url}`);
+            const response = await fetch(document.url, {
+              timeout: 10000, // 10 segundos timeout
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (compatible; EditorialJuridico/1.0)'
+              }
+            });
+            
+            if (response.ok) {
+              contentForAnalysis = await response.text();
+              logger.info(`✅ Contenido obtenido desde URL: ${contentForAnalysis.length} caracteres`);
+            } else {
+              logger.error(`❌ Error HTTP ${response.status} al obtener contenido desde URL`);
+            }
+          } catch (fetchError) {
+            logger.error(`❌ Error obteniendo contenido desde URL: ${fetchError}`);
+          }
+        }
+        
+        // Si aún no hay contenido, no podemos hacer análisis de IA
+        if (!contentForAnalysis || contentForAnalysis.length < 100) {
+          logger.error(`❌ No hay contenido suficiente para analizar el documento ${documentId}`);
+          
+          // Actualizar estado como FAILED
+          await prisma.document.update({
+            where: { id: documentId },
+            data: {
+              aiAnalysisStatus: 'FAILED'
+            }
+          });
+          
+          return res.status(400).json({
+            error: 'Insufficient content for analysis',
+            message: 'Document does not have enough content stored and cannot fetch from URL'
+          });
+        }
+      } else {
+        logger.info(`📄 Usando contenido almacenado: ${contentForAnalysis.length} caracteres`);
+      }
+
+      // 3. Análisis de IA (ahora sabemos que hay contenido)
+      const aiAnalysis = await aiAnalysisService.analyzeDocument(
+        contentForAnalysis,
+        document.title,
+        model
+      );
+
+      // 4. Actualizar documento con resultados
+      const updateData: any = {
+        aiAnalysisStatus: 'COMPLETED',
+        aiAnalysisDate: new Date()
+      };
+
+      // Agregar metadatos estructurales si se extrajeron
+      if (metadata) {
+        updateData.numeroSentencia = metadata.numeroSentencia;
+        updateData.magistradoPonente = metadata.magistradoPonente;
+        updateData.salaRevision = metadata.salaRevision;
+        updateData.fragmentosAnalisis = metadata.rawText.substring(0, 500);
+      }
+
+      // Agregar análisis de IA si se completó
+      if (aiAnalysis) {
+        updateData.temaPrincipal = aiAnalysis.temaPrincipal;
+        updateData.resumenIA = aiAnalysis.resumenIA;
+        updateData.decision = aiAnalysis.decision;
+        updateData.aiModel = aiAnalysis.modeloUsado;
+      }
+
+      const updatedDocument = await prisma.document.update({
+        where: { id: documentId },
+        data: updateData
+      });
+
+      res.json({
+        data: {
+          document: updatedDocument,
+          analysis: {
+            metadata,
+            aiAnalysis
+          }
+        },
+        message: 'Document analysis completed successfully'
+      });
+
+      logger.info(`✅ Análisis completado para documento: ${documentId}`);
+
+    } catch (analysisError) {
+      // Marcar como fallido en caso de error
+      await prisma.document.update({
+        where: { id: documentId },
+        data: {
+          aiAnalysisStatus: 'FAILED'
+        }
+      });
+
+      logger.error(`❌ Error en análisis: ${analysisError}`);
+      throw analysisError;
+    }
+
+  } catch (error) {
+    logger.error('Error analyzing document', { 
+      error, 
+      documentId: req.params.id, 
+      userId: req.user.id 
+    });
+    
+    res.status(500).json({
+      error: 'Failed to analyze document',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/documents/batch-analyze:
+ *   post:
+ *     summary: Analyze multiple documents in batch with AI
+ *     tags: [Documents]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               documentIds:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 maxItems: 20
+ *               model:
+ *                 type: string
+ *                 enum: [openai, gemini]
+ */
+router.post('/batch-analyze', async (req: Request, res: Response) => {
+  try {
+    const { documentIds, model } = req.body;
+
+    // Validación básica
+    if (!documentIds || !Array.isArray(documentIds) || documentIds.length === 0) {
+      return res.status(400).json({
+        error: 'documentIds array is required and cannot be empty'
+      });
+    }
+
+    if (documentIds.length > 20) {
+      return res.status(400).json({
+        error: 'Maximum 20 documents can be analyzed in batch'
+      });
+    }
+
+    logger.info(`📊 Iniciando análisis en lote: ${documentIds.length} documentos`);
+
+    // Verificar que todos los documentos existen
+    const documents = await prisma.document.findMany({
+      where: {
+        id: { in: documentIds }
+      }
+    });
+
+    const foundIds = documents.map(d => d.id);
+    const notFoundIds = documentIds.filter((id: string) => !foundIds.includes(id));
+
+    if (notFoundIds.length > 0) {
+      return res.status(404).json({
+        error: 'Some documents not found',
+        notFoundIds
+      });
+    }
+
+    // Marcar todos los documentos como PROCESSING
+    await prisma.document.updateMany({
+      where: {
+        id: { in: documentIds }
+      },
+      data: {
+        aiAnalysisStatus: 'PROCESSING'
+      }
+    });
+
+    // Importar servicios
+    const { aiAnalysisService } = await import('@/services/AiAnalysisService');
+    const { documentMetadataExtractor } = await import('@/services/DocumentMetadataExtractor');
+
+    const results = [];
+    const errors = [];
+
+    // Procesar cada documento
+    for (let i = 0; i < documents.length; i++) {
+      const document = documents[i];
+      
+      try {
+        logger.info(`🔍 Procesando ${i + 1}/${documents.length}: ${document.title}`);
+
+        // Extraer metadatos
+        const metadata = await documentMetadataExtractor.extractMetadata({
+          url: document.url,
+          content: document.content || undefined
+        });
+
+        // Obtener contenido
+        let contentForAnalysis = document.content;
+        if (!contentForAnalysis || contentForAnalysis.length < 100) {
+          try {
+            const response = await fetch(document.url);
+            if (response.ok) {
+              contentForAnalysis = await response.text();
+            }
+          } catch (fetchError) {
+            logger.warn(`⚠️  Error obteniendo contenido: ${fetchError}`);
+          }
+        }
+
+        // Análisis de IA
+        let aiAnalysis = null;
+        if (contentForAnalysis && contentForAnalysis.length > 100) {
+          aiAnalysis = await aiAnalysisService.analyzeDocument(
+            contentForAnalysis,
+            document.title,
+            model
+          );
+        }
+
+        // Actualizar documento
+        const updateData: any = {
+          aiAnalysisStatus: 'COMPLETED',
+          aiAnalysisDate: new Date()
+        };
+
+        if (metadata) {
+          updateData.numeroSentencia = metadata.numeroSentencia;
+          updateData.magistradoPonente = metadata.magistradoPonente;
+          updateData.salaRevision = metadata.salaRevision;
+          updateData.fragmentosAnalisis = metadata.rawText.substring(0, 500);
+        }
+
+        if (aiAnalysis) {
+          updateData.temaPrincipal = aiAnalysis.temaPrincipal;
+          updateData.resumenIA = aiAnalysis.resumenIA;
+          updateData.decision = aiAnalysis.decision;
+          updateData.aiModel = aiAnalysis.modeloUsado;
+        }
+
+        await prisma.document.update({
+          where: { id: document.id },
+          data: updateData
+        });
+
+        results.push({
+          id: document.id,
+          title: document.title,
+          success: true,
+          analysis: {
+            metadata,
+            aiAnalysis
+          }
+        });
+
+        // Rate limiting entre documentos
+        if (i < documents.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+
+      } catch (docError) {
+        // Marcar documento como fallido
+        await prisma.document.update({
+          where: { id: document.id },
+          data: {
+            aiAnalysisStatus: 'FAILED'
+          }
+        });
+
+        errors.push({
+          id: document.id,
+          title: document.title,
+          error: docError instanceof Error ? docError.message : 'Unknown error'
+        });
+
+        logger.error(`❌ Error procesando ${document.id}: ${docError}`);
+      }
+    }
+
+    const successful = results.length;
+    const failed = errors.length;
+
+    res.json({
+      data: {
+        successful,
+        failed,
+        results,
+        errors
+      },
+      message: `Batch analysis completed: ${successful} successful, ${failed} failed`
+    });
+
+    logger.info(`✅ Análisis en lote completado: ${successful}/${documents.length} exitosos`);
+
+  } catch (error) {
+    logger.error('Error in batch analysis', { error, userId: req.user.id });
+    res.status(500).json({
+      error: 'Failed to process batch analysis',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 
 export default router;
