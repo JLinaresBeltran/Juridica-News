@@ -10,6 +10,7 @@ export interface ScrapingSource {
 export interface ExtractionRequest {
   source: string
   limit?: number
+  downloadDocuments?: boolean
 }
 
 export interface ExtractionResult {
@@ -60,7 +61,7 @@ export const scrapingService = {
   async extractDocuments(request: ExtractionRequest): Promise<ExtractionResult> {
     try {
       const response = await api.post('/scraping/extract', request, {
-        timeout: 120000, // 2 minutes timeout for scraping operations
+        timeout: 600000, // 10 minutes timeout for scraping operations (web scraping can be slow)
       })
       return response.data.data || response.data
     } catch (error: any) {
@@ -72,10 +73,11 @@ export const scrapingService = {
   /**
    * Start extraction for Corte Constitucional (default source)
    */
-  async extractCorteConstitucional(limit: number = 10): Promise<ExtractionResult> {
+  async extractCorteConstitucional(limit: number = 10, downloadDocuments: boolean = true): Promise<ExtractionResult> {
     return this.extractDocuments({
       source: 'corte_constitucional',
-      limit
+      limit,
+      downloadDocuments
     })
   },
 

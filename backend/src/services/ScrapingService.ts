@@ -6,6 +6,7 @@ import { PrismaClient } from '@prisma/client';
 import { spawn } from 'child_process';
 import path from 'path';
 import { logger } from '@/utils/logger';
+import { sseController } from '@/controllers/sse';
 
 const prisma = new PrismaClient();
 
@@ -58,6 +59,18 @@ export class ScrapingService {
     
     const startTime = Date.now();
     const jobId = this._generateJobId();
+
+    // Enviar evento de inicio a través de SSE
+    if (userId) {
+      sseController.sendEvent(userId, 'scraping_progress', {
+        jobId,
+        status: 'started',
+        message: `Iniciando extracción de ${source} (límite: ${limit})`,
+        progress: 0,
+        source,
+        limit
+      });
+    }
     
     // Crear registro de extracción (sin await para evitar bloqueo si falla)
     try {
@@ -81,7 +94,24 @@ export class ScrapingService {
 
       switch (source) {
         case 'corte_constitucional':
-          const result = await this._extractFromCorteConstitucional(limit, downloadDocuments);
+          // Enviar evento de procesamiento
+          if (userId) {
+            sseController.sendEvent(userId, 'scraping_progress', {
+              jobId,
+              status: 'processing',
+              message: 'Conectando con la Corte Constitucional...',
+              progress: 25
+            });
+          }
+          
+          // Intentar extracción con reintentos
+          const result = await this._extractWithRetry(
+            () => this._extractFromCorteConstitucional(limit, downloadDocuments, userId, jobId),
+            3, // 3 reintentos
+            userId,
+            jobId,
+            source
+          );
           extractedDocuments = result.documents;
           downloadedCount = result.downloadedCount;
           break;
@@ -91,6 +121,17 @@ export class ScrapingService {
           
         default:
           throw new Error(`Fuente no soportada: ${source}`);
+      }
+
+      // Enviar evento de procesamiento de base de datos
+      if (userId) {
+        sseController.sendEvent(userId, 'scraping_progress', {
+          jobId,
+          status: 'processing',
+          message: `Guardando ${extractedDocuments.length} documentos en la base de datos...`,
+          progress: 95,
+          documentsFound: extractedDocuments.length
+        });
       }
 
       // Procesar y guardar documentos en la base de datos
@@ -132,6 +173,20 @@ export class ScrapingService {
 
       logger.info(`✅ Extracción completada - ${savedDocuments.length} documentos procesados en ${extractionTime}s`);
 
+      // Enviar evento de finalización exitosa
+      if (userId) {
+        sseController.sendEvent(userId, 'scraping_progress', {
+          jobId,
+          status: 'completed',
+          message: `Extracción completada - ${savedDocuments.length} documentos procesados`,
+          progress: 100,
+          documentsFound: extractedDocuments.length,
+          documentsProcessed: savedDocuments.length,
+          downloadedCount,
+          extractionTime
+        });
+      }
+
       return {
         jobId,
         documents: savedDocuments,
@@ -141,6 +196,17 @@ export class ScrapingService {
 
     } catch (error) {
       logger.error('❌ Error en extracción:', error);
+      
+      // Enviar evento de error
+      if (userId) {
+        sseController.sendEvent(userId, 'scraping_progress', {
+          jobId,
+          status: 'error',
+          message: `Error en extracción: ${error instanceof Error ? error.message : String(error)}`,
+          progress: 0,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
       
       // Actualizar registro con error (sin bloqueo si falla)
       try {
@@ -161,9 +227,81 @@ export class ScrapingService {
   }
 
   /**
+   * Ejecutar extracción con reintentos automáticos
+   */
+  private async _extractWithRetry<T>(
+    extractionFunction: () => Promise<T>,
+    maxRetries: number,
+    userId?: string,
+    jobId?: string,
+    source?: string
+  ): Promise<T> {
+    let lastError: any;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        // Enviar evento de reintento si no es el primer intento
+        if (attempt > 1 && userId && jobId) {
+          sseController.sendEvent(userId, 'scraping_progress', {
+            jobId,
+            status: 'processing',
+            message: `Reintentando extracción... (intento ${attempt}/${maxRetries})`,
+            progress: 25 + (attempt - 1) * 5,
+            retry: true,
+            attempt,
+            maxRetries
+          });
+        }
+        
+        const result = await extractionFunction();
+        
+        // Si llegamos aquí, la extracción fue exitosa
+        if (attempt > 1 && userId && jobId) {
+          sseController.sendEvent(userId, 'scraping_progress', {
+            jobId,
+            status: 'processing',
+            message: `Extracción exitosa en el intento ${attempt}`,
+            progress: 50,
+            retry: false
+          });
+        }
+        
+        return result;
+        
+      } catch (error) {
+        lastError = error;
+        logger.warn(`❌ Intento ${attempt}/${maxRetries} falló:`, error);
+        
+        // Si no es el último intento, esperar antes del siguiente
+        if (attempt < maxRetries) {
+          const waitTime = attempt * 2; // Espera incremental: 2s, 4s, 6s...
+          logger.info(`⏳ Esperando ${waitTime}s antes del siguiente intento...`);
+          
+          if (userId && jobId) {
+            sseController.sendEvent(userId, 'scraping_progress', {
+              jobId,
+              status: 'processing',
+              message: `Error temporal. Reintentando en ${waitTime}s...`,
+              progress: 25 + (attempt - 1) * 5,
+              retry: true,
+              waitTime
+            });
+          }
+          
+          await new Promise(resolve => setTimeout(resolve, waitTime * 1000));
+        }
+      }
+    }
+    
+    // Si llegamos aquí, todos los reintentos fallaron
+    logger.error(`❌ Todos los reintentos fallaron para ${source}. Último error:`, lastError);
+    throw lastError;
+  }
+
+  /**
    * Extraer documentos de la Corte Constitucional usando el script Python
    */
-  private async _extractFromCorteConstitucional(limit: number, downloadDocuments: boolean): Promise<DocumentExtractionResult> {
+  private async _extractFromCorteConstitucional(limit: number, downloadDocuments: boolean, userId?: string, jobId?: string): Promise<DocumentExtractionResult> {
     return new Promise((resolve, reject) => {
       logger.info('🐍 Ejecutando script Python de extracción...');
       
@@ -185,6 +323,13 @@ export class ScrapingService {
         env: { ...process.env, PYTHONUNBUFFERED: '1' }
       });
 
+      // Configurar timeout para el proceso Python (10 minutos)
+      const timeout = setTimeout(() => {
+        logger.error('❌ Timeout del proceso Python después de 10 minutos');
+        pythonProcess.kill('SIGTERM');
+        reject(new Error('El proceso de extracción excedió el tiempo límite de 10 minutos'));
+      }, 600000); // 10 minutos
+
       let stdout = '';
       let stderr = '';
 
@@ -192,6 +337,38 @@ export class ScrapingService {
         const output = data.toString();
         logger.info('🐍 Python: ' + output.trim());
         stdout += output;
+
+        // Enviar eventos de progreso basados en la salida del script Python
+        if (userId && jobId) {
+          if (output.includes('Conectando a')) {
+            sseController.sendEvent(userId, 'scraping_progress', {
+              jobId,
+              status: 'processing',
+              message: 'Conectando al sitio web...',
+              progress: 40
+            });
+          } else if (output.includes('Sentencia encontrada:')) {
+            const matches = stdout.match(/Sentencia encontrada:/g);
+            const foundCount = matches ? matches.length : 0;
+            sseController.sendEvent(userId, 'scraping_progress', {
+              jobId,
+              status: 'processing',
+              message: `Encontrados ${foundCount} documentos...`,
+              progress: 60 + (foundCount / limit * 30), // Progress from 60% to 90%
+              documentsFound: foundCount
+            });
+          } else if (output.includes('Documento descargado:')) {
+            const downloadMatches = stdout.match(/Documento descargado:/g);
+            const downloadCount = downloadMatches ? downloadMatches.length : 0;
+            sseController.sendEvent(userId, 'scraping_progress', {
+              jobId,
+              status: 'processing',
+              message: `Descargados ${downloadCount} documentos...`,
+              progress: 90 + (downloadCount / limit * 10),
+              documentsProcessed: downloadCount
+            });
+          }
+        }
       });
 
       pythonProcess.stderr.on('data', (data) => {
@@ -201,6 +378,8 @@ export class ScrapingService {
       });
 
       pythonProcess.on('close', (code) => {
+        clearTimeout(timeout); // Limpiar el timeout si el proceso termina normalmente
+        
         if (code === 0) {
           try {
             // Parsear salida JSON del script Python
@@ -218,7 +397,16 @@ export class ScrapingService {
       });
 
       pythonProcess.on('error', (error) => {
+        clearTimeout(timeout);
         logger.error('❌ Error ejecutando script Python:', error);
+        
+        // Cleanup del proceso si es posible
+        try {
+          pythonProcess.kill('SIGTERM');
+        } catch (cleanupError) {
+          logger.warn('⚠️ Error en cleanup del proceso:', cleanupError);
+        }
+        
         reject(new Error(`Error ejecutando Python: ${error.message}`));
       });
     });

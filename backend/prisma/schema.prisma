@@ -1,4 +1,3 @@
-// SQLite-compatible Prisma schema for development
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,37 +7,30 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Models with SQLite compatibility
 model User {
-  id                   String              @id @default(cuid())
-  email                String              @unique
-  password             String              
-  firstName            String              @map("first_name")
-  lastName             String              @map("last_name")
-  role                 String              @default("EDITOR") // Instead of enum
-  status               String              @default("ACTIVE") // Instead of enum
-  avatar               String?
-  department           String?
-  
-  // Auth fields
-  emailVerified        DateTime?           @map("email_verified")
-  emailVerificationToken String?           @unique @map("email_verification_token")
-  passwordResetToken   String?             @unique @map("password_reset_token")
-  passwordResetExpires DateTime?           @map("password_reset_expires")
-  refreshTokens        RefreshToken[]
-  
-  // Activity timestamps
-  lastLogin            DateTime?           @map("last_login")
-  createdAt            DateTime            @default(now()) @map("created_at")
-  updatedAt            DateTime            @updatedAt @map("updated_at")
-  
-  // Relations
-  documentsCreated     Document[]          @relation("DocumentCreator")
-  documentsExtracted   Document[]          @relation("DocumentExtractor")
-  articlesCreated      Article[]           @relation("ArticleAuthor") 
-  auditLogs            AuditLog[]
-  extractionHistory    ExtractionHistory[]
-  
+  id                     String              @id @default(cuid())
+  email                  String              @unique
+  password               String
+  firstName              String              @map("first_name")
+  lastName               String              @map("last_name")
+  role                   String              @default("EDITOR")
+  status                 String              @default("ACTIVE")
+  avatar                 String?
+  department             String?
+  emailVerified          DateTime?           @map("email_verified")
+  emailVerificationToken String?             @unique @map("email_verification_token")
+  passwordResetToken     String?             @unique @map("password_reset_token")
+  passwordResetExpires   DateTime?           @map("password_reset_expires")
+  lastLogin              DateTime?           @map("last_login")
+  createdAt              DateTime            @default(now()) @map("created_at")
+  updatedAt              DateTime            @updatedAt @map("updated_at")
+  articlesCreated        Article[]           @relation("ArticleAuthor")
+  auditLogs              AuditLog[]
+  documentsExtracted     Document[]          @relation("DocumentExtractor")
+  documentsCreated       Document[]          @relation("DocumentCreator")
+  extractionHistory      ExtractionHistory[]
+  refreshTokens          RefreshToken[]
+
   @@map("users")
 }
 
@@ -48,150 +40,126 @@ model RefreshToken {
   userId    String   @map("user_id")
   expiresAt DateTime @map("expires_at")
   createdAt DateTime @default(now()) @map("created_at")
-  
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   @@map("refresh_tokens")
 }
 
 model Document {
-  id                 String     @id @default(cuid())
+  id                 String    @id @default(cuid())
   title              String
-  url                String     @unique
-  content            String     
-  summary            String?    
-  source             String     // Instead of enum
-  legalArea          String     @map("legal_area") // Instead of enum  
-  documentType       String     @map("document_type") // Instead of enum
-  status             String     @default("PENDING") // Instead of enum
-  priority           String     @default("NORMAL") // Instead of enum
-  publicationDate    DateTime   @map("publication_date")
-  internalId         String?    @map("internal_id")
-  extractionDate     DateTime   @default(now()) @map("extraction_date")
-  lastReviewDate     DateTime?  @map("last_review_date")
-  confidenceScore    Float      @default(0.0) @map("confidence_score")
-  keywords           String     @default("") // Comma-separated instead of array
-  relevanceTags      String     @default("") @map("relevance_tags") // Comma-separated
-  
-  // Additional fields for scraping integration
-  externalId         String?    @unique @map("external_id") // ID from source (e.g., T-123/25)
-  metadata           String     @default("{}") // JSON metadata from extraction
-  extractedAt        DateTime?  @map("extracted_at") // When document was scraped
-  userId             String?    @map("user_id") // User who initiated extraction
+  url                String    @unique
+  content            String
+  summary            String?
+  source             String
+  legalArea          String    @map("legal_area")
+  documentType       String    @map("document_type")
+  status             String    @default("PENDING")
+  priority           String    @default("NORMAL")
+  publicationDate    DateTime  @map("publication_date")
+  internalId         String?   @map("internal_id")
+  extractionDate     DateTime  @default(now()) @map("extraction_date")
+  lastReviewDate     DateTime? @map("last_review_date")
+  confidenceScore    Float     @default(0.0) @map("confidence_score")
+  keywords           String    @default("")
+  relevanceTags      String    @default("") @map("relevance_tags")
+  externalId         String?   @unique @map("external_id")
+  metadata           String    @default("{}")
+  extractedAt        DateTime? @map("extracted_at")
+  userId             String?   @map("user_id")
+  numeroSentencia    String?   @map("numero_sentencia")
+  magistradoPonente  String?   @map("magistrado_ponente")
+  salaRevision       String?   @map("sala_revision")
+  expediente         String?   @map("expediente")
+  temaPrincipal      String?   @map("tema_principal")
+  resumenIA          String?   @map("resumen_ia")
+  decision           String?   @map("decision")
+  aiAnalysisStatus   String?   @default("PENDING") @map("ai_analysis_status")
+  aiAnalysisDate     DateTime? @map("ai_analysis_date")
+  aiModel            String?   @map("ai_model")
+  fragmentosAnalisis String?   @default("") @map("fragmentos_analisis")
+  curatorId          String?   @map("curator_id")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+  user               User?     @relation("DocumentExtractor", fields: [userId], references: [id])
+  curator            User?     @relation("DocumentCreator", fields: [curatorId], references: [id])
 
-  // AI Analysis fields
-  numeroSentencia    String?    @map("numero_sentencia") // No. de Sentencia extraído
-  magistradoPonente  String?    @map("magistrado_ponente") // Magistrado Ponente
-  salaRevision       String?    @map("sala_revision") // Sala de Revisión
-  temaPrincipal      String?    @map("tema_principal") // Tema Principal (IA)
-  resumenIA          String?    @map("resumen_ia") // Resumen generado por IA
-  decision           String?    @map("decision") // Decisión del tribunal (IA)
-  aiAnalysisStatus   String?    @default("PENDING") @map("ai_analysis_status") // PENDING, PROCESSING, COMPLETED, FAILED
-  aiAnalysisDate     DateTime?  @map("ai_analysis_date") // Fecha del análisis de IA
-  aiModel            String?    @map("ai_model") // Modelo usado (gpt-4-mini, gemini, etc.)
-  fragmentosAnalisis String?    @default("") @map("fragmentos_analisis") // Fragmentos clave analizados
-
-  // Relations
-  curatorId          String?    @map("curator_id")
-  curator            User?      @relation("DocumentCreator", fields: [curatorId], references: [id])
-  user               User?      @relation("DocumentExtractor", fields: [userId], references: [id])
-  
-  createdAt          DateTime   @default(now()) @map("created_at")
-  updatedAt          DateTime   @updatedAt @map("updated_at")
-  
   @@map("documents")
 }
 
 model Article {
-  id                   String         @id @default(cuid())
-  title                String
-  slug                 String         @unique
-  content              String         
-  summary              String         
-  
-  // SEO
-  metaTitle            String?        @map("meta_title")
-  metaDescription      String?        @map("meta_description")
-  keywords             String         @default("") // Comma-separated
-  canonicalUrl         String?        @map("canonical_url")
-  
-  // Publishing
-  status               String         @default("DRAFT") // Instead of enum
-  publicationSection   String         @map("publication_section") // Instead of enum
-  tags                 String         @default("") // Comma-separated
-  
-  // Dates
-  publishedAt          DateTime?      @map("published_at")
-  scheduledAt          DateTime?      @map("scheduled_at")
-  createdAt            DateTime       @default(now()) @map("created_at")
-  updatedAt            DateTime       @updatedAt @map("updated_at")
-  
-  // Stats
-  views                Int            @default(0)
-  likes                Int            @default(0)
-  wordCount            Int            @default(0) @map("word_count")
-  readingTime          Int            @default(0) @map("reading_time")
-  
-  // Relations
-  authorId             String         @map("author_id")
-  author               User           @relation("ArticleAuthor", fields: [authorId], references: [id])
-  versions             ArticleVersion[]
-  mediaAssets          MediaAsset[]
-  
+  id                 String           @id @default(cuid())
+  title              String
+  slug               String           @unique
+  content            String
+  summary            String
+  metaTitle          String?          @map("meta_title")
+  metaDescription    String?          @map("meta_description")
+  keywords           String           @default("")
+  canonicalUrl       String?          @map("canonical_url")
+  status             String           @default("DRAFT")
+  publicationSection String           @map("publication_section")
+  tags               String           @default("")
+  publishedAt        DateTime?        @map("published_at")
+  scheduledAt        DateTime?        @map("scheduled_at")
+  createdAt          DateTime         @default(now()) @map("created_at")
+  updatedAt          DateTime         @updatedAt @map("updated_at")
+  views              Int              @default(0)
+  likes              Int              @default(0)
+  wordCount          Int              @default(0) @map("word_count")
+  readingTime        Int              @default(0) @map("reading_time")
+  authorId           String           @map("author_id")
+  versions           ArticleVersion[]
+  author             User             @relation("ArticleAuthor", fields: [authorId], references: [id])
+  mediaAssets        MediaAsset[]
+
   @@map("articles")
 }
 
 model ArticleVersion {
-  id                String    @id @default(cuid())
-  articleId         String    @map("article_id")
+  id                String   @id @default(cuid())
+  articleId         String   @map("article_id")
   title             String
-  content           String   
-  summary           String   
-  versionNumber     Int       @map("version_number")
-  changeDescription String?   @map("change_description")
-  createdAt         DateTime  @default(now()) @map("created_at")
-  
-  article           Article   @relation(fields: [articleId], references: [id], onDelete: Cascade)
-  
+  content           String
+  summary           String
+  versionNumber     Int      @map("version_number")
+  changeDescription String?  @map("change_description")
+  createdAt         DateTime @default(now()) @map("created_at")
+  article           Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
   @@unique([articleId, versionNumber])
   @@map("article_versions")
 }
 
 model MediaAsset {
-  id            String   @id @default(cuid())
-  filename      String
-  originalName  String   @map("original_name")
-  mimeType      String   @map("mime_type")
-  size          Int      // in bytes
-  path          String   // file system path or URL
-  assetType     String   @map("asset_type") // Instead of enum
-  tags          String   @default("") // Comma-separated
-  
-  altText       String?  @map("alt_text")
-  caption       String?
-  
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
-  
-  // Relations
-  articleId     String?  @map("article_id")
-  article       Article? @relation(fields: [articleId], references: [id])
-  
+  id           String   @id @default(cuid())
+  filename     String
+  originalName String   @map("original_name")
+  mimeType     String   @map("mime_type")
+  size         Int
+  path         String
+  assetType    String   @map("asset_type")
+  tags         String   @default("")
+  altText      String?  @map("alt_text")
+  caption      String?
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  articleId    String?  @map("article_id")
+  article      Article? @relation(fields: [articleId], references: [id])
+
   @@map("media_assets")
 }
 
 model AuditLog {
   id          String   @id @default(cuid())
-  action      String   // Instead of enum
+  action      String
   description String?
   ipAddress   String?  @map("ip_address")
   userAgent   String?  @map("user_agent")
   timestamp   DateTime @default(now())
-  
-  // Relations
   userId      String   @map("user_id")
   user        User     @relation(fields: [userId], references: [id])
-  
+
   @@map("audit_logs")
 }
 
@@ -202,28 +170,24 @@ model SystemConfig {
   description String?
   category    String   @default("general")
   updatedAt   DateTime @updatedAt @map("updated_at")
-  
+
   @@map("system_config")
 }
 
 model ExtractionHistory {
   id                 String    @id @default(cuid())
-  source             String    // Source of extraction (e.g., "corte_constitucional")
-  status             String    // Status: "running", "completed", "failed"
-  parameters         String    @default("{}") // JSON parameters used for extraction
+  source             String
+  status             String
+  parameters         String    @default("{}")
   documentsFound     Int       @default(0) @map("documents_found")
   documentsProcessed Int       @default(0) @map("documents_processed")
-  executionTime      Float     @default(0.0) @map("execution_time") // in seconds
-  results            String    @default("{}") // JSON results summary
-  error              String?   // Error message if failed
-  
-  // Timestamps
+  executionTime      Float     @default(0.0) @map("execution_time")
+  results            String    @default("{}")
+  error              String?
   startedAt          DateTime  @default(now()) @map("started_at")
   completedAt        DateTime? @map("completed_at")
-  
-  // Relations
   userId             String?   @map("user_id")
   user               User?     @relation(fields: [userId], references: [id])
-  
+
   @@map("extraction_history")
 }

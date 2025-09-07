@@ -151,11 +151,34 @@ export const useAppStore = create<AppState>()(
         partialize: (state) => ({
           uiPreferences: state.uiPreferences,
           editorState: {
+            // ✅ FIX: Persistir estados críticos del editor
+            activeArticleId: state.editorState.activeArticleId,
+            openArticles: state.editorState.openArticles,
             pdfZoomLevel: state.editorState.pdfZoomLevel,
+            pdfCurrentPage: state.editorState.pdfCurrentPage,
             activeEditorTab: state.editorState.activeEditorTab,
+            // Opcional: persistir posición del cursor para mejor UX
+            textEditorCursorPosition: state.editorState.textEditorCursorPosition,
           },
         }),
-        version: 1,
+        version: 2, // ✅ Increment version for migration
+        migrate: (persistedState: any, version) => {
+          // Handle migration between versions
+          if (version === 0 || version === 1) {
+            // Migration logic for version 0/1 -> 2
+            return {
+              ...persistedState,
+              editorState: {
+                ...persistedState.editorState,
+                activeArticleId: null,
+                openArticles: [],
+                pdfCurrentPage: 1,
+                textEditorCursorPosition: undefined,
+              }
+            }
+          }
+          return persistedState
+        },
       }
     )
   )

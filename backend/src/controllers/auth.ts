@@ -26,24 +26,12 @@ const registerSchema = z.object({
   password: z.string().min(8, 'Password must be at least 8 characters'),
   firstName: z.string().min(2, 'First name must be at least 2 characters'),
   lastName: z.string().min(2, 'Last name must be at least 2 characters'),
-  professionalTitle: z.string().optional(),
-  barAssociationNumber: z.string().optional(),
 });
 
 const updateProfileSchema = z.object({
   firstName: z.string().min(2).optional(),
   lastName: z.string().min(2).optional(),
-  professionalTitle: z.string().optional(),
-  barAssociationNumber: z.string().optional(),
-  preferences: z.object({
-    theme: z.enum(['light', 'dark', 'system']).optional(),
-    fontSize: z.enum(['small', 'medium', 'large']).optional(),
-    autoSaveInterval: z.number().min(10).max(300).optional(),
-    showAiConfidence: z.boolean().optional(),
-    emailNotifications: z.boolean().optional(),
-    pushNotifications: z.boolean().optional(),
-    defaultGenerationTone: z.enum(['PROFESSIONAL', 'ACADEMIC', 'ACCESSIBLE']).optional(),
-  }).optional(),
+  department: z.string().optional(),
 });
 
 // JWT utility functions
@@ -315,7 +303,7 @@ router.post('/refresh', async (req: Request, res: Response) => {
         lastName: true,
         role: true,
         status: true,
-        preferences: true,
+        department: true,
       }
     });
 
@@ -372,15 +360,11 @@ router.get('/profile', authMiddleware, async (req: Request, res: Response) => {
         email: true,
         firstName: true,
         lastName: true,
-        professionalTitle: true,
-        barAssociationNumber: true,
         role: true,
         status: true,
-        preferences: true,
+        avatar: true,
+        department: true,
         lastLogin: true,
-        loginCount: true,
-        articlesCreated: true,
-        articlesPublished: true,
         createdAt: true,
         updatedAt: true,
       }
@@ -425,11 +409,9 @@ router.put('/profile', [authMiddleware, validateRequest(updateProfileSchema)], a
         email: true,
         firstName: true,
         lastName: true,
-        professionalTitle: true,
-        barAssociationNumber: true,
         role: true,
         status: true,
-        preferences: true,
+        department: true,
         updatedAt: true,
       }
     });

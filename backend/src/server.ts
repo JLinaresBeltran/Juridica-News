@@ -39,13 +39,13 @@ const prisma = new PrismaClient({
 
 const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
 
-// Rate limiting
+// Rate limiting - More permissive for development
 const limiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'), // 15 minutes
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100'),
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000'), // 1 minute
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '1000'), // 1000 requests
   message: {
     error: 'Too many requests from this IP, please try again later',
-    retryAfter: Math.ceil(parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000') / 1000)
+    retryAfter: Math.ceil(parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000') / 1000)
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -88,8 +88,25 @@ app.use('/api/public', publicRoutes);
 // Auth routes (no auth required for login/register)
 app.use('/api/auth', authRoutes);
 
-// SSE endpoint (auth required)
-app.get('/api/events/stream', authMiddleware, sseController.connect);
+// SSE endpoint with query param auth support (for EventSource compatibility)
+app.get('/api/events/stream', (req, res, next) => {
+  // Try to get token from query params first (for EventSource)
+  const tokenFromQuery = req.query.token as string;
+  
+  if (tokenFromQuery) {
+    // Set the Authorization header for authMiddleware
+    req.headers.authorization = `Bearer ${tokenFromQuery}`;
+  }
+  
+  // Now use the regular auth middleware
+  authMiddleware(req, res, (err) => {
+    if (err) {
+      return next(err);
+    }
+    // If auth passes, connect to SSE
+    sseController.connect(req, res);
+  });
+});
 
 // Protected routes
 app.use('/api/documents', authMiddleware, documentRoutes);

@@ -25,6 +25,7 @@ import { DocumentPreviewModal } from '../../components/curation/DocumentPreviewM
 import { useCurationStore } from '../../stores/curationStore'
 import { useEventStore } from '../../stores/eventStore'
 import documentsService, { type Document as ApiDocument, type DocumentsResponse } from '../../services/documentsService'
+import { useScrollPersistence } from '../../hooks/useScrollPersistence'
 
 // Definir tipos de fuentes de documentos
 interface DocumentSource {
@@ -133,6 +134,18 @@ export default function CurationPage() {
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false)
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null)
   const [refreshCounter, setRefreshCounter] = useState(0)
+
+  // Hook para persistencia del scroll
+  const { 
+    scrollContainerRef, 
+    saveScrollPosition, 
+    restoreScrollPosition, 
+    restoreFromSessionStorage,
+    handleScroll,
+    preserveScroll,
+    forceScrollSave,
+    freezeScrollPosition
+  } = useScrollPersistence({ key: 'curation-page' })
   
   // Estados para documentos reales
   const [realDocuments, setRealDocuments] = useState<RealDocument[]>([])
@@ -150,8 +163,12 @@ export default function CurationPage() {
   } = useCurationStore()
   const subscribe = useEventStore(state => state.subscribe)
   
-  // Cargar documentos pendientes de la API
-  const loadPendingDocuments = useCallback(async () => {
+  // Cargar documentos pendientes de la API con persistencia de scroll
+  const loadPendingDocuments = useCallback(async (preservePosition = false) => {
+    if (preservePosition) {
+      saveScrollPosition()
+    }
+    
     try {
       setIsLoadingDocuments(true)
       const response = await documentsService.getDocuments({
@@ -160,32 +177,39 @@ export default function CurationPage() {
       })
       
       // Mapear documentos de la API al formato esperado por la UI
-      const mappedDocs: RealDocument[] = response.data.map((doc: ApiDocument) => ({
-        id: doc.id,
-        source: mapBackendSource(doc.source),
-        title: doc.title,
-        type: doc.documentType,
-        publicationDate: doc.publicationDate,
-        identifier: doc.externalId || doc.id,
-        status: 'available' as const,
-        area: mapLegalArea(doc.legalArea),
-        summary: doc.summary || '',
-        url: doc.url,
-        extractionDate: doc.extractedAt || doc.createdAt,
-        curatedBy: (doc as any).curatedBy,
+      
+      const mappedDocs: RealDocument[] = response.data.map((doc: ApiDocument) => {
+        const mapped = {
+          id: doc.id,
+          source: mapBackendSource(doc.source),
+          title: doc.title,
+          type: doc.documentType,
+          publicationDate: doc.publicationDate,
+          identifier: doc.externalId || doc.id,
+          status: 'available' as const,
+          area: mapLegalArea(doc.legalArea),
+          summary: doc.summary || '',
+          url: doc.url,
+          extractionDate: doc.extractedAt || doc.createdAt,
+          curatedBy: (doc as any).curatedBy,
+          
+          // Campos de análisis IA
+          numeroSentencia: doc.numeroSentencia,
+          magistradoPonente: doc.magistradoPonente,
+          salaRevision: doc.salaRevision,
+          expediente: doc.expediente,
+          temaPrincipal: doc.temaPrincipal,
+          resumenIA: doc.resumenIA,
+          decision: doc.decision,
+          aiAnalysisStatus: doc.aiAnalysisStatus,
+          aiAnalysisDate: doc.aiAnalysisDate,
+          aiModel: doc.aiModel,
+          fragmentosAnalisis: doc.fragmentosAnalisis
+        }
         
-        // Campos de análisis IA
-        numeroSentencia: doc.numeroSentencia,
-        magistradoPonente: doc.magistradoPonente,
-        salaRevision: doc.salaRevision,
-        temaPrincipal: doc.temaPrincipal,
-        resumenIA: doc.resumenIA,
-        decision: doc.decision,
-        aiAnalysisStatus: doc.aiAnalysisStatus,
-        aiAnalysisDate: doc.aiAnalysisDate,
-        aiModel: doc.aiModel,
-        fragmentosAnalisis: doc.fragmentosAnalisis
-      }))
+        
+        return mapped
+      })
       
       setRealDocuments(mappedDocs)
       setLastUpdated(new Date())
@@ -193,19 +217,27 @@ export default function CurationPage() {
       // Actualizar contadores de fuentes
       updateSourceCounts(mappedDocs)
       
+      // Restaurar posición si se solicitó con delay más largo y múltiples intentos
+      if (preservePosition) {
+        setTimeout(restoreScrollPosition, 500)
+        setTimeout(restoreScrollPosition, 1000)
+        setTimeout(restoreScrollPosition, 1500)
+      }
+      
     } catch (error) {
       console.error('Error cargando documentos:', error)
     } finally {
       setIsLoadingDocuments(false)
     }
-  }, [])
+  }, [saveScrollPosition, restoreScrollPosition])
   
   // Funciones de mapeo
   const mapBackendSource = (source: string): string => {
     const sourceMap: Record<string, string> = {
       'corte_constitucional': 'corte-constitucional',
       'consejo_estado': 'consejo-estado',
-      'corte_suprema': 'corte-suprema-civil'
+      'corte_suprema': 'corte-suprema-civil',
+      'test_local': 'corte-constitucional'
     }
     return sourceMap[source] || source
   }
@@ -219,6 +251,35 @@ export default function CurationPage() {
       'ADMINISTRATIVO': 'administrativo'
     }
     return areaMap[area] || area
+  }
+
+  const getShortTitle = (doc: any): string => {
+    // Priorizar numeroSentencia si está disponible
+    if (doc.numeroSentencia && doc.numeroSentencia.trim()) {
+      return doc.numeroSentencia.trim()
+    }
+    
+    // Extraer patrón T-XXX/XX o similar del título completo
+    const titlePatterns = [
+      /\b([CT]-\d{1,4}\/\d{2,4})\b/i,  // T-347/25, C-123/2024
+      /\b(SU-\d{1,4}\/\d{2,4})\b/i,    // SU-123/25
+      /\b(\d{4}-\d{5})\b/i,            // 2024-12345 (formato alternativo)
+    ]
+    
+    for (const pattern of titlePatterns) {
+      const match = doc.title?.match(pattern)
+      if (match) {
+        return match[1]
+      }
+    }
+    
+    // Fallback: mostrar primeras palabras del título si no hay patrón
+    if (doc.title) {
+      const words = doc.title.split(' ').slice(0, 3)
+      return words.join(' ') + (doc.title.split(' ').length > 3 ? '...' : '')
+    }
+    
+    return 'Sin título'
   }
   
   // Actualizar contadores de fuentes con documentos reales
@@ -238,38 +299,73 @@ export default function CurationPage() {
   useEffect(() => {
     loadPendingDocuments()
     
+    // Restaurar scroll desde sessionStorage
+    setTimeout(restoreFromSessionStorage, 100)
+    
+    // Agregar event listener para scroll del contenedor principal
+    const mainContainer = document.querySelector('main > div.h-full.overflow-auto')
+    if (mainContainer) {
+      mainContainer.addEventListener('scroll', handleScroll, { passive: true })
+    } else {
+      // Fallback a window
+      window.addEventListener('scroll', handleScroll, { passive: true })
+    }
+    
     // Suscribirse a eventos de extracción para actualización inmediata
     const unsubscribeExtraction = subscribe('DOCUMENTS_EXTRACTED', () => {
       console.debug('🔔 CurationPage: Documents extracted event received, refreshing list')
-      loadPendingDocuments()
+      loadPendingDocuments(true) // Preservar scroll
     })
     
     const unsubscribeRefresh = subscribe('REFRESH_CURATION_LIST', () => {
       console.debug('🔔 CurationPage: Refresh curation list event received')
-      loadPendingDocuments()
+      loadPendingDocuments(true) // Preservar scroll
     })
     
-    // Recargar cada 30 segundos (backup)
-    const interval = setInterval(loadPendingDocuments, 30000)
+    // Recargar cada 60 segundos para producción
+    const interval = setInterval(async () => {
+      if (viewMode === 'grid') {
+        // Para grid view: forzar guardado con congelación
+        forceScrollSave()
+        await loadPendingDocuments(false) // No usar scroll preservation automático
+        
+        // Múltiples intentos de restauración específicos para grid
+        setTimeout(restoreScrollPosition, 100)
+        setTimeout(restoreScrollPosition, 300)
+        setTimeout(restoreScrollPosition, 500)
+        setTimeout(restoreScrollPosition, 800)
+      } else {
+        // Para list view: usar el método preserveScroll normal
+        forceScrollSave()
+        await loadPendingDocuments(true) // Preservar scroll
+      }
+    }, 60000)
     
     return () => {
       clearInterval(interval)
       unsubscribeExtraction()
       unsubscribeRefresh()
+      
+      // Limpiar event listeners
+      const mainContainer = document.querySelector('main > div.h-full.overflow-auto')
+      if (mainContainer) {
+        mainContainer.removeEventListener('scroll', handleScroll)
+      } else {
+        window.removeEventListener('scroll', handleScroll)
+      }
     }
-  }, [loadPendingDocuments, subscribe])
+  }, [loadPendingDocuments, subscribe, restoreFromSessionStorage, forceScrollSave, handleScroll, viewMode, restoreScrollPosition])
   
   // Efecto para recargar cuando cambie el refreshCounter (desde otras páginas)
   useEffect(() => {
     if (refreshCounter > 0) {
-      loadPendingDocuments()
+      loadPendingDocuments(true) // Preservar scroll al recargar desde otras páginas
     }
-  }, [refreshCounter])
+  }, [refreshCounter, loadPendingDocuments])
 
   // Filtrar documentos por fuente seleccionada (usar documentos reales)
   const filteredDocuments = useMemo(() => {
     let docs = realDocuments.length > 0 ? realDocuments : mockDocuments
-
     // Excluir documentos aprobados y rechazados de la vista principal
     docs = docs.filter(doc => !isDocumentApproved(doc.id) && !isDocumentRejected(doc.id))
 
@@ -282,54 +378,41 @@ export default function CurationPage() {
     if (statusFilter !== 'all') {
       docs = docs.filter(doc => doc.status === statusFilter)
     }
-
     return docs
   }, [realDocuments, selectedSource, statusFilter, isDocumentApproved, isDocumentRejected, refreshCounter])
 
-  const handleDocumentAction = (docId: string, action: 'approve' | 'reject' | 'preview' | 'analyze') => {
-    const document = (realDocuments.length > 0 ? realDocuments : mockDocuments).find(doc => doc.id === docId)
-    
-    if (action === 'preview' && document) {
-      setSelectedDocument(document)
-      setIsPreviewModalOpen(true)
-    } else if (action === 'approve') {
-      handleApproveDocument(docId)
-    } else if (action === 'reject') {
-      handleRejectDocument(docId)
-    } else if (action === 'analyze') {
-      handleAnalyzeDocument(docId)
-    }
-  }
+  const handleClosePreview = useCallback(() => {
+    setIsPreviewModalOpen(false)
+    setSelectedDocument(null)
+    // Restaurar scroll después de cerrar el modal
+    setTimeout(restoreScrollPosition, 50)
+  }, [restoreScrollPosition])
 
-  const handleApproveDocument = async (docId: string) => {
+  const handleApproveDocument = useCallback(async (docId: string) => {
     const document = (realDocuments.length > 0 ? realDocuments : mockDocuments).find(doc => doc.id === docId)
     if (document) {
       approveDocument(document)
       console.log(`Documento ${docId} aprobado`)
-      // Forzar re-render inmediato
-      setRefreshCounter(prev => prev + 1)
       // Cerrar modal automáticamente después de aprobar
       handleClosePreview()
     }
-  }
+  }, [realDocuments, approveDocument, handleClosePreview])
 
-  const handleRejectDocument = async (docId: string) => {
+  const handleRejectDocument = useCallback(async (docId: string) => {
     const document = (realDocuments.length > 0 ? realDocuments : mockDocuments).find(doc => doc.id === docId)
     if (document) {
       rejectDocument(document, 'Rechazado desde curación')
       console.log(`Documento ${docId} rechazado`)
-      // Forzar re-render inmediato
-      setRefreshCounter(prev => prev + 1)
       // Cerrar modal automáticamente después de rechazar
       handleClosePreview()
     }
-  }
+  }, [realDocuments, rejectDocument, handleClosePreview])
 
-  const handleAnalyzeDocument = async (docId: string) => {
+  const handleAnalyzeDocument = useCallback(async (docId: string) => {
     try {
       console.log(`🔍 Iniciando análisis de IA para documento: ${docId}`)
       
-      // Actualizar el estado local inmediatamente para mostrar "Procesando"
+      // ✅ FIX: Actualizar solo el estado de análisis sin cambiar otros campos
       setRealDocuments(prev => 
         prev.map(doc => 
           doc.id === docId 
@@ -348,43 +431,73 @@ export default function CurationPage() {
         const aiAnalysis = response.data?.analysis?.aiAnalysis
         const updatedDocument = response.data?.document
         
-        // Crear el documento actualizado con los resultados del análisis
-        const updatedDoc = {
-          ...realDocuments.find(doc => doc.id === docId),
-          ...(updatedDocument || {}),
-          // Mapear campos del análisis IA si están disponibles
-          ...(aiAnalysis && {
-            temaPrincipal: aiAnalysis.temaPrincipal,
-            resumenIA: aiAnalysis.resumenIA,
-            decision: aiAnalysis.decision,
-            numeroSentencia: aiAnalysis.numeroSentencia,
-            magistradoPonente: aiAnalysis.magistradoPonente,
-            salaRevision: aiAnalysis.salaRevision,
-            expediente: aiAnalysis.expediente,
-            aiModel: aiAnalysis.modeloUsado
-          }),
-          aiAnalysisStatus: 'COMPLETED' as any,
-          aiAnalysisDate: new Date().toISOString()
-        }
-
-        // Actualizar el documento en la lista
+        console.log('🔍 Debug aiAnalysis:', aiAnalysis)
+        console.log('🔍 Debug updatedDocument:', updatedDocument)
+        
+        // ✅ FIX: Actualización más conservadora, preservando documento original
         setRealDocuments(prev => 
-          prev.map(doc => doc.id === docId ? updatedDoc : doc)
+          prev.map(doc => {
+            if (doc.id !== docId) return doc
+            
+            // Preservar el documento original y solo actualizar campos específicos de IA
+            return {
+              ...doc, // ✅ Mantener TODOS los campos originales
+              // Solo actualizar campos de análisis IA
+              ...(aiAnalysis && {
+                temaPrincipal: aiAnalysis.temaPrincipal || doc.temaPrincipal,
+                resumenIA: aiAnalysis.resumenIA || doc.resumenIA,
+                decision: aiAnalysis.decision || doc.decision,
+                numeroSentencia: aiAnalysis.numeroSentencia || doc.numeroSentencia,
+                magistradoPonente: aiAnalysis.magistradoPonente || doc.magistradoPonente,
+                salaRevision: aiAnalysis.salaRevision || doc.salaRevision,
+                expediente: aiAnalysis.expediente || doc.expediente,
+                aiModel: aiAnalysis.modeloUsado || doc.aiModel
+              }),
+              // Actualizar metadatos del análisis
+              aiAnalysisStatus: 'COMPLETED' as any,
+              aiAnalysisDate: new Date().toISOString(),
+              // Preservar otros campos importantes del documento original
+              id: doc.id,
+              source: doc.source,
+              title: doc.title,
+              type: doc.type,
+              status: doc.status,
+              area: doc.area,
+              url: doc.url,
+              publicationDate: doc.publicationDate,
+              extractionDate: doc.extractionDate,
+              identifier: doc.identifier
+            }
+          })
         )
         
-        // Si este documento está seleccionado en el modal, actualizarlo también
+        // ✅ FIX: Si el documento está en el modal, actualizarlo de forma consistente
         if (selectedDocument && selectedDocument.id === docId) {
-          setSelectedDocument(updatedDoc as any)
+          setSelectedDocument(prev => {
+            if (!prev || prev.id !== docId) return prev
+            
+            return {
+              ...prev, // Preservar documento del modal
+              ...(aiAnalysis && {
+                temaPrincipal: aiAnalysis.temaPrincipal || prev.temaPrincipal,
+                resumenIA: aiAnalysis.resumenIA || prev.resumenIA,
+                decision: aiAnalysis.decision || prev.decision,
+                numeroSentencia: aiAnalysis.numeroSentencia || prev.numeroSentencia,
+                magistradoPonente: aiAnalysis.magistradoPonente || prev.magistradoPonente,
+                salaRevision: aiAnalysis.salaRevision || prev.salaRevision,
+                expediente: aiAnalysis.expediente || prev.expediente,
+                aiModel: aiAnalysis.modeloUsado || prev.aiModel
+              }),
+              aiAnalysisStatus: 'COMPLETED' as any,
+              aiAnalysisDate: new Date().toISOString()
+            }
+          })
         }
         
-        // Forzar re-render
-        setRefreshCounter(prev => prev + 1)
+        // Obtener información para logging
+        const modelUsed = aiAnalysis?.modeloUsado || 'IA'
+        const documentTitle = (realDocuments.find(doc => doc.id === docId)?.title) || 'documento'
         
-        // Obtener información del modelo y fecha para mostrar al usuario
-        const modelUsed = aiAnalysis?.modeloUsado || updatedDocument?.aiModel || 'IA'
-        const documentTitle = updatedDocument?.title || 'documento'
-        
-        // Mostrar notificación de éxito más informativa
         console.log(`✅ Análisis de IA completado para: ${documentTitle}`)
         console.log(`📊 Modelo utilizado: ${modelUsed}`)
         
@@ -401,7 +514,7 @@ export default function CurationPage() {
         fullError: error
       })
       
-      // Marcar como fallido
+      // ✅ FIX: Solo actualizar el estado de análisis en caso de error
       setRealDocuments(prev => 
         prev.map(doc => 
           doc.id === docId 
@@ -413,14 +526,59 @@ export default function CurationPage() {
       // Mostrar error al usuario de forma menos intrusiva
       console.warn(`❌ Error en el análisis de IA: ${errorMessage}`)
     }
-  }
+  }, [realDocuments, selectedDocument])
 
-  const handleClosePreview = () => {
-    setIsPreviewModalOpen(false)
-    setSelectedDocument(null)
-  }
+  const handleDocumentAction = useCallback((docId: string, action: 'approve' | 'reject' | 'preview' | 'analyze') => {
+    const document = (realDocuments.length > 0 ? realDocuments : mockDocuments).find(doc => doc.id === docId)
+    
+    if (action === 'preview' && document) {
+      // Guardar posición del scroll antes de abrir el modal
+      saveScrollPosition()
+      setSelectedDocument(document)
+      setIsPreviewModalOpen(true)
+    } else if (action === 'approve') {
+      handleApproveDocument(docId)
+    } else if (action === 'reject') {
+      handleRejectDocument(docId)
+    } else if (action === 'analyze') {
+      handleAnalyzeDocument(docId)
+    }
+  }, [realDocuments, saveScrollPosition, handleApproveDocument, handleRejectDocument, handleAnalyzeDocument])
 
-  const toggleSourceExpansion = (sourceId: string) => {
+  // Función para cambiar la fuente seleccionada preservando scroll en grid view
+  const handleSourceSelection = useCallback((sourceId: string) => {
+    const newSelectedSource = selectedSource === sourceId ? null : sourceId
+    
+    if (viewMode === 'grid') {
+      // En grid view, preservar scroll al cambiar fuente
+      forceScrollSave()
+      setSelectedSource(newSelectedSource)
+      
+      // Programar restauraciones múltiples después del re-render
+      setTimeout(restoreScrollPosition, 50)
+      setTimeout(restoreScrollPosition, 200)
+      setTimeout(restoreScrollPosition, 400)
+    } else {
+      // En list view, cambio directo
+      setSelectedSource(newSelectedSource)
+    }
+  }, [selectedSource, viewMode, forceScrollSave, restoreScrollPosition])
+
+  // Función para cambiar el modo de vista preservando scroll
+  const handleViewModeChange = useCallback((newViewMode: 'grid' | 'list') => {
+    if (newViewMode === viewMode) return
+    
+    // Guardar scroll actual antes del cambio de vista
+    forceScrollSave()
+    setViewMode(newViewMode)
+    
+    // Restaurar después del cambio
+    setTimeout(restoreScrollPosition, 100)
+    setTimeout(restoreScrollPosition, 300)
+    setTimeout(restoreScrollPosition, 500)
+  }, [viewMode, forceScrollSave, restoreScrollPosition])
+
+  const toggleSourceExpansion = useCallback((sourceId: string) => {
     const newExpanded = new Set(expandedSources)
     if (newExpanded.has(sourceId)) {
       newExpanded.delete(sourceId)
@@ -428,7 +586,7 @@ export default function CurationPage() {
       newExpanded.add(sourceId)
     }
     setExpandedSources(newExpanded)
-  }
+  }, [expandedSources])
 
   const getDocumentsBySource = useCallback((sourceId: string) => {
     const docs = realDocuments.length > 0 ? realDocuments : mockDocuments
@@ -440,7 +598,7 @@ export default function CurationPage() {
       
       return matchesSource && matchesSearch && matchesStatus && notProcessed
     })
-  }, [statusFilter, isDocumentApproved, isDocumentRejected, refreshCounter])
+  }, [realDocuments, statusFilter, isDocumentApproved, isDocumentRejected, refreshCounter])
 
   // Función para calcular contadores dinámicos por fuente
   const getSourceStats = useCallback((sourceId: string) => {
@@ -469,7 +627,7 @@ export default function CurationPage() {
             onClick={() => {
               if (window.confirm('¿Estás seguro de que quieres reiniciar todos los datos y limpiar el localStorage? Esta acción no se puede deshacer.')) {
                 resetToInitialState()
-                setRefreshCounter(prev => prev + 1)
+                // El componente se re-renderizará automáticamente cuando se actualice el estado
               }
             }}
             className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 hover:bg-[#04315a] hover:text-[#3ff3f2] rounded-lg transition-all duration-200"
@@ -495,7 +653,7 @@ export default function CurationPage() {
           {/* Toggle de vista */}
           <div className="flex items-center border border-gray-300 rounded-lg">
             <button
-              onClick={() => setViewMode('grid')}
+              onClick={() => handleViewModeChange('grid')}
               className={clsx(
                 'p-2 rounded-l-lg transition-all duration-200',
                 viewMode === 'grid'
@@ -507,7 +665,7 @@ export default function CurationPage() {
               <Grid3X3 className="w-4 h-4" />
             </button>
             <button
-              onClick={() => setViewMode('list')}
+              onClick={() => handleViewModeChange('list')}
               className={clsx(
                 'p-2 rounded-r-lg transition-all duration-200',
                 viewMode === 'list'
@@ -535,7 +693,7 @@ export default function CurationPage() {
                 'card dark:bg-gray-800 cursor-pointer transition-all duration-200 hover:shadow-lg',
                 selectedSource === source.id ? 'ring-2 ring-primary-500 bg-primary-50 dark:bg-gray-700' : ''
               )}
-              onClick={() => setSelectedSource(selectedSource === source.id ? null : source.id)}
+              onClick={() => handleSourceSelection(source.id)}
             >
               <div className="card-body">
                 <div className="flex items-center justify-between">
@@ -630,14 +788,36 @@ export default function CurationPage() {
                                     </span>
                                   </div>
 
-                                  {/* Sección principal con fondo gris */}
-                                  <div className="mb-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border-l-2 border-primary-600">
+                                  {/* Sección principal con fondo gris y overlay de procesamiento */}
+                                  <div className={clsx(
+                                    "mb-4 p-4 rounded-lg border-l-2 border-primary-600 relative",
+                                    doc.aiAnalysisStatus === 'PROCESSING' 
+                                      ? "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-400"
+                                      : "bg-gray-50 dark:bg-gray-700"
+                                  )}>
+                                    {/* ✅ FIX: Overlay visual durante procesamiento */}
+                                    {doc.aiAnalysisStatus === 'PROCESSING' && (
+                                      <div className="absolute inset-0 bg-yellow-100/70 dark:bg-yellow-900/40 rounded-lg flex items-center justify-center z-10">
+                                        <div className="bg-white dark:bg-gray-800 px-4 py-2 rounded-lg shadow-lg flex items-center space-x-2">
+                                          <Loader2 className="w-4 h-4 animate-spin text-yellow-600" />
+                                          <span className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                                            Analizando con IA...
+                                          </span>
+                                        </div>
+                                      </div>
+                                    )}
                                     
                                     {/* Nombre del documento */}
                                     <div className="space-y-2">
                                       <div className="font-semibold text-lg text-gray-900 dark:text-gray-100">
-                                        {doc.numeroSentencia || `${doc.type} No. ${doc.identifier}`}
+                                        {getShortTitle(doc)}
                                       </div>
+                                      {/* Número de expediente extraído por IA */}
+                                      {doc.expediente && (
+                                        <div className="text-sm text-gray-600 dark:text-gray-400">
+                                          No. de expediente: {doc.expediente}
+                                        </div>
+                                      )}
                                       {/* Metadatos estructurales extraídos automáticamente */}
                                       {doc.magistradoPonente && (
                                         <div className="text-sm text-gray-600 dark:text-gray-300">
@@ -769,22 +949,42 @@ export default function CurationPage() {
                                   )}
 
                                   {/* Botón de análisis de IA */}
-                                  {doc.status === 'available' && doc.aiAnalysisStatus !== 'PROCESSING' && (
+                                  {doc.status === 'available' && (
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation()
-                                        handleDocumentAction(doc.id, 'analyze')
+                                        if (doc.aiAnalysisStatus !== 'PROCESSING') {
+                                          handleDocumentAction(doc.id, 'analyze')
+                                        }
                                       }}
+                                      disabled={doc.aiAnalysisStatus === 'PROCESSING'}
                                       className={clsx(
-                                        'px-4 py-2 text-xs border rounded-full transition-all duration-200',
-                                        doc.aiAnalysisStatus === 'COMPLETED'
+                                        'px-4 py-2 text-xs border rounded-full transition-all duration-200 flex items-center',
+                                        doc.aiAnalysisStatus === 'PROCESSING' 
+                                          ? 'text-yellow-600 border-yellow-300 bg-yellow-50 cursor-not-allowed'
+                                          : doc.aiAnalysisStatus === 'COMPLETED'
                                           ? 'text-blue-700 border-blue-300 hover:bg-blue-50'
                                           : 'text-purple-700 border-purple-300 hover:bg-purple-50'
                                       )}
-                                      title={doc.aiAnalysisStatus === 'COMPLETED' ? 'Reanalizar con IA' : 'Analizar con IA'}
+                                      title={
+                                        doc.aiAnalysisStatus === 'PROCESSING' 
+                                          ? 'Análisis en progreso...' 
+                                          : doc.aiAnalysisStatus === 'COMPLETED' 
+                                          ? 'Reanalizar con IA' 
+                                          : 'Analizar con IA'
+                                      }
                                     >
-                                      <AlertTriangle className="w-3 h-3 mr-1 inline" />
-                                      {doc.aiAnalysisStatus === 'COMPLETED' ? 'Reanalizar IA' : 'Analizar IA'}
+                                      {doc.aiAnalysisStatus === 'PROCESSING' ? (
+                                        <>
+                                          <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                                          Procesando...
+                                        </>
+                                      ) : (
+                                        <>
+                                          <AlertTriangle className="w-3 h-3 mr-1" />
+                                          {doc.aiAnalysisStatus === 'COMPLETED' ? 'Reanalizar IA' : 'Analizar IA'}
+                                        </>
+                                      )}
                                     </button>
                                   )}
                                   
@@ -906,14 +1106,36 @@ export default function CurationPage() {
                         </span>
                       </div>
 
-                      {/* Sección principal con fondo gris */}
-                      <div className="mb-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border-l-2 border-primary-600">
+                      {/* Sección principal con fondo gris y overlay de procesamiento */}
+                      <div className={clsx(
+                        "mb-4 p-4 rounded-lg border-l-2 border-primary-600 relative",
+                        doc.aiAnalysisStatus === 'PROCESSING' 
+                          ? "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-400"
+                          : "bg-gray-50 dark:bg-gray-700"
+                      )}>
+                        {/* ✅ FIX: Overlay visual durante procesamiento */}
+                        {doc.aiAnalysisStatus === 'PROCESSING' && (
+                          <div className="absolute inset-0 bg-yellow-100/70 dark:bg-yellow-900/40 rounded-lg flex items-center justify-center z-10">
+                            <div className="bg-white dark:bg-gray-800 px-4 py-2 rounded-lg shadow-lg flex items-center space-x-2">
+                              <Loader2 className="w-4 h-4 animate-spin text-yellow-600" />
+                              <span className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                                Analizando con IA...
+                              </span>
+                            </div>
+                          </div>
+                        )}
                         
                         {/* Nombre del documento */}
                         <div className="space-y-2">
                           <div className="font-semibold text-lg text-gray-900 dark:text-gray-100">
-                            {doc.numeroSentencia || `${doc.type} No. ${doc.identifier}`}
+                            {getShortTitle(doc)}
                           </div>
+                          {/* Número de expediente extraído por IA */}
+                          {doc.expediente && (
+                            <div className="text-sm text-gray-600 dark:text-gray-400">
+                              No. de expediente: {doc.expediente}
+                            </div>
+                          )}
                           {/* Metadatos estructurales extraídos automáticamente */}
                           {doc.magistradoPonente && (
                             <div className="text-sm text-gray-600 dark:text-gray-300">
@@ -1042,19 +1264,41 @@ export default function CurationPage() {
                       )}
 
                       {/* Botón de análisis de IA */}
-                      {doc.status === 'available' && doc.aiAnalysisStatus !== 'PROCESSING' && (
+                      {doc.status === 'available' && (
                         <button
-                          onClick={() => handleDocumentAction(doc.id, 'analyze')}
+                          onClick={() => {
+                            if (doc.aiAnalysisStatus !== 'PROCESSING') {
+                              handleDocumentAction(doc.id, 'analyze')
+                            }
+                          }}
+                          disabled={doc.aiAnalysisStatus === 'PROCESSING'}
                           className={clsx(
-                            'px-4 py-2 text-xs border rounded-full transition-all duration-200',
-                            doc.aiAnalysisStatus === 'COMPLETED'
+                            'px-4 py-2 text-xs border rounded-full transition-all duration-200 flex items-center',
+                            doc.aiAnalysisStatus === 'PROCESSING' 
+                              ? 'text-yellow-600 border-yellow-300 bg-yellow-50 cursor-not-allowed'
+                              : doc.aiAnalysisStatus === 'COMPLETED'
                               ? 'text-blue-700 border-blue-300 hover:bg-blue-50'
                               : 'text-purple-700 border-purple-300 hover:bg-purple-50'
                           )}
-                          title={doc.aiAnalysisStatus === 'COMPLETED' ? 'Reanalizar con IA' : 'Analizar con IA'}
+                          title={
+                            doc.aiAnalysisStatus === 'PROCESSING' 
+                              ? 'Análisis en progreso...' 
+                              : doc.aiAnalysisStatus === 'COMPLETED' 
+                              ? 'Reanalizar con IA' 
+                              : 'Analizar con IA'
+                          }
                         >
-                          <AlertTriangle className="w-3 h-3 mr-1 inline" />
-                          {doc.aiAnalysisStatus === 'COMPLETED' ? 'Reanalizar IA' : 'Analizar IA'}
+                          {doc.aiAnalysisStatus === 'PROCESSING' ? (
+                            <>
+                              <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                              Procesando...
+                            </>
+                          ) : (
+                            <>
+                              <AlertTriangle className="w-3 h-3 mr-1" />
+                              {doc.aiAnalysisStatus === 'COMPLETED' ? 'Reanalizar IA' : 'Analizar IA'}
+                            </>
+                          )}
                         </button>
                       )}
                       

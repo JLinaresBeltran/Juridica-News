@@ -34,15 +34,16 @@ def main():
     logger = logging.getLogger("run_extractor")
     
     try:
-        logger.info(f"🚀 Iniciando extracción - Fuente: {args.source}, Límite: {args.limit}")
+        logger.info(f"🚀 Iniciando extracción - Fuente: {args.source}, Límite: {args.limit}, Descarga: {'✅ SÍ' if args.download else '❌ NO'}")
         
         if args.source == 'corte_constitucional':
             from corte_constitucional_extractor import CorteConstitucionalExtractor
             
             # Crear directorio de documentos si no existe
-            download_dir = Path("../../../documents/scraping") if args.download else None
+            download_dir = Path("test_documents") if args.download else None
             if download_dir:
                 download_dir.mkdir(parents=True, exist_ok=True)
+                logger.info(f"📁 Directorio de descarga: {download_dir.absolute()}")
             
             # Crear extractor
             extractor = CorteConstitucionalExtractor(str(download_dir) if download_dir else None)

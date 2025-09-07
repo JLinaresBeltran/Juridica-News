@@ -8,6 +8,10 @@ import { Toaster } from 'react-hot-toast'
 import App from './App.tsx'
 import './index.css'
 
+// ✅ FIX: Importar servicios de persistencia
+import { persistenceValidator } from './utils/persistenceValidator'
+import { syncService } from './services/syncService'
+
 // Create a query client
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -26,6 +30,27 @@ const queryClient = new QueryClient({
     },
   },
 })
+
+// ✅ FIX: Inicializar servicios de persistencia
+const initializePersistenceServices = () => {
+  // Inicializar validador de persistencia
+  setTimeout(() => {
+    persistenceValidator.startAutoValidation()
+    console.log('🔍 PersistenceValidator iniciado')
+  }, 2000)
+
+  // Inicializar servicio de sincronización (solo en producción o si se requiere)
+  setTimeout(() => {
+    if (process.env.NODE_ENV === 'production' || 
+        localStorage.getItem('enable-sync') === 'true') {
+      syncService.start()
+      console.log('🔄 SyncService iniciado')
+    }
+  }, 5000)
+}
+
+// Inicializar servicios después de que React se monte
+initializePersistenceServices()
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

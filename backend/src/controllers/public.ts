@@ -68,7 +68,7 @@ router.get('/articles', validateRequest(publicFiltersSchema, 'query'), async (re
             select: {
               firstName: true,
               lastName: true,
-              professionalTitle: true,
+              department: true,
             }
           }
         }

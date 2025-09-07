@@ -27,6 +27,8 @@ import adminService, { type SystemResetResponse, type SystemInfo } from '../../s
 import documentsService, { type DocumentStatsResponse } from '../../services/documentsService' // FUNCIÓN TEMPORAL
 import { useEventStore } from '../../stores/eventStore'
 import { toast } from 'react-hot-toast'
+import ScrapingProgressModal from '../../components/scraping/ScrapingProgressModal'
+import { useScrapingProgress } from '../../hooks/useScrapingProgress'
 
 const recentActivity = [
   {
@@ -60,6 +62,7 @@ export default function DashboardPage() {
   const [isExtracting, setIsExtracting] = useState(false)
   const [extractionResult, setExtractionResult] = useState<ExtractionResult | null>(null)
   const [showExtractionModal, setShowExtractionModal] = useState(false)
+  const [showProgressModal, setShowProgressModal] = useState(false)
   // FUNCIÓN TEMPORAL - Estados para modal de reset del sistema
   const [showResetModal, setShowResetModal] = useState(false)
   const [resetConfirmation, setResetConfirmation] = useState('')
@@ -74,6 +77,7 @@ export default function DashboardPage() {
   
   const { rejectedDocuments, undoRejection, resetSystemCompletely } = useCurationStore()
   const emit = useEventStore(state => state.emit)
+  const { clearProgress } = useScrapingProgress()
 
   // FUNCIÓN TEMPORAL - Cargar estadísticas del sistema
   const loadSystemStats = async () => {
@@ -209,9 +213,11 @@ export default function DashboardPage() {
   const handleStartExtraction = async () => {
     try {
       setIsExtracting(true)
+      setShowProgressModal(true) // Mostrar modal de progreso inmediatamente
+      clearProgress() // Limpiar progreso anterior
       toast.loading('Iniciando extracción de documentos...', { id: 'extraction' })
       
-      const result = await scrapingService.extractCorteConstitucional(5) // Extraer 5 documentos como ejemplo
+      const result = await scrapingService.extractCorteConstitucional(5, true) // Extraer 5 documentos con descarga habilitada
       
       // Validar respuesta antes de mostrar modal
       if (!result) {
@@ -286,6 +292,17 @@ export default function DashboardPage() {
       toast.error(error.message || 'Error durante la extracción', { id: 'extraction' })
     } finally {
       setIsExtracting(false)
+      // Don't close progress modal here - let it handle completion automatically
+    }
+  }
+
+  const handleProgressComplete = (success: boolean) => {
+    setShowProgressModal(false)
+    setIsExtracting(false)
+    
+    if (success) {
+      // Reload stats after successful extraction
+      loadSystemStats()
     }
   }
 
@@ -908,6 +925,13 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+
+      {/* Scraping Progress Modal */}
+      <ScrapingProgressModal
+        isOpen={showProgressModal}
+        onClose={() => setShowProgressModal(false)}
+        onComplete={handleProgressComplete}
+      />
     </div>
   )
 }

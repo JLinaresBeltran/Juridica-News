@@ -8,6 +8,8 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { PrismaClient } from '@prisma/client';
+// @ts-ignore - mammoth no tiene tipos oficiales
+import mammoth from 'mammoth';
 
 const prisma = new PrismaClient();
 
@@ -23,6 +25,28 @@ function extractTextFromRTF(rtfContent: string): string {
     .trim();
   
   return text;
+}
+
+// Función para extraer texto de archivos DOCX (que tienen extensión .rtf)
+async function extractTextFromDOCX(filePath: string): Promise<string> {
+  try {
+    const result = await mammoth.extractRawText({ path: filePath });
+    return result.value;
+  } catch (error) {
+    console.error(`Error extrayendo texto de DOCX: ${error}`);
+    throw error;
+  }
+}
+
+// Función para detectar si un archivo es realmente DOCX basado en su contenido
+async function isDocxFile(filePath: string): Promise<boolean> {
+  try {
+    const buffer = await fs.readFile(filePath);
+    // Los archivos DOCX empiezan con la secuencia PK (ZIP header)
+    return buffer[0] === 0x50 && buffer[1] === 0x4B;
+  } catch (error) {
+    return false;
+  }
 }
 
 // Función para extraer título del contenido
@@ -85,13 +109,25 @@ async function loadTestDocuments() {
       console.log(`\n📖 Procesando: ${filename}`);
       
       try {
-        // Leer contenido del archivo
-        const rawContent = await fs.readFile(filePath, 'utf-8');
-        
         // Extraer texto según el tipo de archivo
-        let content = rawContent;
+        let content = '';
+        
         if (filename.endsWith('.rtf')) {
-          content = extractTextFromRTF(rawContent);
+          // Verificar si es realmente DOCX con extensión .rtf
+          const isDocx = await isDocxFile(filePath);
+          
+          if (isDocx) {
+            console.log(`   🔍 Detectado archivo DOCX con extensión .rtf`);
+            content = await extractTextFromDOCX(filePath);
+          } else {
+            // Es RTF real
+            const rawContent = await fs.readFile(filePath, 'utf-8');
+            content = extractTextFromRTF(rawContent);
+          }
+        } else {
+          // Para archivos .txt, .html, etc.
+          const rawContent = await fs.readFile(filePath, 'utf-8');
+          content = rawContent;
         }
         
         if (content.length < 100) {
@@ -161,8 +197,11 @@ async function loadTestDocuments() {
     const totalDocs = await prisma.document.count();
     const docsWithContent = await prisma.document.count({
       where: {
-        content: { not: null },
-        AND: { content: { not: '' } }
+        content: { 
+          not: {
+            equals: null
+          }
+        }
       }
     });
     

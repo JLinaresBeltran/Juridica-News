@@ -69,12 +69,18 @@ export const useAuthStore = create<AuthState>()(
           accessToken: state.accessToken,
           refreshToken: state.refreshToken,
           isAuthenticated: state.isAuthenticated,
+          // ✅ FIX: Incluir isLoading para persistencia completa
+          isLoading: state.isLoading,
         }),
-        version: 1,
+        version: 2, // ✅ Increment version for migration
         migrate: (persistedState: any, version) => {
-          // Handle migration between versions if needed
-          if (version === 0) {
-            // Migration logic for version 0 -> 1
+          // Handle migration between versions
+          if (version === 0 || version === 1) {
+            // Migration logic for version 0/1 -> 2
+            return {
+              ...persistedState,
+              isLoading: false, // Default value for new field
+            }
           }
           return persistedState
         },
@@ -108,11 +114,44 @@ const setupTokenRefresh = () => {
   if (!accessToken) return
   
   try {
-    // Decode token to get expiration time
-    const payload = JSON.parse(atob(accessToken.split('.')[1]))
+    // ✅ FIX: Validar formato del token antes de decodificar
+    const tokenParts = accessToken.split('.')
+    if (tokenParts.length !== 3) {
+      console.error('Invalid JWT token format')
+      useAuthStore.getState().clearAuth()
+      return
+    }
+
+    // ✅ FIX: Decodificación segura con manejo de errores
+    let payload: any
+    try {
+      const base64Payload = tokenParts[1]
+      // Agregar padding si es necesario para base64
+      const paddedPayload = base64Payload + '='.repeat((4 - base64Payload.length % 4) % 4)
+      payload = JSON.parse(atob(paddedPayload))
+    } catch (decodeError) {
+      console.error('Failed to decode JWT token:', decodeError)
+      useAuthStore.getState().clearAuth()
+      return
+    }
+
+    // ✅ FIX: Validar campos requeridos del payload
+    if (!payload.exp || typeof payload.exp !== 'number') {
+      console.error('Invalid JWT token: missing or invalid exp field')
+      useAuthStore.getState().clearAuth()
+      return
+    }
+
     const expirationTime = payload.exp * 1000 // Convert to milliseconds
     const currentTime = Date.now()
     const timeUntilExpiry = expirationTime - currentTime
+    
+    // ✅ FIX: Verificar si el token ya expiró
+    if (timeUntilExpiry <= 0) {
+      console.warn('JWT token already expired, clearing auth')
+      useAuthStore.getState().clearAuth()
+      return
+    }
     
     // Refresh token 5 minutes before expiry
     const refreshTime = Math.max(timeUntilExpiry - (5 * 60 * 1000), 0)
@@ -128,9 +167,22 @@ const setupTokenRefresh = () => {
           useAuthStore.getState().clearAuth()
         }
       }, refreshTime)
+    } else {
+      // Si falta menos de 5 minutos, intentar refresh inmediatamente
+      setTimeout(async () => {
+        try {
+          const { refreshUserToken } = await import('@/services/authService')
+          await refreshUserToken()
+        } catch (error) {
+          console.error('Immediate token refresh failed:', error)
+          useAuthStore.getState().clearAuth()
+        }
+      }, 1000) // Esperar 1 segundo para evitar loops
     }
   } catch (error) {
     console.error('Error setting up token refresh:', error)
+    // En caso de error crítico, limpiar autenticación
+    useAuthStore.getState().clearAuth()
   }
 }
 

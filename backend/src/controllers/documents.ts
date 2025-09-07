@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { logger } from '@/utils/logger';
 import { validateRequest } from '@/middleware/validation';
 import { DocumentFilters, DocumentCurationAction, BatchCurationRequest } from '../../../shared/types/document.types';
+import { documentTextExtractor, DocumentTextExtractor } from '@/services/DocumentTextExtractor';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -545,8 +546,54 @@ router.post('/:id/analyze', async (req: Request, res: Response) => {
             });
             
             if (response.ok) {
-              contentForAnalysis = await response.text();
-              logger.info(`✅ Contenido obtenido desde URL: ${contentForAnalysis.length} caracteres`);
+              // Obtener el buffer para verificar el tipo de contenido
+              const buffer = await response.arrayBuffer();
+              const uint8Array = new Uint8Array(buffer);
+              
+              // Verificar si es contenido DOCX (comienza con PK para ZIP)
+              const isDOCX = uint8Array[0] === 0x50 && uint8Array[1] === 0x4B;
+              
+              if (isDOCX) {
+                logger.info(`📄 Detectado contenido DOCX desde URL, extrayendo texto...`);
+                
+                try {
+                  // Extraer texto usando DocumentTextExtractor
+                  const extractedContent = await documentTextExtractor.extractFromBuffer(
+                    Buffer.from(buffer), 
+                    document.title
+                  );
+                  
+                  if (extractedContent) {
+                    // Construir texto estructurado para análisis
+                    const sections = [];
+                    if (extractedContent.structuredContent.introduccion) {
+                      sections.push('=== INTRODUCCIÓN ===\n' + extractedContent.structuredContent.introduccion);
+                    }
+                    if (extractedContent.structuredContent.considerandos) {
+                      sections.push('=== CONSIDERANDOS ===\n' + extractedContent.structuredContent.considerandos);
+                    }
+                    if (extractedContent.structuredContent.resuelve) {
+                      sections.push('=== RESUELVE ===\n' + extractedContent.structuredContent.resuelve);
+                    }
+                    if (extractedContent.structuredContent.otros.length > 0) {
+                      sections.push('=== OTROS ELEMENTOS ===\n' + extractedContent.structuredContent.otros.join('\n\n'));
+                    }
+                    
+                    contentForAnalysis = sections.join('\n\n');
+                    logger.info(`✅ Texto extraído de DOCX desde URL: ${contentForAnalysis.length} caracteres, ${extractedContent.metadata.wordCount} palabras`);
+                  } else {
+                    logger.error(`❌ No se pudo extraer texto del DOCX desde URL`);
+                  }
+                } catch (extractError) {
+                  logger.error(`❌ Error extrayendo texto de DOCX: ${extractError}`);
+                  // Fallback: intentar como texto plano
+                  contentForAnalysis = Buffer.from(buffer).toString('utf-8');
+                }
+              } else {
+                // Contenido no binario, procesar como texto
+                contentForAnalysis = Buffer.from(buffer).toString('utf-8');
+                logger.info(`✅ Contenido de texto obtenido desde URL: ${contentForAnalysis.length} caracteres`);
+              }
             } else {
               logger.error(`❌ Error HTTP ${response.status} al obtener contenido desde URL`);
             }
@@ -576,12 +623,26 @@ router.post('/:id/analyze', async (req: Request, res: Response) => {
         logger.info(`📄 Usando contenido almacenado: ${contentForAnalysis.length} caracteres`);
       }
 
-      // 3. Análisis de IA (ahora sabemos que hay contenido)
-      const aiAnalysis = await aiAnalysisService.analyzeDocument(
-        contentForAnalysis,
-        document.title,
-        model
-      );
+      // 3. Análisis de IA con soporte para archivos DOCX
+      let aiAnalysis;
+      
+      // Si el documento tiene archivo físico DOCX, analizar desde el archivo
+      if (document.filePath && require('fs').existsSync(document.filePath)) {
+        logger.info(`📁 Analizando desde archivo físico: ${document.filePath}`);
+        aiAnalysis = await aiAnalysisService.analyzeDocumentFromFile(
+          document.filePath, 
+          document.title,
+          model
+        );
+      } else {
+        // Fallback: analizar desde contenido en BD
+        logger.info(`📄 Analizando desde contenido almacenado`);
+        aiAnalysis = await aiAnalysisService.analyzeDocument(
+          contentForAnalysis,
+          document.title,
+          model
+        );
+      }
 
       // 4. Actualizar documento con resultados
       const updateData: any = {
@@ -603,6 +664,11 @@ router.post('/:id/analyze', async (req: Request, res: Response) => {
         updateData.resumenIA = aiAnalysis.resumenIA;
         updateData.decision = aiAnalysis.decision;
         updateData.aiModel = aiAnalysis.modeloUsado;
+        // Agregar metadatos específicos del análisis IA
+        if (aiAnalysis.numeroSentencia) updateData.numeroSentencia = aiAnalysis.numeroSentencia;
+        if (aiAnalysis.magistradoPonente) updateData.magistradoPonente = aiAnalysis.magistradoPonente;
+        if (aiAnalysis.salaRevision) updateData.salaRevision = aiAnalysis.salaRevision;
+        if (aiAnalysis.expediente) updateData.expediente = aiAnalysis.expediente;
       }
 
       const updatedDocument = await prisma.document.update({
@@ -781,6 +847,11 @@ router.post('/batch-analyze', async (req: Request, res: Response) => {
           updateData.resumenIA = aiAnalysis.resumenIA;
           updateData.decision = aiAnalysis.decision;
           updateData.aiModel = aiAnalysis.modeloUsado;
+          // Agregar metadatos específicos del análisis IA
+          if (aiAnalysis.numeroSentencia) updateData.numeroSentencia = aiAnalysis.numeroSentencia;
+          if (aiAnalysis.magistradoPonente) updateData.magistradoPonente = aiAnalysis.magistradoPonente;
+          if (aiAnalysis.salaRevision) updateData.salaRevision = aiAnalysis.salaRevision;
+          if (aiAnalysis.expediente) updateData.expediente = aiAnalysis.expediente;
         }
 
         await prisma.document.update({
