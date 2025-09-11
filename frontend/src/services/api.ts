@@ -19,15 +19,6 @@ api.interceptors.request.use(
   (config) => {
     const { accessToken } = useAuthStore.getState()
     
-    // Log all requests for debugging
-    console.log('🌐 API REQUEST:', {
-      method: config.method?.toUpperCase(),
-      url: config.url,
-      fullUrl: `${config.baseURL}${config.url}`,
-      hasAuth: !!accessToken,
-      data: config.data
-    })
-    
     if (accessToken) {
       config.headers.Authorization = `Bearer ${accessToken}`
     }
@@ -35,7 +26,6 @@ api.interceptors.request.use(
     return config
   },
   (error) => {
-    console.error('🚨 API REQUEST ERROR:', error)
     return Promise.reject(error)
   }
 )

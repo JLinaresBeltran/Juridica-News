@@ -123,23 +123,6 @@ export const useCurationStore = create<CurationState>()(
             try {
               set({ isLoading: true, syncError: null })
               
-              // ✅ DEBUG: Log del documento completo antes de enviar
-              console.log('🔍 DEBUG: Documento a aprobar:', {
-                id: document.id,
-                title: document.title,
-                hasAiData: {
-                  numeroSentencia: !!document.numeroSentencia,
-                  magistradoPonente: !!document.magistradoPonente,
-                  resumenIA: !!document.resumenIA,
-                  temaPrincipal: !!document.temaPrincipal
-                },
-                aiFields: {
-                  numeroSentencia: document.numeroSentencia,
-                  magistradoPonente: document.magistradoPonente,
-                  resumenIA: document.resumenIA?.substring(0, 100) + '...',
-                  temaPrincipal: document.temaPrincipal
-                }
-              })
               
               // ✅ FIX: Incluir datos de IA en la aprobación
               const requestData = {
@@ -171,8 +154,6 @@ export const useCurationStore = create<CurationState>()(
                 })
               }
               
-              // ✅ DEBUG: Log del request que se enviará
-              console.log('📤 DEBUG: Request data para aprobación:', requestData)
               
               await api.post(`/documents/${document.id}/curate`, requestData)
               set({ 
@@ -379,11 +360,6 @@ export const useCurationStore = create<CurationState>()(
             try {
               set({ isLoading: true, syncError: null })
               
-              console.log('🔄 Moviendo a READY con datos de artículo:', {
-                documentId: document.id,
-                articleTitle: articleData?.title,
-                hasContent: !!articleData?.content
-              })
               
               // ✅ FIX: Usar el endpoint de curación con datos de artículo para crear artículo completo
               await api.post(`/documents/${document.id}/curate`, {
@@ -593,7 +569,6 @@ export const useCurationStore = create<CurationState>()(
             archivedDocuments: []
           })
           
-          console.warn('🧹 FUNCIÓN TEMPORAL: Store de curación reseteado completamente')
         },
 
         // Refresh methods for event system

@@ -1,5 +1,4 @@
 import { Routes, Route } from 'react-router-dom'
-import { useAuthStore } from '@/stores/authStore'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { MainLayout } from '@/components/layout/MainLayout'
 
@@ -14,19 +13,17 @@ import PublicPortalPage from '@/pages/public/PublicPortalPage'
 import PublicArticlePage from '@/pages/public/PublicArticlePage'
 
 // Section Pages
-import DigitalPage from '@/pages/public/DigitalPage'
+import AdministrativoPage from '@/pages/public/AdministrativoPage'
 import CivilPage from '@/pages/public/CivilPage'
-import PenalPage from '@/pages/public/PenalPage'
+import ComercialPage from '@/pages/public/ComercialPage'
+import DigitalPage from '@/pages/public/DigitalPage'
 import FamiliaPage from '@/pages/public/FamiliaPage'
 import LaboralPage from '@/pages/public/LaboralPage'
-import TributarioPage from '@/pages/public/TributarioPage'
-import ComercialPage from '@/pages/public/ComercialPage'
-import AdministrativoPage from '@/pages/public/AdministrativoPage'
 import OpinionPage from '@/pages/public/OpinionPage'
+import PenalPage from '@/pages/public/PenalPage'
+import TributarioPage from '@/pages/public/TributarioPage'
 
 function App() {
-  const { isAuthenticated } = useAuthStore()
-
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Routes>
@@ -36,15 +33,15 @@ function App() {
         <Route path="/portal/articles/:slug" element={<PublicArticlePage />} />
         
         {/* Section routes */}
-        <Route path="/portal/digital" element={<DigitalPage />} />
+        <Route path="/portal/administrativo" element={<AdministrativoPage />} />
         <Route path="/portal/civil" element={<CivilPage />} />
-        <Route path="/portal/penal" element={<PenalPage />} />
+        <Route path="/portal/comercial" element={<ComercialPage />} />
+        <Route path="/portal/digital" element={<DigitalPage />} />
         <Route path="/portal/familia" element={<FamiliaPage />} />
         <Route path="/portal/laboral" element={<LaboralPage />} />
-        <Route path="/portal/tributario" element={<TributarioPage />} />
-        <Route path="/portal/comercial" element={<ComercialPage />} />
-        <Route path="/portal/administrativo" element={<AdministrativoPage />} />
         <Route path="/portal/opinion" element={<OpinionPage />} />
+        <Route path="/portal/penal" element={<PenalPage />} />
+        <Route path="/portal/tributario" element={<TributarioPage />} />
         
         {/* Protected routes */}
         <Route

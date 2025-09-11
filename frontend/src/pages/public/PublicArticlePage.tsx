@@ -24,7 +24,6 @@ export default function PublicArticlePage() {
   const relatedArticles = article ? getRelatedArticles(article, 4) : []
 
   const handleSearch = (query: string) => {
-    console.log('Búsqueda:', query)
     // TODO: Implementar lógica de búsqueda
   }
 

@@ -22,7 +22,6 @@ export default function PublicPortalPage() {
   const postExpedientArticles = mockArticles.slice(9, 11)
 
   const handleSearch = (query: string) => {
-    console.log('Búsqueda:', query)
     // TODO: Implementar lógica de búsqueda
   }
 

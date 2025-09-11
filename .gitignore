@@ -41,7 +41,6 @@ yarn-error.log*
 coverage/
 htmlcov/
 .coverage
-testing/generated-by-three-amigos/
 
 # Build outputs
 dist/
@@ -52,6 +51,14 @@ build/
 *.d.ts
 *.js.map
 *.d.ts.map
+
+# Compiled TypeScript in shared directory
+shared/types/*.js
+shared/types/*.d.ts
+shared/types/*.map
+
+# Backend compiled files
+backend/dist/
 
 # Test files and backups
 *.backup

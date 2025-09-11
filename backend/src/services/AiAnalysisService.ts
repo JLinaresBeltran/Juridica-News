@@ -643,15 +643,10 @@ CRÍTICO: Responde únicamente el JSON solicitado, sin comentarios adicionales.
     ];
 
     // 🎯 PASO 1: Buscar PRIMERO en el título del documento
-    logger.info(`🔧 DEBUG - Título del documento: "${documentTitle}"`);
-    
     for (const pattern of sentenciaPatterns) {
       const titleMatch = documentTitle.match(pattern);
-      logger.info(`🔧 DEBUG - Probando patrón en TÍTULO: ${pattern.toString()}`);
       
       if (titleMatch) {
-        logger.info(`🔧 DEBUG - Match encontrado en TÍTULO: ${JSON.stringify(titleMatch)}`);
-        
         // Normalizar formato: C-223 DE 2025 → C-223/25
         const numeroNormalizado = titleMatch[1].toUpperCase()
           .replace(/\s+DE\s+/, '/').replace(/\s*-\s*/, '/').replace(/\s/g, '');
@@ -677,8 +672,6 @@ CRÍTICO: Responde únicamente el JSON solicitado, sin comentarios adicionales.
     
     // 🎯 PASO 2: Solo si no se encontró en el título, buscar en el contenido (con más restricciones)
     if (!metadata.numeroSentencia) {
-      logger.info(`🔧 DEBUG - No se encontró número en título, buscando en contenido (primeros 500 chars): "${content.substring(0, 500)}"`);
-      
       const restrictivePatterns = [
         // Patrones muy específicos para evitar referencias cruzadas
         /sentencia\s+([CT]-\d+(?:\s*\/\s*|\s*-\s*)\d{2,4})/im,
@@ -687,11 +680,8 @@ CRÍTICO: Responde únicamente el JSON solicitado, sin comentarios adicionales.
       
       for (const pattern of restrictivePatterns) {
         const match = content.match(pattern);
-        logger.info(`🔧 DEBUG - Probando patrón restrictivo en CONTENIDO: ${pattern.toString()}`);
         
         if (match) {
-          logger.info(`🔧 DEBUG - Match encontrado en CONTENIDO: ${JSON.stringify(match)}`);
-          
           const numeroNormalizado = match[1].toUpperCase()
             .replace(/\s+DE\s+/, '/').replace(/\s*-\s*/, '/').replace(/\s/g, '');
           
