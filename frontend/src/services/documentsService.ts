@@ -252,6 +252,19 @@ class DocumentsService {
       };
     }
   }
+
+  /**
+   * Obtener un documento específico por ID
+   */
+  async getDocumentById(id: string): Promise<{ data: Document }> {
+    try {
+      const response = await api.get<{ data: Document }>(`/documents/${id}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ Error fetching document by ID:', error.response?.data || error.message);
+      throw error;
+    }
+  }
 }
 
 // FUNCIÓN TEMPORAL - Exportar instancia única del servicio

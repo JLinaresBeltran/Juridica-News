@@ -5,9 +5,12 @@ import {
   Check, 
   BookOpen,
   Zap,
-  GraduationCap
+  GraduationCap,
+  AlertCircle
 } from 'lucide-react'
 import { clsx } from 'clsx'
+import ModelSelector, { AIModel } from '../common/ModelSelector'
+import aiService from '../../services/aiService'
 
 interface TitleOption {
   id: string
@@ -58,14 +61,18 @@ export default function TitleGenerator({
   const [isGenerating, setIsGenerating] = useState(false)
   const [selectedStyle, setSelectedStyle] = useState<string | null>(null)
   const [generatedTitles, setGeneratedTitles] = useState<string[]>([])
+  const [selectedModel, setSelectedModel] = useState<AIModel>('gpt4o-mini')
+  const [generationError, setGenerationError] = useState<string | null>(null)
+  const [showModelSelector, setShowModelSelector] = useState(false)
 
   // Función para guardar estado en localStorage
-  const saveTitleState = (style: string, titles: string[]) => {
+  const saveTitleState = (style: string, titles: string[], model: AIModel) => {
     if (document?.id) {
       const storageKey = `title-generator-${document.id}`
       const titleState = {
         selectedStyle: style,
         generatedTitles: titles,
+        selectedModel: model,
         lastModified: new Date().toISOString()
       }
       localStorage.setItem(storageKey, JSON.stringify(titleState))
@@ -84,6 +91,7 @@ export default function TitleGenerator({
           const parsedState = JSON.parse(savedState)
           setSelectedStyle(parsedState.selectedStyle)
           setGeneratedTitles(parsedState.generatedTitles || [])
+          setSelectedModel(parsedState.selectedModel || 'gpt4o-mini')
           console.log('Estado del generador de títulos cargado:', parsedState)
         } catch (error) {
           console.error('Error cargando estado del generador de títulos:', error)
@@ -93,6 +101,11 @@ export default function TitleGenerator({
   }, [document?.id])
 
   const generateTitlesForStyle = async (styleKey: string) => {
+    if (!selectedModel) {
+      setShowModelSelector(true)
+      return
+    }
+
     // Si ya tenemos títulos para este estilo y no es una regeneración, no generar de nuevo
     if (selectedStyle === styleKey && generatedTitles.length > 0) {
       return
@@ -100,37 +113,29 @@ export default function TitleGenerator({
 
     setIsGenerating(true)
     setSelectedStyle(styleKey)
+    setGenerationError(null)
+    
     try {
-      console.log('Generando títulos para estilo:', styleKey)
+      console.log('Generando títulos para estilo:', styleKey, 'con modelo:', selectedModel)
       
-      // Simulación de generación de títulos
-      await new Promise(resolve => setTimeout(resolve, 1500))
+      // Llamada real a la API para generar títulos
+      const result = await aiService.generateTitles({
+        documentId: document.id,
+        model: selectedModel,
+        style: styleKey as 'serious' | 'catchy' | 'educational',
+        count: 3
+      })
       
-      const mockTitles = {
-        serious: [
-          `Análisis jurisprudencial: ${document.identifier} sobre ${document.area.toLowerCase()}`,
-          `Implicaciones del ${document.identifier} en el desarrollo del derecho ${document.area.toLowerCase()}`,
-          `Estudio técnico de la decisión judicial ${document.identifier} - ${document.area}`
-        ],
-        catchy: [
-          `La decisión que está revolucionando el ${document.area.toLowerCase()} en Colombia`,
-          `¡Atención abogados! Esta sentencia cambia todo en ${document.area.toLowerCase()}`,
-          `El fallo que todos están comentando: ${document.identifier} explicado`
-        ],
-        educational: [
-          `¿Qué significa realmente ${document.identifier}? Todo lo que debes saber`,
-          `Guía completa: Cómo entender el ${document.identifier} paso a paso`,
-          `${document.identifier} explicado en términos simples para todos`
-        ]
-      }
-      
-      const titles = mockTitles[styleKey as keyof typeof mockTitles] || []
-      setGeneratedTitles(titles)
+      setGeneratedTitles(result.titles)
       
       // Guardar estado después de generar títulos
-      saveTitleState(styleKey, titles)
+      saveTitleState(styleKey, result.titles, selectedModel)
+
+      console.log(`✅ Títulos generados exitosamente: ${result.titles.length} títulos con ${result.modelUsed}`)
+      
     } catch (error) {
       console.error('Error generando títulos:', error)
+      setGenerationError(error instanceof Error ? aiService.formatErrorMessage(error) : 'Error desconocido')
     } finally {
       setIsGenerating(false)
     }
@@ -157,9 +162,33 @@ export default function TitleGenerator({
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 flex flex-col items-center">
+      {/* Selector de modelo */}
+      <div className="w-full max-w-4xl">
+        <ModelSelector
+          selectedModel={selectedModel}
+          onModelSelect={setSelectedModel}
+          purpose="title"
+          compact={true}
+          className="justify-center"
+        />
+      </div>
+
+      {/* Error de generación */}
+      {generationError && (
+        <div className="w-full max-w-4xl p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+          <div className="flex items-start space-x-2">
+            <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
+            <div className="text-sm text-red-700 dark:text-red-300">
+              <p className="font-medium">Error al generar títulos</p>
+              <p className="mt-1">{generationError}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Tarjetas de estilo */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
         {Object.entries(TITLE_STYLES).map(([styleKey, style]) => {
           const isSelected = selectedStyle === styleKey
           
@@ -203,7 +232,7 @@ export default function TitleGenerator({
 
       {/* Opciones de títulos generadas */}
       {generatedTitles.length > 0 && (
-        <div className="space-y-4">
+        <div className="space-y-4 w-full">
           <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100 text-center">
             Opciones generadas para estilo {selectedStyle && TITLE_STYLES[selectedStyle as keyof typeof TITLE_STYLES].name}
           </h4>
@@ -240,13 +269,21 @@ export default function TitleGenerator({
             <button
               onClick={() => {
                 if (selectedStyle) {
+                  // Force regeneration by clearing existing titles
+                  setGeneratedTitles([])
                   generateTitlesForStyle(selectedStyle)
                 }
               }}
-              className="inline-flex items-center space-x-2 px-4 py-2 text-sm text-[#04315a] hover:text-[#3ff3f2] hover:bg-[#04315a] rounded-lg transition-colors dark:text-[#3ff3f2] dark:hover:text-[#04315a] dark:hover:bg-[#3ff3f2]"
+              disabled={isGenerating || !selectedModel}
+              className={clsx(
+                'inline-flex items-center space-x-2 px-4 py-2 text-sm rounded-lg transition-colors',
+                isGenerating || !selectedModel
+                  ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                  : 'text-[#04315a] hover:text-[#3ff3f2] hover:bg-[#04315a] dark:text-[#3ff3f2] dark:hover:text-[#04315a] dark:hover:bg-[#3ff3f2]'
+              )}
             >
-              <RefreshCw className="w-4 h-4" />
-              <span>Regenerar títulos</span>
+              <RefreshCw className={clsx('w-4 h-4', isGenerating && 'animate-spin')} />
+              <span>{isGenerating ? 'Regenerando...' : 'Regenerar títulos'}</span>
             </button>
           </div>
         </div>

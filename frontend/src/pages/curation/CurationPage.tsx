@@ -26,6 +26,7 @@ import { useCurationStore } from '../../stores/curationStore'
 import { useEventStore } from '../../stores/eventStore'
 import documentsService, { type Document as ApiDocument, type DocumentsResponse } from '../../services/documentsService'
 import { useScrollPersistence } from '../../hooks/useScrollPersistence'
+import { useSmartPolling } from '../../hooks/useSmartPolling'
 
 // Definir tipos de fuentes de documentos
 interface DocumentSource {
@@ -162,6 +163,18 @@ export default function CurationPage() {
     resetToInitialState
   } = useCurationStore()
   const subscribe = useEventStore(state => state.subscribe)
+  
+  // Smart polling hook
+  const { triggerPoll, isPolling, isReading } = useSmartPolling({
+    eventTriggers: ['analyze', 'preview', 'approve', 'reject', 'navigate', 'windowFocus'],
+    backgroundInterval: 10 * 60 * 1000, // 10 minutos
+    readingDetection: true,
+    readingThreshold: 3 * 1000, // 3 segundos sin actividad = leyendo
+    windowFocusRefresh: true,
+    pollingFunction: async (preserveScroll = false) => {
+      await loadPendingDocuments(preserveScroll)
+    }
+  })
   
   // Cargar documentos pendientes de la API con persistencia de scroll
   const loadPendingDocuments = useCallback(async (preservePosition = false) => {
@@ -311,40 +324,11 @@ export default function CurationPage() {
       window.addEventListener('scroll', handleScroll, { passive: true })
     }
     
-    // Suscribirse a eventos de extracción para actualización inmediata
-    const unsubscribeExtraction = subscribe('DOCUMENTS_EXTRACTED', () => {
-      console.debug('🔔 CurationPage: Documents extracted event received, refreshing list')
-      loadPendingDocuments(true) // Preservar scroll
-    })
-    
-    const unsubscribeRefresh = subscribe('REFRESH_CURATION_LIST', () => {
-      console.debug('🔔 CurationPage: Refresh curation list event received')
-      loadPendingDocuments(true) // Preservar scroll
-    })
-    
-    // Recargar cada 60 segundos para producción
-    const interval = setInterval(async () => {
-      if (viewMode === 'grid') {
-        // Para grid view: forzar guardado con congelación
-        forceScrollSave()
-        await loadPendingDocuments(false) // No usar scroll preservation automático
-        
-        // Múltiples intentos de restauración específicos para grid
-        setTimeout(restoreScrollPosition, 100)
-        setTimeout(restoreScrollPosition, 300)
-        setTimeout(restoreScrollPosition, 500)
-        setTimeout(restoreScrollPosition, 800)
-      } else {
-        // Para list view: usar el método preserveScroll normal
-        forceScrollSave()
-        await loadPendingDocuments(true) // Preservar scroll
-      }
-    }, 60000)
+    // Eliminadas suscripciones automáticas a eventos para evitar ciclo infinito
+    // El Smart Polling ahora maneja todas las actualizaciones
     
     return () => {
-      clearInterval(interval)
-      unsubscribeExtraction()
-      unsubscribeRefresh()
+      // No más event listeners automáticos
       
       // Limpiar event listeners
       const mainContainer = document.querySelector('main > div.h-full.overflow-auto')
@@ -388,15 +372,29 @@ export default function CurationPage() {
     setTimeout(restoreScrollPosition, 50)
   }, [restoreScrollPosition])
 
-  const handleApproveDocument = useCallback(async (docId: string) => {
+  const handleApproveDocument = useCallback(async (docId: string, articleData?: any) => {
     const document = (realDocuments.length > 0 ? realDocuments : mockDocuments).find(doc => doc.id === docId)
     if (document) {
-      approveDocument(document)
+      // Si hay datos de artículo, pasarlos al store
+      if (articleData) {
+        console.log(`📄 Aprobando documento ${docId} con artículo generado:`, {
+          title: articleData.title?.substring(0, 50),
+          contentLength: articleData.content?.length || 0,
+          hasImage: !!articleData.image,
+          publicationSection: articleData.publicationSection
+        })
+        await approveDocument(document, true, articleData) // true for syncToBackend
+      } else {
+        await approveDocument(document)
+      }
+      
       console.log(`Documento ${docId} aprobado`)
       // Cerrar modal automáticamente después de aprobar
       handleClosePreview()
+      // Trigger polling después de aprobar
+      triggerPoll('approve', true)
     }
-  }, [realDocuments, approveDocument, handleClosePreview])
+  }, [realDocuments, approveDocument, handleClosePreview, triggerPoll])
 
   const handleRejectDocument = useCallback(async (docId: string) => {
     const document = (realDocuments.length > 0 ? realDocuments : mockDocuments).find(doc => doc.id === docId)
@@ -405,8 +403,10 @@ export default function CurationPage() {
       console.log(`Documento ${docId} rechazado`)
       // Cerrar modal automáticamente después de rechazar
       handleClosePreview()
+      // Trigger polling después de rechazar
+      triggerPoll('reject', true)
     }
-  }, [realDocuments, rejectDocument, handleClosePreview])
+  }, [realDocuments, rejectDocument, handleClosePreview, triggerPoll])
 
   const handleAnalyzeDocument = useCallback(async (docId: string) => {
     try {
@@ -525,8 +525,11 @@ export default function CurationPage() {
       
       // Mostrar error al usuario de forma menos intrusiva
       console.warn(`❌ Error en el análisis de IA: ${errorMessage}`)
+    } finally {
+      // Siempre trigger polling después de análisis (exitoso o fallido)
+      triggerPoll('analyze', true)
     }
-  }, [realDocuments, selectedDocument])
+  }, [realDocuments, selectedDocument, triggerPoll])
 
   const handleDocumentAction = useCallback((docId: string, action: 'approve' | 'reject' | 'preview' | 'analyze') => {
     const document = (realDocuments.length > 0 ? realDocuments : mockDocuments).find(doc => doc.id === docId)
@@ -536,6 +539,8 @@ export default function CurationPage() {
       saveScrollPosition()
       setSelectedDocument(document)
       setIsPreviewModalOpen(true)
+      // Trigger polling después de preview para refrescar estado
+      triggerPoll('preview', true)
     } else if (action === 'approve') {
       handleApproveDocument(docId)
     } else if (action === 'reject') {
@@ -543,7 +548,7 @@ export default function CurationPage() {
     } else if (action === 'analyze') {
       handleAnalyzeDocument(docId)
     }
-  }, [realDocuments, saveScrollPosition, handleApproveDocument, handleRejectDocument, handleAnalyzeDocument])
+  }, [realDocuments, saveScrollPosition, handleApproveDocument, handleRejectDocument, handleAnalyzeDocument, triggerPoll])
 
   // Función para cambiar la fuente seleccionada preservando scroll en grid view
   const handleSourceSelection = useCallback((sourceId: string) => {
@@ -562,7 +567,10 @@ export default function CurationPage() {
       // En list view, cambio directo
       setSelectedSource(newSelectedSource)
     }
-  }, [selectedSource, viewMode, forceScrollSave, restoreScrollPosition])
+    
+    // Trigger polling al navegar entre fuentes
+    triggerPoll('navigate', true)
+  }, [selectedSource, viewMode, forceScrollSave, restoreScrollPosition, triggerPoll])
 
   // Función para cambiar el modo de vista preservando scroll
   const handleViewModeChange = useCallback((newViewMode: 'grid' | 'list') => {
@@ -812,12 +820,6 @@ export default function CurationPage() {
                                       <div className="font-semibold text-lg text-gray-900 dark:text-gray-100">
                                         {getShortTitle(doc)}
                                       </div>
-                                      {/* Número de expediente extraído por IA */}
-                                      {doc.expediente && (
-                                        <div className="text-sm text-gray-600 dark:text-gray-400">
-                                          No. de expediente: {doc.expediente}
-                                        </div>
-                                      )}
                                       {/* Metadatos estructurales extraídos automáticamente */}
                                       {doc.magistradoPonente && (
                                         <div className="text-sm text-gray-600 dark:text-gray-300">
@@ -831,7 +833,7 @@ export default function CurationPage() {
                                       )}
                                       {doc.expediente && (
                                         <div className="text-sm text-gray-600 dark:text-gray-300">
-                                          <span className="font-medium">Expediente No.:</span> {doc.expediente}
+                                          <span className="font-medium">No. de expediente:</span> {doc.expediente}
                                         </div>
                                       )}
                                     </div>
@@ -1131,11 +1133,6 @@ export default function CurationPage() {
                             {getShortTitle(doc)}
                           </div>
                           {/* Número de expediente extraído por IA */}
-                          {doc.expediente && (
-                            <div className="text-sm text-gray-600 dark:text-gray-400">
-                              No. de expediente: {doc.expediente}
-                            </div>
-                          )}
                           {/* Metadatos estructurales extraídos automáticamente */}
                           {doc.magistradoPonente && (
                             <div className="text-sm text-gray-600 dark:text-gray-300">
@@ -1149,7 +1146,7 @@ export default function CurationPage() {
                           )}
                           {doc.expediente && (
                             <div className="text-sm text-gray-600 dark:text-gray-300">
-                              <span className="font-medium">Expediente No.:</span> {doc.expediente}
+                              <span className="font-medium">No. de expediente:</span> {doc.expediente}
                             </div>
                           )}
                         </div>
@@ -1340,6 +1337,8 @@ export default function CurationPage() {
         document={selectedDocument}
         onApprove={handleApproveDocument}
         onReject={handleRejectDocument}
+        mode="preview"
+        showActions={true}
       />
     </div>
   )

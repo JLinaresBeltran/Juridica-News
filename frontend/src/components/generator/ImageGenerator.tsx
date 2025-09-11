@@ -8,37 +8,58 @@ import {
   Loader,
   Settings,
   Eye,
-  Scissors
+  Scissors,
+  AlertCircle,
+  User,
+  Building,
+  Scale
 } from 'lucide-react'
 import { clsx } from 'clsx'
+import ImageModelSelector, { ImageAIModel } from '../common/ImageModelSelector'
+import aiService from '../../services/aiService'
+import { compressBase64Image, isImageTooLarge } from '../../utils/imageCompression'
+
+// Import AIModel type for analysis request
+type AIModel = 'gpt4o-mini' | 'gemini'
 
 interface ImageGeneratorProps {
   document: any
   onImageGenerated: (imageUrl: string, prompt: string) => void
   generatedImage?: string
+  articleContent?: string // Contenido del artículo generado
 }
 
-const AI_MODELS = [
+
+const IMAGE_TYPES = [
   {
-    id: 'gemini',
-    name: 'Gemini',
-    description: 'Ideal para imágenes jurídicas y conceptuales',
-    capabilities: ['Conceptual', 'Profesional', 'Jurídico']
+    id: 'persona',
+    name: 'Persona',
+    description: 'Foto de persona relacionada con el caso',
+    icon: User,
+    color: 'text-blue-600',
+    bgColor: 'bg-blue-50',
+    borderColor: 'border-blue-200'
   },
   {
-    id: 'dalle',
-    name: 'DALL-E 3',
-    description: 'Excelente para imágenes conceptuales y abstractas',
-    capabilities: ['Conceptual', 'Abstracto', 'Creativo']
+    id: 'paisaje',
+    name: 'Paisaje/Escenario',
+    description: 'Lugar o ambiente donde ocurre la acción',
+    icon: Building,
+    color: 'text-green-600',
+    bgColor: 'bg-green-50',
+    borderColor: 'border-green-200'
+  },
+  {
+    id: 'elemento',
+    name: 'Elemento/Objeto Legal',
+    description: 'Primer plano de objeto jurídico relevante',
+    icon: Scale,
+    color: 'text-purple-600',
+    bgColor: 'bg-purple-50',
+    borderColor: 'border-purple-200'
   }
 ]
 
-const PRESET_PROMPTS = [
-  'Imagen conceptual de justicia y derecho, estilo profesional, colores azul y dorado',
-  'Ilustración moderna de una balanza de la justicia con elementos colombianos',
-  'Diseño gráfico minimalista representando jurisprudencia constitucional',
-  'Imagen editorial sobre derecho civil, estilo periodístico profesional'
-]
 
 interface GeneratedImageData {
   url: string
@@ -51,10 +72,12 @@ interface GeneratedImageData {
 export default function ImageGenerator({ 
   document, 
   onImageGenerated, 
-  generatedImage 
+  generatedImage,
+  articleContent 
 }: ImageGeneratorProps) {
-  const [selectedModel, setSelectedModel] = useState('')
+  const [selectedModel, setSelectedModel] = useState<ImageAIModel>('dalle')
   const [selectedCapability, setSelectedCapability] = useState('')
+  const [selectedImageType, setSelectedImageType] = useState<string>('persona')
   const [generatedPrompt, setGeneratedPrompt] = useState('')
   const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false)
   const [customPrompt, setCustomPrompt] = useState('')
@@ -63,6 +86,7 @@ export default function ImageGenerator({
   const [generatedImages, setGeneratedImages] = useState<GeneratedImageData[]>([])
   const [currentImageModel, setCurrentImageModel] = useState('')
   const [showAdvanced, setShowAdvanced] = useState(false)
+  const [generationError, setGenerationError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   
   const MAX_IMAGES = 4
@@ -120,41 +144,221 @@ export default function ImageGenerator({
     }
   }, [selectedModel, selectedCapability, generatedPrompt, customPrompt, currentImage, generatedImages, currentImageModel])
 
-  const generateDefaultPrompt = () => {
-    if (document) {
-      return `Imagen editorial profesional sobre ${document.area.toLowerCase()}, relacionada con ${document.type} ${document.identifier}, estilo jurídico moderno, colores institucionales`
+
+  // Plantillas por tipo de imagen
+  const getTemplateByType = (imageType: string, analysis: any) => {
+    // Función para filtrar contenido sensible
+    const filterSensitiveContent = (text: string) => {
+      const sensitivePatterns = [
+        /\bmenor(es)?\b/gi,
+        /\bniñ[oa]s?\b/gi,
+        /\binfant(es)?\b/gi,
+        /\bmadre.*víctima\b/gi,
+        /\bviolencia\b/gi,
+        /\babuso\b/gi,
+        /\bmaltrato\b/gi
+      ]
+      
+      let filtered = text
+      sensitivePatterns.forEach(pattern => {
+        filtered = filtered.replace(pattern, '')
+      })
+      
+      return filtered.replace(/\s+/g, ' ').trim()
     }
-    return ''
+
+    // Obtener contenido seguro sin elementos sensibles
+    const safeScenario = filterSensitiveContent(analysis.escenario || 'ambiente jurídico profesional')
+    
+    const templates = {
+      persona: `Fotografía editorial de ${analysis.grupoEtnico && analysis.grupoEtnico !== 'profesional colombiano' ? `${analysis.profesional || 'profesional legal'} de origen ${analysis.grupoEtnico}` : `${analysis.profesional || 'profesional del derecho'}`} en ${safeScenario || 'despacho judicial moderno'}. Toma de perfil o tres cuartos, manos trabajando con documentos, vestimenta ejecutiva formal, iluminación profesional dramática, enfoque en la actividad profesional, sin mostrar rostro completo frontalmente.`,
+      
+      paisaje: `Vista arquitectónica de ${safeScenario || 'palacio de justicia colombiano'}. Arquitectura judicial moderna colombiana, perspectiva profesional, iluminación natural diurna, colores institucionales sobrios, estilo fotografía editorial arquitectónica.`,
+      
+      elemento: `Primer plano editorial de ${analysis.objetoLegal || 'documentos jurídicos oficiales'} sobre escritorio de madera. Manos profesionales interactuando con los elementos, iluminación dramática profesional, colores institucionales sobrios, enfoque macro, estilo fotografía editorial corporativa legal.`
+    }
+    
+    return templates[imageType as keyof typeof templates] || templates.elemento
   }
 
   const generatePrompt = async () => {
+    console.log('🎯 BOTÓN "GENERAR PROMPT" CLICKEADO')
+    console.log('📋 Estado inicial:', {
+      selectedModel,
+      selectedCapability,
+      selectedImageType,
+      document: document?.id,
+      hasArticleContent: !!articleContent,
+      articleContentLength: articleContent?.length || 0
+    })
+    
+    if (!articleContent || articleContent.trim().length === 0) {
+      console.log('❌ No hay artículo generado para crear el prompt de imagen')
+      setGenerationError('Primero debes generar un artículo antes de crear el prompt para la imagen')
+      return
+    }
+    
     setIsGeneratingPrompt(true)
+    setGenerationError(null)
+    
     try {
-      console.log('Generando prompt con:', { model: selectedModel, capability: selectedCapability })
+      console.log('🚀 INICIANDO ANÁLISIS INTELIGENTE DEL ARTÍCULO')
+      console.log('📄 Tipo de imagen seleccionado:', selectedImageType)
+      console.log('📄 Contenido del artículo:', {
+        length: articleContent.length,
+        preview: articleContent.substring(0, 200) + '...'
+      })
       
-      // Simulación de generación de prompt
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      
-      const promptTemplates = {
-        gemini: {
-          'Conceptual': `Imagen conceptual de ${document.area.toLowerCase()}, representando ${document.identifier}, estilo jurídico profesional, colores institucionales azul y dorado`,
-          'Profesional': `Fotografía editorial profesional sobre ${document.area.toLowerCase()}, ${document.identifier}, estilo corporativo, iluminación suave`,
-          'Jurídico': `Ilustración jurídica moderna de ${document.area.toLowerCase()}, ${document.identifier}, elementos de justicia, estilo minimalista`
-        },
-        dalle: {
-          'Conceptual': `Arte conceptual abstracto representando ${document.area.toLowerCase()}, ${document.identifier}, estilo contemporáneo, paleta azul y dorado`,
-          'Abstracto': `Composición abstracta sobre ${document.area.toLowerCase()}, formas geométricas, ${document.identifier}, estilo moderno`,
-          'Creativo': `Ilustración creativa de ${document.area.toLowerCase()}, ${document.identifier}, estilo artístico único, colores vibrantes`
+      // ✅ LLAMADA REAL AL BACKEND PARA ANÁLISIS INTELIGENTE
+      try {
+        console.log('🔗 Llamando a AI para análisis inteligente del artículo...')
+        
+        const analysisRequest = {
+          documentId: document.id,
+          model: 'gpt4o-mini' as AIModel,
+          maxWords: 200,
+          tone: 'professional' as const,
+          customInstructions: `Analiza este artículo jurídico y extrae elementos SEGUROS Y APROPIADOS para una imagen editorial profesional de tipo "${selectedImageType}".
+
+ARTÍCULO:
+${articleContent}
+
+DIRECTRICES IMPORTANTES:
+- NO incluir referencias a menores de edad, niños, violencia explícita o contenido sensible
+- Enfocar ÚNICAMENTE en aspectos institucionales, legales y profesionales
+- Generar elementos apropiados para medios editoriales corporativos
+
+ANÁLISIS REQUERIDO:
+
+1. PROFESIONAL: Tipo de profesional legal (magistrado, juez, abogado, funcionario judicial, registrador, etc.)
+
+2. GRUPO ÉTNICO: Solo si se menciona EXPLÍCITAMENTE en el artículo (afrocolombianos, indígenas, etc.)
+   - Si NO se menciona: usar "profesional colombiano" (sin especificar raza)
+
+3. ESCENARIO: Ambiente institucional apropiado (tribunal supremo, palacio de justicia, despacho judicial, notaría, registro civil, etc.)
+
+4. ELEMENTO LEGAL: Objeto jurídico profesional (códigos legales, documentos oficiales, sello judicial, balanza, martillo judicial, etc.)
+
+5. TEMA: Área legal específica (derecho constitucional, civil, penal, administrativo, etc.)
+
+6. TONO: Ambiente institucional (serio, profesional, solemne, formal, etc.)
+
+FORMATO DE RESPUESTA JSON:
+{
+  "profesional": "tipo de profesional legal",
+  "grupoEtnico": "grupo específico mencionado o profesional colombiano",
+  "escenario": "ambiente institucional apropiado",
+  "objetoLegal": "elemento jurídico profesional",
+  "tema": "área legal específica",
+  "tono": "ambiente institucional profesional"
+}`
         }
+        
+        console.log('📤 Enviando artículo para análisis inteligente:', {
+          articleLength: articleContent.length,
+          imageType: selectedImageType,
+          model: 'gpt4o-mini'
+        })
+        
+        const result = await aiService.generateArticle(analysisRequest)
+        
+        console.log('✅ ANÁLISIS RECIBIDO DEL BACKEND:', {
+          modelUsed: result.modelUsed,
+          analysisContent: result.content
+        })
+        
+        // Intentar parsear el JSON del análisis
+        let analysis: any = {}
+        try {
+          const jsonMatch = result.content.match(/\{[\s\S]*\}/)
+          if (jsonMatch) {
+            analysis = JSON.parse(jsonMatch[0])
+            console.log('✅ ANÁLISIS PARSEADO:', analysis)
+          } else {
+            throw new Error('No se encontró JSON válido en la respuesta')
+          }
+        } catch (parseError) {
+          console.warn('❌ Error parseando análisis, usando fallback:', parseError)
+          throw parseError
+        }
+        
+        // Generar prompt usando la plantilla apropiada
+        const finalPrompt = getTemplateByType(selectedImageType, analysis)
+        
+        console.log('✅ PROMPT FINAL GENERADO:', {
+          imageType: selectedImageType,
+          promptLength: finalPrompt.length,
+          finalPrompt: finalPrompt
+        })
+        
+        setGeneratedPrompt(finalPrompt)
+        setCustomPrompt(finalPrompt)
+        
+        console.log('✅ PROMPT INTELIGENTE ESTABLECIDO EN LA INTERFAZ')
+        return // Salir exitosamente con AI real
+        
+      } catch (apiError) {
+        console.warn('❌ Error en análisis inteligente, usando fallback local:', apiError)
       }
       
-      const prompt = promptTemplates[selectedModel as keyof typeof promptTemplates]?.[selectedCapability] || generateDefaultPrompt()
-      setGeneratedPrompt(prompt)
-      setCustomPrompt(prompt)
+      // ✅ FALLBACK LOCAL CON PLANTILLAS POR TIPO
+      console.log('⚠️ Usando fallback local con plantillas por tipo')
+      
+      // Crear análisis básico del artículo localmente
+      const articleTitle = articleContent.match(/^#\s*(.+)$/m)?.[1] || 'Artículo jurídico'
+      const isAfroCase = /afrocolombian|afrodescendient|negro|negra/i.test(articleContent)
+      const isIndigenousCase = /indígena|indígenas|ancestral|territorio|resguardo/i.test(articleContent)
+      const isEnvironmentalCase = /agua|río|ambiente|minería|deforest|contamina/i.test(articleContent)
+      
+      const fallbackAnalysis = {
+        profesional: /juez|magistrado/i.test(articleContent) ? 'magistrado' : 
+                     /abogad/i.test(articleContent) ? 'abogado' : 
+                     /registrador/i.test(articleContent) ? 'registrador' :
+                     'profesional legal',
+        grupoEtnico: isAfroCase ? 'afrocolombianos' : 
+                     isIndigenousCase ? 'indígenas colombianos' : 
+                     'profesional colombiano',
+        escenario: /corte|tribunal supremo/i.test(articleContent) ? 'palacio de justicia' :
+                   /juzgado/i.test(articleContent) ? 'despacho judicial' :
+                   /notaría/i.test(articleContent) ? 'oficina notarial' :
+                   'institución jurídica profesional',
+        objetoLegal: /martillo|mazo/i.test(articleContent) ? 'martillo judicial' :
+                     /document|código/i.test(articleContent) ? 'documentos jurídicos oficiales' :
+                     /balanza|justicia/i.test(articleContent) ? 'balanza de la justicia' :
+                     'elementos legales profesionales',
+        tema: articleTitle,
+        tono: isEnvironmentalCase ? 'esperanzador y natural' :
+              /conflicto|violencia/i.test(articleContent) ? 'serio y solemne' :
+              'profesional y formal',
+        paletaColores: isEnvironmentalCase ? 'verdes naturales y azules' :
+                       isAfroCase ? 'tonos cálidos y dorados' :
+                       isIndigenousCase ? 'tonos tierra y naturales' :
+                       'azules institucionales y grises elegantes'
+      }
+      
+      const generatedPromptText = getTemplateByType(selectedImageType, fallbackAnalysis)
+      
+      console.log('✅ PROMPT GENERADO:', {
+        model: selectedModel,
+        promptLength: generatedPromptText.length,
+        promptPreview: generatedPromptText.substring(0, 100) + '...',
+        fullPrompt: generatedPromptText
+      })
+      
+      setGeneratedPrompt(generatedPromptText)
+      setCustomPrompt(generatedPromptText)
+      
+      console.log('✅ PROMPT ESTABLECIDO EN LA INTERFAZ')
       
     } catch (error) {
-      console.error('Error generando prompt:', error)
+      console.error('❌ ERROR GENERANDO PROMPT:', error)
+      console.error('❌ Detalles del error:', {
+        message: error instanceof Error ? error.message : 'Error desconocido',
+        type: typeof error
+      })
+      setGenerationError('Error al generar descripción automática')
     } finally {
+      console.log('🏁 Finalizando generación de prompt...')
       setIsGeneratingPrompt(false)
     }
   }
@@ -163,46 +367,77 @@ export default function ImageGenerator({
     if (!customPrompt.trim() || generatedImages.length >= MAX_IMAGES) return
     
     setIsGenerating(true)
+    setGenerationError(null)
+    
     try {
       console.log('Generando imagen con:', { model: selectedModel, prompt: customPrompt })
       
-      // Simulación de generación de imagen
-      await new Promise(resolve => setTimeout(resolve, 3000))
-      
-      // Mock de URL de imagen generada
-      const mockImageUrl = `https://picsum.photos/800/400?random=${Date.now()}`
-      
-      // Nueva imagen generada
-      const newImageData: GeneratedImageData = {
-        url: mockImageUrl,
+      // Llamada real a la API para generar imágenes
+      const result = await aiService.generateImages({
+        documentId: document.id,
+        model: selectedModel,
         prompt: customPrompt,
-        timestamp: Date.now(),
-        model: selectedModel
-      }
-      
-      // Actualizar imagen actual (la que está en el input)
-      setCurrentImage(mockImageUrl)
-      setCurrentImageModel(AI_MODELS.find(m => m.id === selectedModel)?.name || selectedModel)
-      
-      // Agregar a la lista de imágenes generadas (máximo 4)
-      setGeneratedImages(prev => {
-        const updated = [newImageData, ...prev].slice(0, MAX_IMAGES)
-        return updated
+        style: 'professional',
+        count: 1
       })
       
-      onImageGenerated(mockImageUrl, customPrompt)
+      if (result && result.images && result.images.length > 0) {
+        const generatedImage = result.images[0]
+        let imageUrl = generatedImage.url
+        
+        // Comprimir imagen si es muy grande (especialmente para Gemini base64)
+        if (isImageTooLarge(imageUrl, 300)) { // Si es mayor a 300KB
+          console.log('🗜️ Imagen muy grande, comprimiendo...')
+          try {
+            imageUrl = await compressBase64Image(imageUrl, {
+              maxWidth: 1024,
+              maxHeight: 768,
+              quality: 0.85,
+              format: 'jpeg'
+            })
+            console.log('✅ Imagen comprimida exitosamente')
+          } catch (compressionError) {
+            console.warn('⚠️ Error comprimiendo imagen, usando original:', compressionError)
+            // Usar imagen original si falla la compresión
+          }
+        }
+        
+        // Nueva imagen generada
+        const newImageData: GeneratedImageData = {
+          url: imageUrl,
+          prompt: generatedImage.prompt,
+          timestamp: Date.now(),
+          model: selectedModel
+        }
+        
+        // Actualizar imagen actual (la que está en el input)
+        setCurrentImage(imageUrl)
+        setCurrentImageModel(selectedModel === 'dalle' ? 'DALL-E 3' : selectedModel === 'gemini' ? 'Gemini Imagen' : selectedModel)
+        
+        // Agregar a la lista de imágenes generadas (máximo 4)
+        setGeneratedImages(prev => {
+          const updated = [newImageData, ...prev].slice(0, MAX_IMAGES)
+          return updated
+        })
+        
+        onImageGenerated(imageUrl, generatedImage.prompt)
+
+        console.log(`✅ Imagen generada exitosamente con ${result.modelUsed}`)
+      } else {
+        // Si no hay imágenes en la respuesta, mostrar error
+        const errorMessage = result?.error || `No se pudo generar la imagen con ${selectedModel}. Por favor intenta de nuevo.`
+        console.error('❌ Error: No se generaron imágenes:', errorMessage)
+        setGenerationError(errorMessage)
+      }
       
     } catch (error) {
       console.error('Error generando imagen:', error)
+      setGenerationError(error instanceof Error ? aiService.formatErrorMessage(error) : 'Error desconocido')
     } finally {
       setIsGenerating(false)
     }
   }
 
-  const handlePresetPrompt = (preset: string) => {
-    setCustomPrompt(preset)
-    generateImage(preset)
-  }
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -245,75 +480,110 @@ export default function ImageGenerator({
   }
 
   return (
-    <div className="space-y-6">
-      {/* Selección de modelo de IA */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {AI_MODELS.map((model) => (
-          <div
-            key={model.id}
-            className={clsx(
-              'p-6 rounded-lg border-2 transition-all duration-200',
-              selectedModel === model.id 
-                ? 'border-[#04315a] bg-[#3ff3f2] bg-opacity-10' 
-                : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800'
-            )}
-          >
-            <div className="flex items-start space-x-3 mb-4">
-              <div className={clsx(
-                'w-4 h-4 rounded mt-1',
-                selectedModel === model.id ? 'bg-[#04315a]' : 'bg-gray-300 dark:bg-gray-600'
-              )} />
-              <div className="flex-1">
-                <h5 className="font-medium text-gray-900 dark:text-gray-100 mb-1">{model.name}</h5>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">{model.description}</p>
-                
-                {/* Etiquetas seleccionables */}
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {model.capabilities.map((cap) => (
-                    <button
-                      key={cap}
-                      onClick={() => {
-                        setSelectedModel(model.id)
-                        setSelectedCapability(cap)
-                      }}
-                      className={clsx(
-                        'px-3 py-1 text-xs rounded-full border transition-colors',
-                        selectedModel === model.id && selectedCapability === cap
-                          ? 'bg-[#04315a] text-[#3ff3f2] border-[#04315a]'
-                          : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600'
-                      )}
-                    >
-                      {cap}
-                    </button>
-                  ))}
+    <div className="h-full flex flex-col space-y-6">
+      {/* Selector de modelo */}
+      <div className="w-full">
+        <ImageModelSelector
+          selectedModel={selectedModel}
+          onModelSelect={setSelectedModel}
+          compact={true}
+          className="justify-center"
+        />
+      </div>
+
+      {/* Selector de tipo de imagen */}
+      <div className="w-full">
+        <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-4">Tipo de imagen</h4>
+        <div className="grid grid-cols-1 gap-3">
+          {IMAGE_TYPES.map((imageType) => {
+            const isSelected = selectedImageType === imageType.id
+            
+            return (
+              <div
+                key={imageType.id}
+                onClick={() => setSelectedImageType(imageType.id)}
+                className={clsx(
+                  'relative w-full p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 hover:shadow-lg',
+                  isSelected 
+                    ? `${imageType.borderColor} ${imageType.bgColor} shadow-md` 
+                    : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 bg-white dark:bg-gray-800'
+                )}
+              >
+                <div className="flex items-center space-x-3">
+                  <div className={clsx(
+                    'p-2 rounded-lg',
+                    isSelected ? imageType.bgColor : 'bg-gray-100 dark:bg-gray-700'
+                  )}>
+                    <imageType.icon className={clsx(
+                      'w-5 h-5',
+                      isSelected ? imageType.color : 'text-gray-600 dark:text-gray-400'
+                    )} />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className={clsx(
+                      'font-medium mb-1',
+                      isSelected ? imageType.color : 'text-gray-900 dark:text-gray-100'
+                    )}>
+                      {imageType.name}
+                    </h4>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      {imageType.description}
+                    </p>
+                  </div>
                 </div>
-                
-                {/* Botón generar prompt */}
-                {selectedModel === model.id && selectedCapability && (
-                  <button
-                    onClick={generatePrompt}
-                    disabled={isGeneratingPrompt}
-                    className={clsx(
-                      'w-full px-4 py-2 rounded-lg font-medium transition-all duration-200',
-                      isGeneratingPrompt
-                        ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
-                        : 'bg-[#04315a] text-[#3ff3f2] hover:bg-[#062847]'
-                    )}
-                  >
-                    {isGeneratingPrompt ? (
-                      <div className="flex items-center justify-center space-x-2">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400 dark:border-gray-500"></div>
-                        <span>Generando...</span>
-                      </div>
-                    ) : (
-                      'Generar Prompt'
-                    )}
-                  </button>
+                {isSelected && (
+                  <div className="absolute top-2 right-2">
+                    <div className="w-6 h-6 bg-[#04315a] rounded-full flex items-center justify-center">
+                      <div className="w-2 h-2 bg-[#3ff3f2] rounded-full"></div>
+                    </div>
+                  </div>
                 )}
               </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Error de generación */}
+      {generationError && (
+        <div className="w-full p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+          <div className="flex items-start space-x-2">
+            <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
+            <div className="text-sm text-red-700 dark:text-red-300">
+              <p className="font-medium">Error al generar imagen</p>
+              <p className="mt-1">{generationError}</p>
             </div>
           </div>
-        ))}
+        </div>
+      )}
+
+      {/* Generación automática de prompt */}
+      <div className="w-full">
+        <div className="flex items-center justify-between mb-4">
+          <h4 className="font-medium text-gray-900 dark:text-gray-100">Generar descripción automática</h4>
+          <button
+            onClick={generatePrompt}
+            disabled={isGeneratingPrompt}
+            className={clsx(
+              'px-4 py-2 rounded-lg font-medium transition-all duration-200',
+              isGeneratingPrompt
+                ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                : 'bg-[#04315a] text-[#3ff3f2] hover:bg-[#062847]'
+            )}
+          >
+            {isGeneratingPrompt ? (
+              <div className="flex items-center space-x-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400 dark:border-gray-500"></div>
+                <span>Generando...</span>
+              </div>
+            ) : (
+              <div className="flex items-center space-x-2">
+                <Sparkles className="w-4 h-4" />
+                <span>Generar Prompt</span>
+              </div>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Descripción de la imagen */}
@@ -323,8 +593,9 @@ export default function ImageGenerator({
           <textarea
             value={customPrompt}
             onChange={(e) => setCustomPrompt(e.target.value)}
-            className="w-full h-24 p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#04315a] focus:border-[#04315a] resize-none bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+            className="w-full min-w-full h-24 p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#04315a] focus:border-[#04315a] resize-none bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
             placeholder="Describe la imagen que quieres generar..."
+            style={{ width: '100%', minWidth: '100%' }}
           />
           
           {/* Botón de generación */}
@@ -449,21 +720,25 @@ export default function ImageGenerator({
           <h4 className="font-medium text-gray-900 dark:text-gray-100">
             Imágenes generadas ({generatedImages.length}/{MAX_IMAGES})
           </h4>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="flex flex-col space-y-4 w-full">
             {generatedImages.map((imageData, index) => (
               <div
                 key={imageData.timestamp}
                 onClick={() => {
                   setCurrentImage(imageData.url)
-                  setCurrentImageModel(imageData.isUploaded ? 'Foto cargada' : AI_MODELS.find(m => m.id === imageData.model)?.name || 'No especificado')
+                  setCurrentImageModel(imageData.isUploaded ? 'Foto cargada' : 
+                    imageData.model === 'dalle' ? 'DALL-E 3' : 
+                    imageData.model === 'gemini' ? 'Gemini Imagen' : 
+                    imageData.model || 'No especificado')
                   onImageGenerated(imageData.url, imageData.prompt)
                 }}
                 className={clsx(
-                  "relative aspect-square bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden cursor-pointer transition-all",
+                  "relative w-full min-w-full h-48 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden cursor-pointer transition-all",
                   currentImage === imageData.url
                     ? 'ring-2 ring-[#04315a] shadow-lg'
                     : 'hover:ring-2 hover:ring-gray-300 dark:hover:ring-gray-500'
                 )}
+                style={{ width: '100%', minWidth: '100%' }}
               >
                 <img
                   src={imageData.url}

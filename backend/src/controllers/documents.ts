@@ -5,6 +5,7 @@ import { logger } from '@/utils/logger';
 import { validateRequest } from '@/middleware/validation';
 import { DocumentFilters, DocumentCurationAction, BatchCurationRequest } from '../../../shared/types/document.types';
 import { documentTextExtractor, DocumentTextExtractor } from '@/services/DocumentTextExtractor';
+import { AiAnalysisService } from '@/services/AiAnalysisService';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -27,6 +28,29 @@ const curationActionSchema = z.object({
   priority: z.enum(['LOW', 'NORMAL', 'HIGH', 'URGENT']).optional(),
   notes: z.string().optional(),
   estimatedEffort: z.number().min(0).optional(),
+  // ✅ FIX: Agregar campo aiData para datos de análisis IA
+  aiData: z.object({
+    numeroSentencia: z.string().optional(),
+    magistradoPonente: z.string().optional(),
+    salaRevision: z.string().optional(),
+    expediente: z.string().optional(),
+    temaPrincipal: z.string().optional(),
+    resumenIA: z.string().optional(),
+    decision: z.string().optional(),
+    aiAnalysisStatus: z.string().optional(),
+    aiAnalysisDate: z.string().optional(),
+    aiModel: z.string().optional(),
+    fragmentosAnalisis: z.string().optional(),
+  }).optional(),
+  // ✅ NEW: Agregar campo articleData para artículos generados
+  articleData: z.object({
+    title: z.string().optional(),
+    content: z.string().optional(),
+    image: z.string().optional(),
+    keywords: z.string().optional(),
+    metaTitle: z.string().optional(),
+    publicationSection: z.string().optional()
+  }).optional()
 });
 
 const batchCurationSchema = z.object({
@@ -275,8 +299,29 @@ router.get('/:id', async (req: Request, res: Response) => {
  */
 router.post('/:id/curate', validateRequest(curationActionSchema), async (req: Request, res: Response) => {
   try {
-    const { action, priority, notes, estimatedEffort } = req.body as DocumentCurationAction;
+    const { action, priority, notes, estimatedEffort, aiData, articleData } = req.body as DocumentCurationAction & { aiData?: any; articleData?: any };
     const documentId = req.params.id;
+
+    // ✅ DEBUG: Log del request recibido
+    console.log('🔍 DEBUG Backend - Curating document:')
+    console.log('   documentId:', documentId)
+    console.log('   action:', action)
+    console.log('   hasAiData:', !!aiData)
+    console.log('   hasArticleData:', !!articleData)
+    if (aiData) {
+      console.log('   aiData keys:', Object.keys(aiData))
+      console.log('   numeroSentencia:', aiData.numeroSentencia)
+      console.log('   magistradoPonente:', aiData.magistradoPonente)
+      console.log('   temaPrincipal:', aiData.temaPrincipal)
+      console.log('   resumenIA length:', aiData.resumenIA ? aiData.resumenIA.length : 0)
+    }
+    if (articleData) {
+      console.log('   articleData keys:', Object.keys(articleData))
+      console.log('   title:', articleData.title?.substring(0, 50))
+      console.log('   content length:', articleData.content?.length || 0)
+      console.log('   hasImage:', !!articleData.image)
+      console.log('   publicationSection:', articleData.publicationSection)
+    }
 
     // Check if document exists and is not already curated
     const existingDocument = await prisma.document.findUnique({
@@ -297,18 +342,41 @@ router.post('/:id/curate', validateRequest(curationActionSchema), async (req: Re
     }
 
     // Update document with curation decision
+    const updateData: any = {
+      status: action === 'approve' ? 'APPROVED' : 'REJECTED',
+      priority: priority || existingDocument.priority,
+      curatorId: req.user.id,
+    }
+
+    // ✅ FIX: Incluir datos de IA si están disponibles (para approve y reject)
+    if (aiData) {
+      if (aiData.numeroSentencia) updateData.numeroSentencia = aiData.numeroSentencia
+      if (aiData.magistradoPonente) updateData.magistradoPonente = aiData.magistradoPonente
+      if (aiData.salaRevision) updateData.salaRevision = aiData.salaRevision
+      if (aiData.expediente) updateData.expediente = aiData.expediente
+      if (aiData.temaPrincipal) updateData.temaPrincipal = aiData.temaPrincipal
+      if (aiData.resumenIA) updateData.resumenIA = aiData.resumenIA
+      if (aiData.decision) updateData.decision = aiData.decision
+      if (aiData.aiAnalysisStatus) updateData.aiAnalysisStatus = aiData.aiAnalysisStatus
+      if (aiData.aiAnalysisDate) updateData.aiAnalysisDate = new Date(aiData.aiAnalysisDate)
+      if (aiData.aiModel) updateData.aiModel = aiData.aiModel
+      if (aiData.fragmentosAnalisis) updateData.fragmentosAnalisis = aiData.fragmentosAnalisis
+    }
+
+    // ✅ DEBUG: Log de los datos que se van a actualizar
+    console.log('💾 DEBUG Backend - Update data:')
+    console.log('   documentId:', documentId)
+    console.log('   updateData keys:', Object.keys(updateData))
+    console.log('   numeroSentencia:', updateData.numeroSentencia || 'NO')
+    console.log('   magistradoPonente:', updateData.magistradoPonente || 'NO') 
+    console.log('   temaPrincipal:', updateData.temaPrincipal || 'NO')
+    console.log('   resumenIA:', updateData.resumenIA ? 'YES' : 'NO')
+
     const updatedDocument = await prisma.document.update({
       where: { id: documentId },
-      data: {
-        status: action === 'approve' ? 'APPROVED' : 'REJECTED',
-        priority: priority || existingDocument.priority,
-        curatedById: req.user.id,
-        curatedAt: new Date(),
-        curationNotes: notes,
-        estimatedEffort,
-      },
+      data: updateData,
       include: {
-        curatedBy: {
+        curator: {
           select: {
             id: true,
             firstName: true,
@@ -318,21 +386,97 @@ router.post('/:id/curate', validateRequest(curationActionSchema), async (req: Re
       }
     });
 
+    // ✅ NEW: Si se aprueba y hay datos de artículo, crear artículo automáticamente y marcar como READY
+    let createdArticle = null;
+    if (action === 'approve' && articleData && articleData.content && articleData.title) {
+      try {
+        console.log('🎯 Creando artículo automáticamente...');
+        
+        // 1. Generar descripción/summary automáticamente usando AI
+        const aiService = new AiAnalysisService();
+        let summary = '';
+        
+        try {
+          console.log('📝 Generando descripción automática...');
+          const summaryResult = await aiService.generateSummary(
+            articleData.content,
+            150, // máximo 150 palabras
+            'professional'
+          );
+          summary = summaryResult.summary || 'Resumen del artículo jurídico';
+          console.log('✅ Descripción generada:', summary.substring(0, 100) + '...');
+        } catch (summaryError) {
+          console.warn('⚠️ Error generando descripción, usando fallback:', summaryError);
+          // Fallback: usar primeras líneas del contenido sin markdown
+          const contentText = articleData.content.replace(/[#*\[\]()]/g, '').trim();
+          summary = contentText.substring(0, 200) + '...';
+        }
+
+        // 2. Generar slug único
+        const baseSlug = articleData.title
+          .toLowerCase()
+          .replace(/[^\w\s-]/g, '')
+          .replace(/\s+/g, '-')
+          .substring(0, 50);
+        
+        let slug = baseSlug;
+        let slugCounter = 1;
+        while (await prisma.article.findUnique({ where: { slug } })) {
+          slug = `${baseSlug}-${slugCounter}`;
+          slugCounter++;
+        }
+
+        // 3. Calcular métricas del artículo
+        const wordCount = articleData.content.split(/\s+/).length;
+        const readingTime = Math.ceil(wordCount / 200); // ~200 palabras por minuto
+
+        // 4. Crear el artículo
+        createdArticle = await prisma.article.create({
+          data: {
+            title: articleData.title,
+            slug,
+            content: articleData.content,
+            summary,
+            status: 'READY', // Marcar como listo para publicar
+            publicationSection: articleData.publicationSection || 'general',
+            keywords: articleData.keywords || '',
+            metaTitle: articleData.metaTitle || articleData.title,
+            metaDescription: summary.substring(0, 160),
+            wordCount,
+            readingTime,
+            authorId: req.user.id
+          }
+        });
+
+        console.log('✅ Artículo creado exitosamente:', {
+          id: createdArticle.id,
+          title: createdArticle.title,
+          slug: createdArticle.slug,
+          status: createdArticle.status,
+          wordCount: createdArticle.wordCount
+        });
+
+        // 5. Actualizar documento para cambiar estado a READY
+        await prisma.document.update({
+          where: { id: documentId },
+          data: { 
+            status: 'READY' // Cambiar estado a READY en lugar de APPROVED
+          }
+        });
+
+      } catch (articleError) {
+        console.error('❌ Error creando artículo automático:', articleError);
+        // No fallar el proceso de aprobación por esto
+      }
+    }
+
     // Log audit trail
     await prisma.auditLog.create({
       data: {
         userId: req.user.id,
-        actionType: action === 'approve' ? 'DOCUMENT_CURATED' : 'DOCUMENT_REJECTED',
-        resourceType: 'document',
-        resourceId: documentId,
-        details: {
-          action,
-          priority,
-          notes,
-          estimatedEffort,
-        },
-        result: { success: true },
-        ipAddress: req.ip,
+        action: action === 'approve' ? 'DOCUMENT_CURATED' : 'DOCUMENT_REJECTED',
+        description: `Document ${documentId} ${action}d with priority ${priority}${notes ? ` - ${notes}` : ''}`,
+        ipAddress: req.ip || null,
         userAgent: req.get('User-Agent') || '',
       }
     });
@@ -404,9 +548,7 @@ router.post('/batch-curate', validateRequest(batchCurationSchema), async (req: R
           data: {
             status: doc.action === 'approve' ? 'APPROVED' : 'REJECTED',
             priority: doc.priority || existingDocument.priority,
-            curatedById: req.user.id,
-            curatedAt: new Date(),
-            curationNotes: doc.notes,
+            curatorId: req.user.id,
           }
         });
 
@@ -414,17 +556,9 @@ router.post('/batch-curate', validateRequest(batchCurationSchema), async (req: R
         await prisma.auditLog.create({
           data: {
             userId: req.user.id,
-            actionType: doc.action === 'approve' ? 'DOCUMENT_CURATED' : 'DOCUMENT_REJECTED',
-            resourceType: 'document',
-            resourceId: doc.id,
-            details: {
-              action: doc.action,
-              priority: doc.priority,
-              notes: doc.notes,
-              batchOperation: true,
-            },
-            result: { success: true },
-            ipAddress: req.ip,
+            action: doc.action === 'approve' ? 'DOCUMENT_CURATED' : 'DOCUMENT_REJECTED',
+            description: `Batch operation: Document ${doc.id} ${doc.action}d${doc.notes ? ` - ${doc.notes}` : ''}`,
+            ipAddress: req.ip || null,
             userAgent: req.get('User-Agent') || '',
           }
         });
@@ -564,7 +698,10 @@ router.post('/:id/analyze', async (req: Request, res: Response) => {
                   );
                   
                   if (extractedContent) {
-                    // Construir texto estructurado para análisis
+                    // Usar texto completo para asegurar que se incluya el encabezado con magistrado ponente
+                    contentForAnalysis = extractedContent.fullText;
+                    
+                    // También incluir secciones estructuradas si están disponibles
                     const sections = [];
                     if (extractedContent.structuredContent.introduccion) {
                       sections.push('=== INTRODUCCIÓN ===\n' + extractedContent.structuredContent.introduccion);
@@ -579,7 +716,10 @@ router.post('/:id/analyze', async (req: Request, res: Response) => {
                       sections.push('=== OTROS ELEMENTOS ===\n' + extractedContent.structuredContent.otros.join('\n\n'));
                     }
                     
-                    contentForAnalysis = sections.join('\n\n');
+                    // Si hay secciones estructuradas, combinar con texto completo para análisis más rico
+                    if (sections.length > 0) {
+                      contentForAnalysis = extractedContent.fullText + '\n\n' + sections.join('\n\n');
+                    }
                     logger.info(`✅ Texto extraído de DOCX desde URL: ${contentForAnalysis.length} caracteres, ${extractedContent.metadata.wordCount} palabras`);
                   } else {
                     logger.error(`❌ No se pudo extraer texto del DOCX desde URL`);

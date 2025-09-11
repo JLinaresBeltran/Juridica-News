@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { 
   CheckCircle,
   Calendar,
@@ -8,11 +8,14 @@ import {
   Search,
   Download,
   ExternalLink,
-  Archive
+  Archive,
+  Edit3
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useCurationStore } from '../../stores/curationStore'
+import documentsService from '../../services/documentsService'
 import ArticleGeneratorModal from '../../components/articles/ArticleGeneratorModal'
+import { DocumentPreviewModal } from '../../components/curation/DocumentPreviewModal'
 import { getEntityColors, getStatusColors, getAreaColors } from '../../constants/entityColors'
 
 // Ya no necesitamos esta definición local - usamos el sistema centralizado
@@ -21,13 +24,103 @@ export default function ApprovedDocumentsPage() {
   const searchTerm = '' // Search functionality removed
   const [selectedDocument, setSelectedDocument] = useState(null)
   const [isGeneratorModalOpen, setIsGeneratorModalOpen] = useState(false)
-  const { approvedDocuments, undoApproval, archiveDocument } = useCurationStore()
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false)
+  const [approvedDocuments, setApprovedDocuments] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [currentStep, setCurrentStep] = useState(0)
+  const { undoApproval, archiveDocument } = useCurationStore()
+
+  // ✅ FIX: Cargar documentos aprobados desde la API
+  useEffect(() => {
+    const loadApprovedDocuments = async () => {
+      try {
+        setIsLoading(true)
+        const response = await documentsService.getDocuments({
+          status: 'APPROVED',
+          limit: 100
+        })
+        
+        // Mapear documentos de la API al formato esperado por la UI
+        const mappedDocs = response.data.map((doc) => ({
+          id: doc.id,
+          source: mapBackendSource(doc.source),
+          title: doc.title,
+          type: doc.documentType,
+          publicationDate: doc.publicationDate,
+          identifier: doc.externalId || doc.id,
+          status: 'available' as const,
+          area: mapLegalArea(doc.legalArea),
+          summary: doc.summary || '',
+          url: doc.url, // ✅ URL del PDF original
+          extractionDate: doc.extractedAt || doc.createdAt,
+          approvedAt: doc.updatedAt, // Usar updatedAt como fecha de aprobación
+          
+          // ✅ INCLUIR todos los campos de análisis IA para las tarjetas
+          numeroSentencia: doc.numeroSentencia,
+          magistradoPonente: doc.magistradoPonente,
+          salaRevision: doc.salaRevision,
+          expediente: doc.expediente,
+          temaPrincipal: doc.temaPrincipal,
+          resumenIA: doc.resumenIA,
+          decision: doc.decision,
+          aiAnalysisStatus: doc.aiAnalysisStatus,
+          aiAnalysisDate: doc.aiAnalysisDate,
+          aiModel: doc.aiModel,
+          fragmentosAnalisis: doc.fragmentosAnalisis
+        }))
+        
+        console.log('✅ Documentos aprobados mapeados:', mappedDocs.map(doc => ({
+          id: doc.id,
+          title: doc.title,
+          url: doc.url,
+          hasAiData: {
+            numeroSentencia: !!doc.numeroSentencia,
+            magistradoPonente: !!doc.magistradoPonente,
+            temaPrincipal: !!doc.temaPrincipal,
+            resumenIA: !!doc.resumenIA
+          }
+        })))
+        
+        setApprovedDocuments(mappedDocs)
+        console.log('✅ Documentos aprobados cargados:', mappedDocs.length)
+        
+      } catch (error) {
+        console.error('Error cargando documentos aprobados:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    
+    loadApprovedDocuments()
+  }, [])
+  
+  // Funciones de mapeo
+  const mapBackendSource = (source: string): string => {
+    const sourceMap = {
+      'corte_constitucional': 'corte-constitucional',
+      'consejo_estado': 'consejo-estado',
+      'corte_suprema': 'corte-suprema-civil',
+      'test_local': 'corte-constitucional'
+    }
+    return sourceMap[source] || source
+  }
+  
+  const mapLegalArea = (area: string): string => {
+    const areaMap = {
+      'CONSTITUTIONAL': 'constitucional',
+      'CIVIL': 'civil',
+      'PENAL': 'penal',
+      'LABORAL': 'laboral',
+      'ADMINISTRATIVO': 'administrativo'
+    }
+    return areaMap[area] || area
+  }
 
   const filteredDocuments = approvedDocuments // Search functionality removed
 
   const handleDocumentClick = (doc) => {
     setSelectedDocument(doc)
-    setIsGeneratorModalOpen(true)
+    setIsPreviewModalOpen(true)
   }
 
   const handleArchiveDocument = (e, docId) => {
@@ -56,8 +149,16 @@ export default function ApprovedDocumentsPage() {
         </div>
       </div>
 
-      {/* Documents List */}
-      {filteredDocuments.length > 0 ? (
+      {/* Loading State */}
+      {isLoading ? (
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+          <p className="text-gray-500 dark:text-gray-400">Cargando documentos aprobados...</p>
+        </div>
+      ) : 
+      
+      /* Documents List */
+      filteredDocuments.length > 0 ? (
         <div className="card dark:bg-gray-800">
           <div className="card-body p-0">
             <div className="space-y-0">
@@ -101,38 +202,73 @@ export default function ApprovedDocumentsPage() {
                           {/* Nombre del documento */}
                           <div className="space-y-2">
                             <div className="font-semibold text-lg text-gray-900 dark:text-gray-100">
-                              {doc.type} No. {doc.identifier}
+                              {doc.numeroSentencia || `${doc.type} No. ${doc.identifier}`}
                             </div>
+                            
+                            {/* ✅ FIX: Mostrar información de IA */}
+                            {doc.magistradoPonente && (
+                              <div className="text-sm text-gray-600 dark:text-gray-300">
+                                <span className="font-medium">Magistrado Ponente:</span> {doc.magistradoPonente}
+                              </div>
+                            )}
+                            {doc.salaRevision && (
+                              <div className="text-sm text-gray-600 dark:text-gray-300">
+                                <span className="font-medium">Sala de Revisión:</span> {doc.salaRevision}
+                              </div>
+                            )}
+                            {doc.expediente && (
+                              <div className="text-sm text-gray-600 dark:text-gray-300">
+                                <span className="font-medium">No. de expediente:</span> {doc.expediente}
+                              </div>
+                            )}
+                            
                             {/* Información adicional específica de aprobados */}
-                            <div className="text-sm text-gray-600 dark:text-gray-300">
-                              <span className="font-medium">Fuente:</span> {sourceInfo?.name}
-                            </div>
                             <div className="text-sm text-gray-600 dark:text-gray-300">
                               <span className="font-medium">Aprobado:</span> {new Date(doc.approvedAt!).toLocaleDateString('es-ES')}
                             </div>
                           </div>
 
-                          {/* Tema incluido en el fondo gris */}
-                          {doc.title && (
+                          {/* ✅ FIX: Tema Principal - Análisis de IA */}
+                          {doc.temaPrincipal && (
                             <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-600">
-                              <span className="font-medium text-gray-900 dark:text-gray-100">Tema:</span>
-                              <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">{doc.title}</p>
+                              <div className="flex items-center space-x-2 mb-1">
+                                <span className="font-medium text-gray-900 dark:text-gray-100">Tema Principal:</span>
+                                <span className="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded-full">IA</span>
+                              </div>
+                              <p className="text-sm text-gray-700 dark:text-gray-300">{doc.temaPrincipal}</p>
                             </div>
                           )}
 
-                          {/* Resumen incluido en el fondo gris */}
-                          {doc.summary && (
+                          {/* ✅ FIX: Resumen de IA prioritario */}
+                          {doc.resumenIA ? (
+                            <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-600">
+                              <div className="flex items-center space-x-2 mb-1">
+                                <span className="font-medium text-gray-900 dark:text-gray-100">Resumen:</span>
+                                <span className="px-2 py-0.5 text-xs bg-green-100 text-green-700 rounded-full flex items-center space-x-1">
+                                  <span>IA</span>
+                                  {doc.aiModel && <span className="text-xs">({doc.aiModel})</span>}
+                                </span>
+                              </div>
+                              <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{doc.resumenIA}</p>
+                            </div>
+                          ) : doc.summary && (
                             <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-600">
                               <span className="font-medium text-gray-900 dark:text-gray-100">Resumen:</span>
                               <p className="text-sm text-gray-700 dark:text-gray-300 mt-1 leading-relaxed">{doc.summary}</p>
                             </div>
                           )}
 
-                          {/* Estado de publicación incluido en el fondo gris */}
-                          <div className="mt-4 pt-3 border-t border-gray-200">
-                            <span className="font-medium text-gray-900 dark:text-gray-100">Estado:</span>
-                            <span className="text-sm text-green-700 dark:text-green-400 ml-2">Aprobado para publicación</span>
-                          </div>
+                          {/* ✅ FIX: Decisión - Análisis de IA */}
+                          {doc.decision && (
+                            <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-600">
+                              <div className="flex items-center space-x-2 mb-1">
+                                <span className="font-medium text-gray-900 dark:text-gray-100">Decisión:</span>
+                                <span className="px-2 py-0.5 text-xs bg-purple-100 text-purple-700 rounded-full">IA</span>
+                              </div>
+                              <p className="text-sm text-gray-700 dark:text-gray-300">{doc.decision}</p>
+                            </div>
+                          )}
+
                         </div>
 
                         {/* Información adicional */}
@@ -190,6 +326,24 @@ export default function ApprovedDocumentsPage() {
           </p>
         </div>
       )}
+
+      {/* Document Preview Modal */}
+      <DocumentPreviewModal
+        isOpen={isPreviewModalOpen}
+        onClose={() => {
+          setIsPreviewModalOpen(false)
+          setSelectedDocument(null)
+          setCurrentStep(0) // Reiniciar al paso inicial
+        }}
+        document={selectedDocument}
+        showActions={false} // No mostrar botones en aprobados
+        currentStep={currentStep}
+        onStepChange={(step) => {
+          console.log('Cambio a paso:', step)
+          setCurrentStep(step)
+        }}
+        mode="generation"
+      />
 
       {/* Article Generator Modal */}
       <ArticleGeneratorModal

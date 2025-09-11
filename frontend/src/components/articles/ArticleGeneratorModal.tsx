@@ -10,7 +10,9 @@ import {
   Scale,
   Building,
   User,
-  Calendar
+  Calendar,
+  ExternalLink,
+  AlertCircle
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { getEntityColors } from '../../constants/entityColors'
@@ -18,6 +20,9 @@ import TitleGenerator from '../generator/TitleGenerator'
 import ImageGenerator from '../generator/ImageGenerator'
 import MetadataEditor from '../generator/MetadataEditor'
 import PublishingPreview from '../generator/PublishingPreview'
+import ModelSelector, { AIModel } from '../common/ModelSelector'
+import documentsService from '../../services/documentsService'
+import aiService from '../../services/aiService'
 
 interface Document {
   id: string
@@ -70,6 +75,8 @@ export default function ArticleGeneratorModal({
 }: ArticleGeneratorModalProps) {
   const [currentStep, setCurrentStep] = useState(0)
   const [isGenerating, setIsGenerating] = useState(false)
+  const [selectedModel, setSelectedModel] = useState<AIModel>('gpt4o-mini')
+  const [generationError, setGenerationError] = useState<string | null>(null)
   const [generatedArticle, setGeneratedArticle] = useState<GeneratedArticle>({
     title: '',
     titleStyle: '',
@@ -86,6 +93,12 @@ export default function ArticleGeneratorModal({
     }
   })
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
+  const [documentContent, setDocumentContent] = useState<string>('')
+  const [isLoadingContent, setIsLoadingContent] = useState(false)
+  const [showModelSelector, setShowModelSelector] = useState(false)
+  const [justGenerated, setJustGenerated] = useState(false)
+
+  // Ya no necesitamos cargar contenido específico, el iframe renderizará el PDF directamente
 
   // Función helper para guardar el estado completo
   const saveCurrentState = (stepOverride?: number) => {
@@ -112,10 +125,13 @@ export default function ArticleGeneratorModal({
                       generatedArticle.metadata.keywords.length > 0
     
     if (hasContent) {
-      const autoSaveInterval = setInterval(() => saveCurrentState(), 30000)
+      const autoSaveInterval = setInterval(() => {
+        console.log('Auto-saving...')
+        saveCurrentState()
+      }, 30000) // 30 segundos
       return () => clearInterval(autoSaveInterval)
     }
-  }, [generatedArticle, currentStep, isOpen, document])
+  }, [isOpen, document]) // Remover generatedArticle y currentStep para evitar bucle
 
   // Load saved draft when modal opens
   useEffect(() => {
@@ -143,6 +159,7 @@ export default function ArticleGeneratorModal({
           })
           setCurrentStep(parsedDraft.currentStep || 0)
           setLastSaved(new Date(parsedDraft.lastModified))
+          setJustGenerated(parsedDraft.justGenerated || false)
           console.log('Borrador cargado desde localStorage')
         } catch (error) {
           console.error('Error cargando borrador:', error)
@@ -187,6 +204,8 @@ export default function ArticleGeneratorModal({
   }, [isOpen, document])
 
   const handleStepClick = (stepIndex: number) => {
+    console.log('🎯 STEP CLICK:', { stepIndex, currentStep, stepName: GENERATION_STEPS[stepIndex]?.name })
+    
     // Permitir navegación libre entre pasos
     setCurrentStep(stepIndex)
     
@@ -195,32 +214,98 @@ export default function ArticleGeneratorModal({
   }
 
   const handleStartGeneration = async () => {
+    console.log('🎯 BOTÓN GENERAR ARTÍCULO CLICKEADO')
+    console.log('🔍 Estado inicial:', {
+      selectedModel,
+      isGenerating,
+      document: document?.id
+    })
+
+    if (!selectedModel) {
+      console.log('❌ No hay modelo seleccionado - mostrando selector')
+      setShowModelSelector(true)
+      return
+    }
+
+    if (!document?.id) {
+      console.log('❌ No hay documento seleccionado')
+      setGenerationError('No se ha seleccionado un documento')
+      return
+    }
+
+    console.log('🚀 INICIANDO GENERACIÓN DE ARTÍCULO')
+    console.log('📄 Documento completo:', document)
+    console.log('🤖 Modelo seleccionado:', selectedModel)
+
     setIsGenerating(true)
+    setGenerationError(null)
+    setJustGenerated(false) // Reset indicador de generación
+    
     try {
-      // TODO: Llamada a la API para generar artículo inicial
-      console.log('Iniciando generación de artículo para:', document?.title)
+      console.log('🔗 Llamando a aiService.generateArticle...')
       
-      // Simulación de generación
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      // Llamada real a la API para generar artículo
+      const result = await aiService.generateArticle({
+        documentId: document!.id,
+        model: selectedModel,
+        maxWords: 500,
+        tone: 'professional',
+        customInstructions: 'Enfócate en las implicaciones prácticas para abogados colombianos'
+      })
       
-      // Generar contenido básico
-      setGeneratedArticle(prev => ({
-        ...prev,
-        title: `Análisis jurídico: ${document?.title}`,
-        content: `Este artículo analiza las implicaciones jurídicas de ${document?.title}.\n\nEl ${document?.type} ${document?.identifier} establece criterios importantes para el desarrollo del derecho ${document?.area.toLowerCase()} en Colombia.\n\nEn esta decisión, se aborda específicamente: ${document?.summary || 'los aspectos fundamentales de la jurisprudencia aplicable al caso'}.\n\nLas implicaciones de esta decisión son múltiples y requieren un análisis detallado para comprender su alcance en el sistema jurídico colombiano.\n\n## Contexto jurídico\n\nLa decisión judicial que nos ocupa se enmarca en el desarrollo jurisprudencial reciente en materia de ${document?.area.toLowerCase()}, estableciendo precedentes importantes para casos similares.\n\n## Análisis del fallo\n\nLos magistrados han considerado varios aspectos fundamentales en su decisión, incluyendo la interpretación de los principios constitucionales aplicables y la coherencia con la jurisprudencia previa.\n\n## Implicaciones prácticas\n\nEsta decisión tendrá efectos significativos en la práctica jurídica, especialmente para profesionales del derecho que manejen casos similares en el futuro.`,
+      console.log('✅ RESPUESTA DE API RECIBIDA:', {
+        wordCount: result.wordCount,
+        modelUsed: result.modelUsed,
+        contentLength: result.content.length,
+        hasContent: !!result.content
+      })
+      
+      // Actualizar el artículo generado con datos reales
+      const newGeneratedArticle = {
+        ...generatedArticle,
+        content: result.content,
         metadata: {
-          ...prev.metadata,
+          ...generatedArticle.metadata,
           description: `Análisis detallado de ${document?.identifier}`,
           keywords: [document?.area.toLowerCase() || '', 'jurisprudencia', 'análisis legal'],
           seoTitle: `Análisis jurídico: ${document?.title}`,
-          readingTime: 3
+          readingTime: Math.ceil(result.wordCount / 200) // Estimación de lectura
         }
-      }))
+      }
       
-      // No avanzar automáticamente, mantener en el paso actual
+      setGeneratedArticle(newGeneratedArticle)
+      setJustGenerated(true)
+      
+      // Guardar inmediatamente el contenido generado (sobrescribir localStorage)
+      const storageKey = `article-draft-${document!.id}`
+      localStorage.setItem(storageKey, JSON.stringify({
+        ...newGeneratedArticle,
+        currentStep,
+        lastModified: new Date().toISOString(),
+        justGenerated: true
+      }))
+      setLastSaved(new Date())
+      
+      // Resetear el indicador después de unos segundos
+      setTimeout(() => setJustGenerated(false), 3000)
+
+      console.log(`✅ ARTÍCULO GUARDADO EN ESTADO: ${result.wordCount} palabras con ${result.modelUsed}`)
+      console.log('📝 CONTENIDO EN EL ESTADO:', {
+        contentPreview: result.content.substring(0, 200) + '...',
+        fullLength: result.content.length,
+        state: 'UPDATED_SUCCESSFULLY'
+      })
+      
     } catch (error) {
-      console.error('Error generando artículo:', error)
+      console.error('❌ ERROR GENERANDO ARTÍCULO:', error)
+      console.error('❌ Detalles del error:', {
+        message: error instanceof Error ? error.message : 'Error desconocido',
+        stack: error instanceof Error ? error.stack : undefined,
+        type: typeof error
+      })
+      setGenerationError(error instanceof Error ? aiService.formatErrorMessage(error) : 'Error desconocido')
     } finally {
+      console.log('🏁 Finalizando generación...')
       setIsGenerating(false)
     }
   }
@@ -239,7 +324,7 @@ export default function ArticleGeneratorModal({
       }
       
       // Guardar inmediatamente después del cambio
-      setTimeout(() => saveCurrentState(), 100)
+      // setTimeout(() => saveCurrentState(), 100) // Comentado para evitar bucle
       
       return updated
     })
@@ -254,7 +339,7 @@ export default function ArticleGeneratorModal({
       }
       
       // Guardar inmediatamente después del cambio
-      setTimeout(() => saveCurrentState(), 100)
+      // setTimeout(() => saveCurrentState(), 100) // Comentado para evitar bucle
       
       return updated
     })
@@ -271,7 +356,7 @@ export default function ArticleGeneratorModal({
       }
       
       // Guardar inmediatamente después del cambio
-      setTimeout(() => saveCurrentState(), 100)
+      // setTimeout(() => saveCurrentState(), 100) // Comentado para evitar bucle
       
       return updated
     })
@@ -391,15 +476,18 @@ export default function ArticleGeneratorModal({
                       </div>
                     </div>
 
-                    {/* Resumen */}
-                    {document.summary && (
+                    {/* Resumen - Priorizar resumen IA */}
+                    {(document.resumenIA || document.summary) && (
                       <div className="flex items-start space-x-2">
                         <div className="p-1.5 bg-primary-100 dark:bg-primary-900 rounded mt-0.5 flex items-center justify-center min-w-[24px] h-6">
                           <span className="text-xs font-bold text-primary-600 dark:text-primary-300">R</span>
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="text-xs text-gray-700 dark:text-gray-300 line-clamp-3 leading-relaxed">
-                            {document.summary}
+                            {document.resumenIA || document.summary}
+                            {document.resumenIA && (
+                              <span className="ml-2 px-1 py-0.5 text-xs bg-green-100 text-green-700 rounded">IA</span>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -412,7 +500,10 @@ export default function ArticleGeneratorModal({
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                          {document.type} {document.identifier}
+                          {document.decision || `${document.type} ${document.identifier}`}
+                          {document.decision && (
+                            <span className="ml-2 px-1 py-0.5 text-xs bg-purple-100 text-purple-700 rounded">IA</span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -430,31 +521,72 @@ export default function ArticleGeneratorModal({
                     {/* Panel izquierdo - Editor de artículo */}
                     <div className="w-1/2 border-r border-gray-200 dark:border-gray-700 flex flex-col">
                       <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 flex items-center justify-between">
-                        <h4 className="font-medium text-gray-900 dark:text-gray-100 text-sm">Editor de Artículo</h4>
-                        <button
-                          onClick={handleStartGeneration}
-                          disabled={isGenerating}
-                          className={clsx(
-                            'flex items-center space-x-2 px-2 py-1 rounded text-xs font-medium transition-all duration-200',
-                            isGenerating
-                              ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
-                              : 'bg-[#04315a] text-[#3ff3f2] hover:bg-[#062847] shadow-sm hover:shadow-md'
+                        <div className="flex items-center space-x-4">
+                          <h4 className="font-medium text-gray-900 dark:text-gray-100 text-sm">Editor de Artículo</h4>
+                          {selectedModel && (
+                            <span className="text-xs bg-[#04315a] text-[#3ff3f2] px-2 py-1 rounded-full">
+                              {selectedModel === 'gpt4o-mini' ? 'GPT-4o Mini' : 'Gemini'}
+                            </span>
                           )}
-                        >
-                          {isGenerating ? (
-                            <>
-                              <div className="animate-spin rounded-full h-2.5 w-2.5 border-b-2 border-gray-400 dark:border-gray-500"></div>
-                              <span>Generando...</span>
-                            </>
-                          ) : (
-                            <>
-                              <Sparkles className="w-2.5 h-2.5" />
-                              <span>Generar Artículo</span>
-                            </>
-                          )}
-                        </button>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => setShowModelSelector(true)}
+                            className="flex items-center space-x-1 px-2 py-1 rounded text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
+                          >
+                            <span>{selectedModel ? 'Cambiar modelo' : 'Seleccionar modelo'}</span>
+                          </button>
+                          <button
+                            onClick={handleStartGeneration}
+                            disabled={isGenerating}
+                            className={clsx(
+                              'flex items-center space-x-2 px-2 py-1 rounded text-xs font-medium transition-all duration-200',
+                              isGenerating
+                                ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                                : 'bg-[#04315a] text-[#3ff3f2] hover:bg-[#062847] shadow-sm hover:shadow-md'
+                            )}
+                          >
+                            {isGenerating ? (
+                              <>
+                                <div className="animate-spin rounded-full h-2.5 w-2.5 border-b-2 border-gray-400 dark:border-gray-500"></div>
+                                <span>Generando...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Sparkles className="w-2.5 h-2.5" />
+                                <span>Generar Artículo</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
                       </div>
                       <div className="flex-1 p-3 flex flex-col">
+                        {/* Error de generación */}
+                        {generationError && (
+                          <div className="mb-3 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                            <div className="flex items-start space-x-2">
+                              <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+                              <div className="text-sm text-red-700 dark:text-red-300">
+                                <p className="font-medium">Error al generar artículo</p>
+                                <p className="mt-1">{generationError}</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Indicador de generación exitosa */}
+                        {justGenerated && generatedArticle.content && (
+                          <div className="mb-3 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                            <div className="flex items-start space-x-2">
+                              <Sparkles className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                              <div className="text-sm text-green-700 dark:text-green-300">
+                                <p className="font-medium">¡Artículo generado exitosamente!</p>
+                                <p className="mt-1">Contenido generado con IA - {generatedArticle.content.length} caracteres</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
                         {/* Campo de contenido */}
                         <textarea
                           value={generatedArticle.content}
@@ -464,10 +596,10 @@ export default function ArticleGeneratorModal({
                               content: e.target.value
                             }))
                             // Guardar después de un pequeño delay para evitar múltiples guardados
-                            setTimeout(() => saveCurrentState(), 500)
+                            // setTimeout(() => saveCurrentState(), 500) // Comentado para evitar bucle
                           }}
                           className="w-full flex-1 p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#04315a] focus:border-[#04315a] resize-none text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-                          placeholder="Haz clic en 'Generar Artículo' para comenzar o escribe directamente aquí..."
+                          placeholder={selectedModel ? "Haz clic en 'Generar Artículo' para comenzar o escribe directamente aquí..." : "Primero selecciona un modelo de IA para generar el artículo..."}
                         />
                       </div>
                     </div>
@@ -479,31 +611,64 @@ export default function ArticleGeneratorModal({
                         <p className="text-xs text-gray-600 dark:text-gray-400">{document.type} {document.identifier}</p>
                       </div>
                       <div className="flex-1 p-3 bg-gray-100 dark:bg-gray-800">
-                        <div className="h-full bg-white dark:bg-gray-700 rounded-lg border dark:border-gray-600 flex items-center justify-center">
-                          {document.url ? (
-                            <iframe
-                              src={`${document.url}#toolbar=0&navpanes=0&scrollbar=0`}
-                              className="w-full h-full rounded-lg"
-                              title="Documento original"
-                            />
-                          ) : (
-                            <div className="text-center text-gray-500 dark:text-gray-400">
-                              <FileText className="w-12 h-12 mx-auto mb-4 text-gray-400 dark:text-gray-500" />
-                              <p className="text-sm">Vista previa del documento</p>
-                              <div className="mt-4 text-xs bg-gray-50 dark:bg-gray-600 p-4 rounded-lg max-w-md">
-                                <p className="text-gray-700 dark:text-gray-300"><strong>Tipo:</strong> {document.type}</p>
-                                <p className="text-gray-700 dark:text-gray-300"><strong>ID:</strong> {document.identifier}</p>
-                                <p className="text-gray-700 dark:text-gray-300"><strong>Área:</strong> {document.area}</p>
-                                <p className="text-gray-700 dark:text-gray-300"><strong>Fecha:</strong> {new Date(document.publicationDate).toLocaleDateString('es-ES')}</p>
-                                {document.summary && (
-                                  <div className="mt-2">
-                                    <p className="text-gray-700 dark:text-gray-300"><strong>Resumen:</strong></p>
-                                    <p className="mt-1 text-gray-600 dark:text-gray-400 leading-relaxed">{document.summary}</p>
-                                  </div>
-                                )}
+                        <div className="h-full bg-white dark:bg-gray-700 rounded-lg border dark:border-gray-600 flex flex-col">
+                          {/* Header con info del documento */}
+                          <div className="flex-shrink-0 px-3 py-2 border-b border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800">
+                            <div className="flex items-center justify-between">
+                              <div className="text-xs text-gray-600 dark:text-gray-400">
+                                Vista previa del documento PDF
                               </div>
+                              {document.url && (
+                                <a 
+                                  href={document.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                                >
+                                  Abrir original
+                                </a>
+                              )}
                             </div>
-                          )}
+                          </div>
+                          
+                          {/* Visor PDF del documento original */}
+                          <div className="flex-1 bg-white dark:bg-gray-800 overflow-hidden">
+                            {document.url ? (
+                              <iframe
+                                src={document.url}
+                                className="w-full h-full border-0"
+                                title={`Documento PDF: ${document.identifier}`}
+                              />
+                            ) : (
+                              <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+                                <FileText className="w-16 h-16 text-gray-400 mb-4" />
+                                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+                                  PDF no disponible
+                                </h3>
+                                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                                  No se encontró la URL del documento original
+                                </p>
+                                {/* Información básica como fallback */}
+                                <div className="max-w-sm space-y-3 text-left">
+                                  <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
+                                    <div className="font-medium text-blue-900 dark:text-blue-100">
+                                      {document.numeroSentencia || `${document.type} ${document.identifier}`}
+                                    </div>
+                                  </div>
+                                  {document.magistradoPonente && (
+                                    <div className="bg-gray-50 dark:bg-gray-700 p-2 rounded text-sm">
+                                      <strong>Magistrado Ponente:</strong> {document.magistradoPonente}
+                                    </div>
+                                  )}
+                                  {document.temaPrincipal && (
+                                    <div className="bg-green-50 dark:bg-green-900/20 p-2 rounded text-sm">
+                                      <strong>Tema Principal:</strong> {document.temaPrincipal}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -529,6 +694,7 @@ export default function ArticleGeneratorModal({
                     document={document}
                     onImageGenerated={handleImageGenerated}
                     generatedImage={generatedArticle.image}
+                    articleContent={generatedArticle.content}
                   />
                 </div>
               )}
@@ -581,14 +747,19 @@ export default function ArticleGeneratorModal({
                         {step.name}
                       </div>
                       <button
-                        onClick={() => handleStepClick(index)}
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          console.log('🎯 BOTÓN CLICKEADO:', { index, stepName: step.name })
+                          handleStepClick(index)
+                        }}
                         className={clsx(
-                          'flex items-center justify-center w-10 h-10 rounded-full text-sm font-medium transition-all duration-300 hover:scale-110 cursor-pointer',
+                          'flex items-center justify-center w-10 h-10 rounded-full text-sm font-medium transition-all duration-300 hover:scale-110 cursor-pointer relative z-10',
                           index < currentStep 
                             ? 'bg-[#04315a] text-[#3ff3f2] hover:bg-[#062847]' 
                             : index === currentStep
                             ? 'bg-[#3ff3f2] text-[#04315a] border-2 border-[#04315a] hover:bg-cyan-100'
-                            : 'bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-300 dark:hover:bg-gray-500'
+                            : 'bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 hover:bg-[#04315a] hover:text-[#3ff3f2] transition-colors cursor-pointer'
                         )}
                         title={step.name}
                       >
@@ -613,6 +784,64 @@ export default function ArticleGeneratorModal({
           </div>
         </div>
       </div>
+
+      {/* Modal de selección de modelo */}
+      {showModelSelector && (
+        <div className="fixed inset-0 z-60 overflow-hidden">
+          <div className="fixed inset-0 bg-black bg-opacity-50" onClick={() => setShowModelSelector(false)} />
+          
+          <div className="fixed inset-0 overflow-hidden flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] overflow-hidden">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
+                    Seleccionar Modelo de IA
+                  </h3>
+                  <button
+                    onClick={() => setShowModelSelector(false)}
+                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="mb-6">
+                  <ModelSelector
+                    selectedModel={selectedModel}
+                    onModelSelect={(model) => {
+                      setSelectedModel(model)
+                      setShowModelSelector(false)
+                      setGenerationError(null) // Limpiar errores previos
+                    }}
+                    purpose="article"
+                  />
+                </div>
+
+                <div className="flex justify-end space-x-3">
+                  <button
+                    onClick={() => setShowModelSelector(false)}
+                    className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={() => setShowModelSelector(false)}
+                    disabled={!selectedModel}
+                    className={clsx(
+                      'px-4 py-2 text-sm rounded-lg transition-colors',
+                      selectedModel
+                        ? 'bg-[#04315a] text-[#3ff3f2] hover:bg-[#062847]'
+                        : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                    )}
+                  >
+                    Confirmar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

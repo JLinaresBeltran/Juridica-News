@@ -226,3 +226,11 @@ npm run test:all             # Tests de todo el proyecto (definido)
 - **Estado Funcional**: Sistema usable para demo y pruebas de concepto
 
 npm run dev:all
+
+ Para ejecutar solo el backend:
+cd backend/
+npm run dev
+
+Para ejecutar solo el frontend:
+  cd frontend/
+  npm run dev

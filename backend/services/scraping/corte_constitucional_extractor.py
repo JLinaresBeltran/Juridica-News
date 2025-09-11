@@ -1,38 +1,6 @@
 """
 Extractor completo para la Corte Constitucional usando Selenium.
 Integrado al Sistema Editorial Jurídico Supervisado.
-
-🔧 OPTIMIZACIONES REALIZADAS (Sep 2024):
-
-✅ RENDIMIENTO:
-- Timeouts reducidos: 15s page load, 6s Angular, 3s content wait
-- Delays optimizados: 1.5s navegación, 0.3s scroll, 1.0s requests
-- Cache inteligente de URLs con limpieza automática (30 min TTL)
-- Búsqueda extendida de 10 → 8 días, normal 2 días
-
-✅ CONFIGURACIÓN:
-- Configuración centralizada en ExtractorConfig class
-- URLs base configurables, paths centralizados
-- Constantes extraídas de código hardcoded
-- Funciones utilitarias para normalización de archivos
-
-✅ MANTENIMIENTO:
-- Logs debug innecesarios eliminados (7 puntos optimizados)
-- Mensajes de error específicos por tipo (timeout, connection, element)
-- Funciones duplicadas refactorizadas (normalize_filename, extract_document_type)
-- Error handling mejorado con recovery automático
-
-✅ FUNCIONALIDAD PRESERVADA:
-- Pipeline completo: Extracción → Descarga → Análisis IA → Renderización
-- Metadatos estructurales: Magistrado, Sala, Tema Principal, Resumen, Decisión
-- Sistema de reintentos automáticos
-- Integración con base de datos Prisma
-
-⚡ IMPACTO ESTIMADO:
-- 40% reducción en tiempo de extracción
-- 60% menos logs innecesarios
-- 30% mejor handling de errores
-- Cache hit ratio ~70% en URLs repetidas
 """
 
 import time
@@ -56,70 +24,6 @@ from selenium.common.exceptions import TimeoutException, NoSuchElementException
 
 from base import BaseExtractor, DocumentMetadata
 
-# Configuración centralizada - Todos los timeouts y constantes en un solo lugar
-class ExtractorConfig:
-    # URLs base
-    BASE_URL = "https://www.corteconstitucional.gov.co"
-    
-    # Timeouts optimizados (en segundos)
-    PAGE_LOAD_TIMEOUT = 15  # Reducido de 20
-    IMPLICIT_WAIT = 2       # Reducido de 3
-    ANGULAR_LOAD_TIMEOUT = 6  # Reducido de 10
-    CONTENT_WAIT_TIMEOUT = 3  # Nuevo límite
-    PYTHON_PROCESS_TIMEOUT = 600  # 10 minutos para el proceso
-    
-    # Cache settings
-    URL_CACHE_TTL = 1800  # 30 minutos, reducido de 1 hora
-    
-    # Rate limiting
-    REQUEST_DELAY = 1.0   # Reducido delays
-    SCROLL_DELAY = 0.3    # Reducido de 0.5
-    NAVIGATION_DELAY = 1.5  # Reducido de 2-3
-    
-    # Search settings
-    EXTENDED_SEARCH_DAYS = 8  # Reducido de 10
-    NORMAL_SEARCH_DAYS = 2
-    MAX_HEADER_LINES = 15  # Reducido de 20
-    MAX_ROW_PROCESSING = 50  # Límite de filas a procesar
-    MIN_CONTENT_LENGTH = 100  # Contenido mínimo para análisis
-    
-    # URL patterns
-    JURISPRUDENCIA_PATHS = [
-        "/jurisprudencia/",
-        "/relatoria/",
-        "/"
-    ]
-    
-    @property
-    def BUSCADOR_URL(self):
-        return f"{self.BASE_URL}/relatoria/buscador-jurisprudencia"
-        
-    def get_document_url(self, sentence_id: str, year: int) -> str:
-        """Generar URL del documento RTF/DOCX."""
-        if sentence_id.startswith('SU.'):
-            normalized_id = sentence_id.replace('SU.', 'su').replace('/', '-').lower()
-        else:
-            normalized_id = sentence_id.lower().replace('/', '-')
-        return f"{self.BASE_URL}/sentencias/{year}/{normalized_id}.rtf"
-        
-    def get_html_url(self, sentence_id: str, year: int) -> str:
-        """Generar URL de la página HTML de la sentencia."""
-        return f"{self.BASE_URL}/relatoria/{year}/{sentence_id.replace('/', '-')}.htm"
-    
-    @staticmethod
-    def normalize_filename(sentence_id: str) -> str:
-        """Normalizar ID de sentencia para uso como nombre de archivo."""
-        return sentence_id.replace("/", "-").replace(" ", "_")
-    
-    @staticmethod
-    def extract_document_type(sentence_id: str) -> str:
-        """Extraer tipo de documento del ID de sentencia."""
-        if '-' in sentence_id:
-            return sentence_id.split('-')[0]
-        elif '.' in sentence_id:
-            return sentence_id.split('.')[0]
-        return 'UNKNOWN'
-
 @dataclass
 class CorteConstitucionalDocument(DocumentMetadata):
     """Documento específico de la Corte Constitucional."""
@@ -137,9 +41,8 @@ class CorteConstitucionalExtractor(BaseExtractor):
     
     def __init__(self, download_dir: Optional[str] = None):
         super().__init__("corte_constitucional")
-        self.config = ExtractorConfig()
-        self.base_url = self.config.BASE_URL
-        self.buscador_url = self.config.BUSCADOR_URL
+        self.base_url = "https://www.corteconstitucional.gov.co"
+        self.buscador_url = f"{self.base_url}/relatoria/buscador-jurisprudencia"
         self.driver = None
         
         # Directorio de descarga configurable
@@ -148,7 +51,7 @@ class CorteConstitucionalExtractor(BaseExtractor):
         
         # Cache de URLs verificadas con timestamp
         self._url_cache = {}
-        self._cache_ttl = self.config.URL_CACHE_TTL
+        self._cache_ttl = 3600  # 1 hora en segundos
         
         # Configurar logging específico para el sistema
         logging.getLogger('selenium').setLevel(logging.WARNING)
@@ -192,9 +95,8 @@ class CorteConstitucionalExtractor(BaseExtractor):
             service = Service(ChromeDriverManager().install())
             driver = webdriver.Chrome(service=service, options=chrome_options)
             
-            # Timeouts optimizados
-            driver.set_page_load_timeout(self.config.PAGE_LOAD_TIMEOUT)
-            driver.implicitly_wait(self.config.IMPLICIT_WAIT)
+            driver.set_page_load_timeout(30)
+            driver.implicitly_wait(5)
             
             driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
             driver.get("about:blank")
@@ -203,36 +105,33 @@ class CorteConstitucionalExtractor(BaseExtractor):
             return driver
             
         except Exception as e:
-            self.logger.error(f"❌ Error configurando driver principal: {str(e)[:100]}")
+            self.logger.error(f"Error configurando driver: {e}")
             # Configuración alternativa
             try:
-                self.logger.info("🔄 Intentando configuración simplificada...")
                 chrome_options_simple = Options()
                 chrome_options_simple.add_argument("--headless=new")
                 chrome_options_simple.add_argument("--no-sandbox")
                 chrome_options_simple.add_argument("--disable-dev-shm-usage")
                 
                 driver = webdriver.Chrome(options=chrome_options_simple)
-                driver.set_page_load_timeout(self.config.PAGE_LOAD_TIMEOUT)
+                driver.set_page_load_timeout(20)
                 self.logger.info("✅ Driver configurado con opciones simplificadas")
                 return driver
                 
             except Exception as e2:
-                self.logger.error(f"❌ Configuración alternativa también falló: {str(e2)[:100]}")
-                raise Exception(f"ChromeDriver no disponible. Verifique la instalación de Chrome y permisos del sistema. Error original: {str(e)[:50]}")
+                self.logger.error(f"Error con configuración alternativa: {e2}")
+                raise Exception(f"No se pudo configurar ChromeDriver: {e}")
     
-    def _wait_for_angular_load(self, timeout: int = None):
+    def _wait_for_angular_load(self, timeout: int = 15):
         """Esperar a que Angular termine de cargar."""
-        timeout = timeout or self.config.ANGULAR_LOAD_TIMEOUT
-        
         try:
-            # Verificar readyState
-            WebDriverWait(self.driver, min(timeout, 6)).until(
+            self.logger.debug("⏳ Esperando carga completa de Angular...")
+            
+            WebDriverWait(self.driver, timeout).until(
                 lambda driver: driver.execute_script("return document.readyState") == "complete"
             )
             
-            # Verificar Angular
-            WebDriverWait(self.driver, min(timeout, 4)).until(
+            WebDriverWait(self.driver, timeout).until(
                 lambda driver: driver.execute_script(
                     "return typeof window.ng !== 'undefined' || document.querySelector('app-root') !== null || document.querySelector('[ng-app]') !== null"
                 )
@@ -240,7 +139,9 @@ class CorteConstitucionalExtractor(BaseExtractor):
             
             # Espera inteligente basada en contenido
             start_time = time.time()
-            while time.time() - start_time < self.config.CONTENT_WAIT_TIMEOUT:
+            max_content_wait = 8
+            
+            while time.time() - start_time < max_content_wait:
                 content_loaded = self.driver.execute_script("""
                     return document.querySelector('table') !== null || 
                            document.querySelector('.results') !== null ||
@@ -248,9 +149,10 @@ class CorteConstitucionalExtractor(BaseExtractor):
                 """)
                 
                 if content_loaded:
+                    self.logger.debug("✅ Contenido dinámico detectado")
                     return
                 
-                time.sleep(self.config.SCROLL_DELAY)
+                time.sleep(1)
             
         except TimeoutException:
             self.logger.warning("⚠️ Timeout esperando carga de Angular, continuando...")
@@ -293,6 +195,7 @@ class CorteConstitucionalExtractor(BaseExtractor):
                 for doc in documents:
                     if doc.pdf_url and self._verify_document_url_cached(doc.pdf_url):
                         valid_documents.append(doc)
+                        self.logger.debug(f"✅ URL verificada: {doc.document_id}")
                     else:
                         self.logger.warning(f"❌ URL inválida: {doc.document_id}")
                 
@@ -301,13 +204,7 @@ class CorteConstitucionalExtractor(BaseExtractor):
             self.logger.info(f"🎯 Extracción completada: {len(documents)} sentencias válidas")
             
         except Exception as e:
-            error_msg = str(e)
-            if "timeout" in error_msg.lower():
-                self.logger.error(f"⏱️ Timeout durante extracción: {error_msg[:100]}")
-            elif "connection" in error_msg.lower():
-                self.logger.error(f"🔌 Error de conexión: {error_msg[:100]}")
-            else:
-                self.logger.error(f"❌ Error inesperado en extracción: {error_msg[:100]}")
+            self.logger.error(f"❌ Error en extracción: {e}")
             return []
         
         return documents
@@ -337,11 +234,8 @@ class CorteConstitucionalExtractor(BaseExtractor):
                 return False
                 
         except Exception as e:
-            error_msg = str(e)
-            if "connection" in error_msg.lower() or "refused" in error_msg.lower():
-                self.logger.info("📊 API local no disponible, usando modo normal")
-            else:
-                self.logger.warning(f"⚠️ Error consultando estado BD: {error_msg[:50]}...")
+            self.logger.warning(f"⚠️ Error consultando BD: {e}")
+            # Si no podemos consultar, asumimos búsqueda normal
             return False
     
     def _extract_with_date_filtering(self, limit: int, use_extended_search: bool = False) -> List[DocumentMetadata]:
@@ -379,11 +273,7 @@ class CorteConstitucionalExtractor(BaseExtractor):
             return results[:limit]
             
         except Exception as e:
-            error_msg = str(e)
-            if "webdriver" in error_msg.lower():
-                self.logger.error(f"🚗 Error del navegador durante extracción: {error_msg[:80]}")
-            else:
-                self.logger.error(f"❌ Error en extracción filtrada: {error_msg[:80]}")
+            self.logger.error(f"Error en extracción con filtrado: {e}")
             return []
     
     def _get_extraction_dates(self, extended_search: bool = False) -> List[tuple]:
@@ -401,8 +291,8 @@ class CorteConstitucionalExtractor(BaseExtractor):
         dates_to_extract = []
         today = datetime.now()
         
-        # Determinar número de días a buscar
-        days_to_search = self.config.EXTENDED_SEARCH_DAYS if extended_search else self.config.NORMAL_SEARCH_DAYS
+        # Determinar número de días a buscar - Aumentamos para modo normal
+        days_to_search = 15 if extended_search else 7
         self.logger.info(f"🗓️ Modo de búsqueda: {'extendida' if extended_search else 'normal'} ({days_to_search} días)")
         
         current_date = today
@@ -421,6 +311,7 @@ class CorteConstitucionalExtractor(BaseExtractor):
                 
                 dates_to_extract.append((current_date, target_date_str, target_date_short, target_date_alt))
                 days_added += 1
+                self.logger.debug(f"📅 Agregada fecha: {target_date_str}")
             
             current_date -= timedelta(days=1)
         
@@ -430,14 +321,16 @@ class CorteConstitucionalExtractor(BaseExtractor):
     def _navigate_to_jurisprudencia(self) -> bool:
         """Navegar a la sección de jurisprudencia."""
         jurisprudencia_urls = [
-            self.config.BASE_URL + path for path in self.config.JURISPRUDENCIA_PATHS
+            "https://www.corteconstitucional.gov.co/jurisprudencia/",
+            "https://www.corteconstitucional.gov.co/relatoria/",
+            "https://www.corteconstitucional.gov.co/"
         ]
         
         for base_url in jurisprudencia_urls:
             try:
                 self.logger.info(f"🌐 Navegando a: {base_url}")
                 self.driver.get(base_url)
-                time.sleep(self.config.NAVIGATION_DELAY)
+                time.sleep(3)
                 self._wait_for_angular_load()
                 
                 # Buscar botón "Ver últimas sentencias"
@@ -445,7 +338,7 @@ class CorteConstitucionalExtractor(BaseExtractor):
                     return True
                     
             except Exception as e:
-                self.logger.info(f"⚠️ No se pudo conectar a {base_url}: {str(e)[:50]}...")
+                self.logger.debug(f"Error en {base_url}: {e}")
                 continue
         
         return False
@@ -475,14 +368,14 @@ class CorteConstitucionalExtractor(BaseExtractor):
                             self.logger.info(f"✅ Encontrado botón: '{button.text.strip()}'")
                             
                             self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", button)
-                            time.sleep(self.config.SCROLL_DELAY)
+                            time.sleep(1)
                             
                             try:
                                 button.click()
                             except:
                                 self.driver.execute_script("arguments[0].click();", button)
                             
-                            time.sleep(self.config.NAVIGATION_DELAY)
+                            time.sleep(3)
                             self._wait_for_angular_load()
                             return True
                             
@@ -520,7 +413,7 @@ class CorteConstitucionalExtractor(BaseExtractor):
                     if len(rows) <= 2:
                         continue
                         
-                    for i, row in enumerate(rows[:self.config.MAX_ROW_PROCESSING]):
+                    for i, row in enumerate(rows[:50]):
                         try:
                             row_text = row.text.strip()
                             if not row_text or len(row_text) < 10:
@@ -536,12 +429,14 @@ class CorteConstitucionalExtractor(BaseExtractor):
                             if not date_found:
                                 continue
                             
-                            # Buscar número de sentencia
+                            # Buscar número de sentencia - Patrones mejorados
                             sentence_patterns = [
+                                r'([TCG]-\d{1,4}[/-]\d{2,4})',  # T-343/25, C-123/25, etc.
                                 r'(SU\.\d{1,4}[/-]\d{2,4})',
                                 r'(SU-\d{1,4}[/-]\d{2,4})', 
-                                r'([TCG]-\d{1,4}[/-]\d{2,4})',
-                                r'([A]-\d{1,4}[/-]\d{2,4})'
+                                r'([A]-\d{1,4}[/-]\d{2,4})',
+                                r'([TCG]\d{1,4}[/-]\d{2,4})',   # Sin guión
+                                r'(SU\d{1,4}[/-]\d{2,4})'      # SU sin punto ni guión
                             ]
                             
                             sentence_number = None
@@ -555,9 +450,8 @@ class CorteConstitucionalExtractor(BaseExtractor):
                                 continue
                             
                             # Generar URLs
-                            current_year = datetime.now().year
-                            pdf_url = self.config.get_document_url(sentence_number, current_year)
-                            html_url = self.config.get_html_url(sentence_number, current_year)
+                            pdf_url = self._generate_document_url(sentence_number)
+                            html_url = self._generate_html_url(sentence_number)
                             
                             # Crear DocumentMetadata
                             doc = DocumentMetadata(
@@ -566,62 +460,76 @@ class CorteConstitucionalExtractor(BaseExtractor):
                                 title=f"Sentencia {sentence_number} de la Corte Constitucional ({target_date_str})",
                                 date=datetime.now(),
                                 court="Corte Constitucional",
-                                document_type=self.config.extract_document_type(sentence_number),
+                                document_type=sentence_number.split('-')[0] if '-' in sentence_number else sentence_number.split('.')[0],
                                 pdf_url=pdf_url,
                                 html_url=html_url
                             )
                             
                             results.append(doc)
+                            self.logger.debug(f"✅ Sentencia encontrada: {sentence_number}")
                             
                             if len(results) >= limit:
                                 return results
                                 
                         except Exception as e:
+                            self.logger.debug(f"Error procesando fila {i}: {e}")
                             continue
                     
                     if results:
                         break
                         
                 except Exception as e:
+                    self.logger.debug(f"Error con selector {selector}: {e}")
                     continue
             
             return results
             
         except Exception as e:
-            error_msg = str(e)
-            if "element" in error_msg.lower():
-                self.logger.error(f"🎯 Error localizando elementos en página: {error_msg[:80]}")
-            elif "timeout" in error_msg.lower():
-                self.logger.error(f"⏱️ Timeout buscando sentencias por fecha: {error_msg[:60]}")
-            else:
-                self.logger.error(f"❌ Error procesando fecha: {error_msg[:80]}")
+            self.logger.error(f"Error extrayendo por fecha: {e}")
             return []
     
-    # Métodos para generar URLs movidos a ExtractorConfig
+    def _generate_document_url(self, sentence_number: str) -> str:
+        """Generar URL del documento RTF/DOCX."""
+        try:
+            # Limpiar número de sentencia
+            clean_number = sentence_number.strip().upper()
+            
+            # Casos especiales para SU
+            if clean_number.startswith('SU.'):
+                normalized_id = clean_number.replace('SU.', 'su').replace('/', '-').lower()
+            elif clean_number.startswith('SU'):
+                normalized_id = clean_number.replace('SU', 'su').replace('/', '-').lower()
+            else:
+                # Para T, C, A, etc. mantener formato estándar
+                normalized_id = clean_number.lower().replace('/', '-')
+            
+            current_year = datetime.now().year
+            base_url = f"https://www.corteconstitucional.gov.co/sentencias/{current_year}/{normalized_id}.rtf"
+            
+            self.logger.debug(f"URL generada: {sentence_number} -> {base_url}")
+            return base_url
+            
+        except Exception as e:
+            self.logger.error(f"Error generando URL para {sentence_number}: {e}")
+            return ""
+    
+    def _generate_html_url(self, sentence_number: str) -> str:
+        """Generar URL de la página HTML de la sentencia."""
+        current_year = datetime.now().year
+        return f"https://www.corteconstitucional.gov.co/relatoria/{current_year}/{sentence_number.replace('/', '-')}.htm"
     
     def _verify_document_url_cached(self, url: str) -> bool:
-        """Verificar URL con cache inteligente - Limpieza automática y TTL optimizado."""
+        """Verificar URL con cache."""
         import time
         
         current_time = time.time()
-        
-        # Verificar cache existente
         if url in self._url_cache:
             cached_data = self._url_cache[url]
             if current_time - cached_data['timestamp'] < self._cache_ttl:
                 return cached_data['valid']
-            else:
-                # Limpiar entrada expirada
-                del self._url_cache[url]
         
-        # Limpieza periódica del cache (cada 100 consultas aprox)
-        if len(self._url_cache) > 100:
-            self._cleanup_expired_cache(current_time)
-        
-        # Verificar URL
         is_valid = self._verify_document_url(url)
         
-        # Guardar en cache
         self._url_cache[url] = {
             'valid': is_valid,
             'timestamp': current_time
@@ -629,51 +537,49 @@ class CorteConstitucionalExtractor(BaseExtractor):
         
         return is_valid
     
-    def _cleanup_expired_cache(self, current_time: float):
-        """Limpiar entradas expiradas del cache."""
-        expired_keys = [
-            url for url, data in self._url_cache.items()
-            if current_time - data['timestamp'] >= self._cache_ttl
-        ]
-        
-        for key in expired_keys:
-            del self._url_cache[key]
-        
-        if expired_keys:
-            self.logger.info(f"🗑️ Cache limpiado: {len(expired_keys)} entradas expiradas eliminadas")
-    
     def _verify_document_url(self, url: str) -> bool:
-        """Verificar URL con timeout reducido (3s) y mejor error handling."""
-        try:
-            # Timeout más corto para verificación
-            response = requests.head(url, timeout=3, allow_redirects=True)
+        """Verificar que una URL de documento sea válida."""
+        if not url:
+            return False
             
+        try:
+            # Intentar HEAD request primero
+            response = requests.head(url, timeout=10, allow_redirects=True)
+            
+            # Si HEAD no funciona, intentar GET con rango limitado
             if response.status_code != 200:
+                try:
+                    headers = {'Range': 'bytes=0-1024'}
+                    response = requests.get(url, timeout=10, headers=headers, allow_redirects=True)
+                except:
+                    pass
+            
+            # Aceptar códigos 200-299
+            if not (200 <= response.status_code < 300):
+                self.logger.debug(f"URL retorna status {response.status_code}: {url}")
                 return False
             
             content_type = response.headers.get('content-type', '').lower()
             
-            # Válido si NO es HTML
-            valid_types = {
-                'application/rtf', 'application/vnd.openxmlformats',
-                'application/msword', 'application/pdf', 
-                'application/octet-stream'
-            }
-            
+            # Válido si NO es HTML - Ser más permisivo
             is_valid_document = (
-                'text/html' not in content_type and
-                (any(vtype in content_type for vtype in valid_types) or content_type == '')
+                'text/html' not in content_type or  # No es HTML, O
+                'application/rtf' in content_type or
+                'application/vnd.openxmlformats' in content_type or
+                'application/msword' in content_type or
+                'application/pdf' in content_type or
+                'application/octet-stream' in content_type or
+                content_type == '' or
+                'text/plain' in content_type  # RTF a veces se reporta como text/plain
             )
             
+            self.logger.debug(f"URL válida: {url} (Content-Type: {content_type})")
             return is_valid_document
             
-        except requests.exceptions.Timeout:
-            self.logger.warning(f"⏱️ Timeout verificando URL: {url.split('/')[-1]}")
-            return False
-        except requests.exceptions.ConnectionError:
-            return False
-        except Exception:
-            return False
+        except Exception as e:
+            self.logger.debug(f"Error verificando URL {url}: {e}")
+            # En caso de error, asumir que es válida para no perder documentos
+            return True
     
     def download_document(self, document_url: str, sentence_number: str) -> Optional[str]:
         """Descargar y guardar documento localmente."""
@@ -688,7 +594,7 @@ class CorteConstitucionalExtractor(BaseExtractor):
             docx_dir.mkdir(exist_ok=True)
             
             # Determinar nombre de archivo
-            safe_name = self.config.normalize_filename(sentence_number)
+            safe_name = sentence_number.replace("/", "-")
             extension = '.rtf' if document_url.endswith('.rtf') else '.docx'
             filename = f"{safe_name}{extension}"
             local_path = rtf_dir / filename
@@ -746,11 +652,5 @@ class CorteConstitucionalExtractor(BaseExtractor):
             return str(local_path)
             
         except Exception as e:
-            error_msg = str(e)
-            if "timeout" in error_msg.lower():
-                self.logger.error(f"⏱️ Timeout descargando {document_url.split('/')[-1]}: {error_msg[:50]}")
-            elif "http" in error_msg.lower() or "status" in error_msg.lower():
-                self.logger.error(f"🌐 Error HTTP descargando documento: {error_msg[:60]}")
-            else:
-                self.logger.error(f"❌ Error I/O descargando {document_url.split('/')[-1]}: {error_msg[:50]}")
+            self.logger.error(f"Error descargando {document_url}: {e}")
             return None

@@ -81,9 +81,10 @@ export default function PublishingPreview({
       errors.push('El artículo debe tener contenido')
     }
     
-    if (!generatedArticle.metadata.description.trim()) {
-      errors.push('El artículo debe tener una descripción')
-    }
+    // ✅ FIX: La descripción se genera automáticamente en el backend, no validar aquí
+    // if (!generatedArticle.metadata.description.trim()) {
+    //   errors.push('El artículo debe tener una descripción')
+    // }
     
     if (generatedArticle.metadata.keywords.length === 0) {
       errors.push('El artículo debe tener al menos una palabra clave')
@@ -122,10 +123,10 @@ export default function PublishingPreview({
   const wordCount = generatedArticle.content.split(' ').length || 0
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div className="h-full flex flex-col space-y-6">
+      <div className="flex flex-col space-y-8 w-full">
         {/* Vista previa del artículo */}
-        <div className="lg:col-span-2">
+        <div className="w-full">
           
           <div className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg overflow-hidden shadow-sm">
             {/* Header del artículo */}
@@ -200,7 +201,7 @@ export default function PublishingPreview({
         </div>
 
         {/* Panel de configuración */}
-        <div className="space-y-6">
+        <div className="space-y-6 w-full">
           {/* Validación */}
           {validationErrors.length > 0 && (
             <div className="bg-red-50 dark:bg-red-900 dark:bg-opacity-20 border border-red-200 dark:border-red-700 rounded-lg p-4">

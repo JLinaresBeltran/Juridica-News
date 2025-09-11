@@ -142,7 +142,7 @@ export class AiAnalysisService {
       // Patrones para identificar secciones importantes
       const patterns = {
         // Encabezado con información estructural
-        encabezado: /(?:república\s+de\s+colombia|corte\s+constitucional|sentencia\s+[tc]-\d|expediente|magistrado\s+ponente)/i,
+        encabezado: /(?:república\s+de\s+colombia|corte\s+constitucional|sentencia\s+[tc]-\d|expediente|(?:magistrado|magistrada)\s+ponente)/i,
         introduccion: /(?:en\s+la\s+ciudad\s+de|la\s+corte\s+constitucional|sala\s+plena)/i,
         antecedentes: /(?:antecedentes|i\.\s*antecedentes|1\.\s*antecedentes)/i,
         considerandos: /(?:consideraciones|considerandos|ii\.\s*consideraciones|2\.\s*consideraciones|fundamentos\s+jurídicos)/i,
@@ -365,7 +365,7 @@ export class AiAnalysisService {
           resumen: this.extractFromText(text, /resumen:?\s*([^\n]+)/i),
           decision: this.extractFromText(text, /decisión:?\s*([^\n]+)/i),
           numero_sentencia: this.extractFromText(text, /número.*sentencia:?\s*([^\n]+)/i),
-          magistrado_ponente: this.extractFromText(text, /magistrado.*ponente:?\s*([^\n]+)/i),
+          magistrado_ponente: this.extractFromText(text, /(?:magistrado|magistrada).*ponente:?\s*([^\n.,]+?)(?:[.,\n]|$)/i),
           sala_revision: this.extractFromText(text, /sala.*revisión:?\s*([^\n]+)/i),
           expediente: this.extractFromText(text, /expediente:?\s*([^\n]+)/i),
           confidencia: 0.7
@@ -600,9 +600,11 @@ CRÍTICO: Responde únicamente el JSON solicitado, sin comentarios adicionales.
     
     // 1. Magistrado Ponente
     const magistradoPatterns = [
-      /magistrada?\s+ponente[:\s]*\n?\s*([^\n.]+?)(?:\.|$)/im,
-      /m\.p\.[\s:]*([^\n.]+?)(?:\.|$)/im,
-      /ponente[\s:]*([^\n.]+?)(?:\.|$)/im
+      /(?:magistrado|magistrada)\s+ponente[:\s]*\n?\s*([^\n.,]+?)(?:[.,\n]|$)/im,
+      /(?:magistrado|magistrada)\s+sustanciador[ao]?[:\s]*\n?\s*([^\n.,]+?)(?:[.,\n]|$)/im,
+      /m\.p\.[\s:]*([^\n.,]+?)(?:[.,\n]|$)/im,
+      // Mejorado: evitar "componente" y ser más específico
+      /(?:^|\s)ponente[:\s]+([^\n.,]+?)(?:[.,\n]|$)/im
     ];
     
     for (const pattern of magistradoPatterns) {

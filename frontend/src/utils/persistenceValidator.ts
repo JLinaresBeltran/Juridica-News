@@ -32,7 +32,7 @@ interface IntegrityReport {
 export class PersistenceValidator {
   private static instance: PersistenceValidator
   private checkInterval: NodeJS.Timeout | null = null
-  private readonly CHECK_INTERVAL_MS = 5 * 60 * 1000 // 5 minutos
+  private readonly CHECK_INTERVAL_MS = 30 * 60 * 1000 // 30 minutos - Reducido para evitar interrupciones
   
   static getInstance(): PersistenceValidator {
     if (!PersistenceValidator.instance) {

@@ -55,7 +55,7 @@ interface CurationState {
   syncError: string | null
   
   // ✅ FIX: Actions híbridas (local + backend)
-  approveDocument: (document: Document, syncToBackend?: boolean) => Promise<void>
+  approveDocument: (document: Document, syncToBackend?: boolean, articleData?: any) => Promise<void>
   rejectDocument: (document: Document, reason?: string, syncToBackend?: boolean) => Promise<void>
   archiveDocument: (document: Document, reason: string, archivedBy: string, syncToBackend?: boolean) => Promise<void>
   moveToReady: (document: Document, articleData: any, syncToBackend?: boolean) => Promise<void>
@@ -101,7 +101,7 @@ export const useCurationStore = create<CurationState>()(
         syncError: null,
 
         // ✅ FIX: Nuevo método híbrido approveDocument
-        approveDocument: async (document: Document, syncToBackend = true) => {
+        approveDocument: async (document: Document, syncToBackend = true, articleData?: any) => {
           const now = new Date().toISOString()
           const approvedDoc = {
             ...document,
@@ -122,10 +122,59 @@ export const useCurationStore = create<CurationState>()(
           if (syncToBackend) {
             try {
               set({ isLoading: true, syncError: null })
-              await api.put(`/documents/${document.id}`, {
-                status: 'APPROVED',
-                lastReviewDate: now,
+              
+              // ✅ DEBUG: Log del documento completo antes de enviar
+              console.log('🔍 DEBUG: Documento a aprobar:', {
+                id: document.id,
+                title: document.title,
+                hasAiData: {
+                  numeroSentencia: !!document.numeroSentencia,
+                  magistradoPonente: !!document.magistradoPonente,
+                  resumenIA: !!document.resumenIA,
+                  temaPrincipal: !!document.temaPrincipal
+                },
+                aiFields: {
+                  numeroSentencia: document.numeroSentencia,
+                  magistradoPonente: document.magistradoPonente,
+                  resumenIA: document.resumenIA?.substring(0, 100) + '...',
+                  temaPrincipal: document.temaPrincipal
+                }
               })
+              
+              // ✅ FIX: Incluir datos de IA en la aprobación
+              const requestData = {
+                action: 'approve',
+                // Incluir datos de análisis IA
+                aiData: {
+                  numeroSentencia: document.numeroSentencia,
+                  magistradoPonente: document.magistradoPonente,
+                  salaRevision: document.salaRevision,
+                  expediente: document.expediente,
+                  temaPrincipal: document.temaPrincipal,
+                  resumenIA: document.resumenIA,
+                  decision: document.decision,
+                  aiAnalysisStatus: document.aiAnalysisStatus,
+                  aiAnalysisDate: document.aiAnalysisDate,
+                  aiModel: document.aiModel,
+                  fragmentosAnalisis: document.fragmentosAnalisis
+                },
+                // ✅ NEW: Incluir datos del artículo generado si existen
+                ...(articleData && {
+                  articleData: {
+                    title: articleData.title,
+                    content: articleData.content,
+                    image: articleData.image,
+                    keywords: articleData.keywords,
+                    metaTitle: articleData.metaTitle,
+                    publicationSection: articleData.publicationSection
+                  }
+                })
+              }
+              
+              // ✅ DEBUG: Log del request que se enviará
+              console.log('📤 DEBUG: Request data para aprobación:', requestData)
+              
+              await api.post(`/documents/${document.id}/curate`, requestData)
               set({ 
                 isLoading: false, 
                 lastSync: now,
@@ -163,9 +212,9 @@ export const useCurationStore = create<CurationState>()(
                             state.readyDocuments.includes(doc) ? 'READY' :
                             'PUBLISHED'
               
-              return api.put(`/documents/${doc.id}`, {
-                status,
-                lastReviewDate: new Date().toISOString(),
+              const action = status === 'APPROVED' ? 'approve' : 'reject'
+              return api.post(`/documents/${doc.id}/curate`, {
+                action
               })
             })
             
@@ -235,10 +284,23 @@ export const useCurationStore = create<CurationState>()(
           if (syncToBackend) {
             try {
               set({ isLoading: true, syncError: null })
-              await api.put(`/documents/${document.id}`, {
-                status: 'REJECTED',
-                lastReviewDate: now,
-                rejectionReason: reason
+              await api.post(`/documents/${document.id}/curate`, {
+                action: 'reject',
+                notes: reason,
+                // ✅ FIX: Incluir datos de IA también en el rechazo
+                aiData: {
+                  numeroSentencia: document.numeroSentencia,
+                  magistradoPonente: document.magistradoPonente,
+                  salaRevision: document.salaRevision,
+                  expediente: document.expediente,
+                  temaPrincipal: document.temaPrincipal,
+                  resumenIA: document.resumenIA,
+                  decision: document.decision,
+                  aiAnalysisStatus: document.aiAnalysisStatus,
+                  aiAnalysisDate: document.aiAnalysisDate,
+                  aiModel: document.aiModel,
+                  fragmentosAnalisis: document.fragmentosAnalisis
+                }
               })
               set({ 
                 isLoading: false, 
@@ -316,11 +378,41 @@ export const useCurationStore = create<CurationState>()(
           if (syncToBackend) {
             try {
               set({ isLoading: true, syncError: null })
-              await api.put(`/documents/${document.id}`, {
-                status: 'READY',
-                lastReviewDate: now,
-                articleData
+              
+              console.log('🔄 Moviendo a READY con datos de artículo:', {
+                documentId: document.id,
+                articleTitle: articleData?.title,
+                hasContent: !!articleData?.content
               })
+              
+              // ✅ FIX: Usar el endpoint de curación con datos de artículo para crear artículo completo
+              await api.post(`/documents/${document.id}/curate`, {
+                action: 'approve',
+                // Incluir datos de análisis IA del documento
+                aiData: {
+                  numeroSentencia: document.numeroSentencia,
+                  magistradoPonente: document.magistradoPonente,
+                  salaRevision: document.salaRevision,
+                  expediente: document.expediente,
+                  temaPrincipal: document.temaPrincipal,
+                  resumenIA: document.resumenIA,
+                  decision: document.decision,
+                  aiAnalysisStatus: document.aiAnalysisStatus,
+                  aiAnalysisDate: document.aiAnalysisDate,
+                  aiModel: document.aiModel,
+                  fragmentosAnalisis: document.fragmentosAnalisis
+                },
+                // ✅ NEW: Incluir datos del artículo generado para que se cree automáticamente
+                articleData: {
+                  title: articleData?.title || document.title,
+                  content: articleData?.content || '',
+                  image: articleData?.image,
+                  keywords: articleData?.metadata?.keywords?.join(', ') || '',
+                  metaTitle: articleData?.metadata?.seoTitle || articleData?.title || document.title,
+                  publicationSection: articleData?.metadata?.section?.toLowerCase() || 'constitucional'
+                }
+              })
+              
               set({ 
                 isLoading: false, 
                 lastSync: now,

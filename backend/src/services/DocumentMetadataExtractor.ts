@@ -182,23 +182,23 @@ export class DocumentMetadataExtractor {
    */
   private extractMagistradoPonente(content: string): string | null {
     const patterns = [
-      // Patrón principal: "MAGISTRADO PONENTE:" seguido del nombre
-      /magistrado\s+ponente\s*:?\s*([a-záéíóúüñ\s\.]+)/gi,
+      // Patrón principal: "MAGISTRADO/MAGISTRADA PONENTE:" seguido del nombre
+      /(?:magistrado|magistrada)\s+ponente\s*:?\s*([^\n\.,]+?)(?:[\.,\n]|$)/gi,
       
       // Variantes con DR./DRA.
-      /magistrado\s+ponente\s*:?\s*dr\.?a?\s+([a-záéíóúüñ\s\.]+)/gi,
+      /(?:magistrado|magistrada)\s+ponente\s*:?\s*dr\.?a?\s+([^\n\.,]+?)(?:[\.,\n]|$)/gi,
       
       // Con "M.P." o "MP:"
-      /m\.?p\.?\s*:?\s*([a-záéíóúüñ\s\.]+)/gi,
+      /m\.?p\.?\s*:?\s*([^\n\.,]+?)(?:[\.,\n]|$)/gi,
       
       // En encabezados o líneas separadas
-      /(?:^|\n)\s*magistrado\s+ponente\s*:?\s*([a-záéíóúüñ\s\.]+)/gim,
+      /(?:^|\n)\s*(?:magistrado|magistrada)\s+ponente\s*:?\s*([^\n\.,]+?)(?:[\.,\n]|$)/gim,
       
       // Patrón con "Ponente:"
-      /ponente\s*:?\s*([a-záéíóúüñ\s\.]+)/gi,
+      /ponente\s*:?\s*([^\n\.,]+?)(?:[\.,\n]|$)/gi,
       
       // Buscar después de "Corte Constitucional"
-      /corte\s+constitucional[\s\S]{0,200}magistrado\s+ponente\s*:?\s*([a-záéíóúüñ\s\.]+)/gi
+      /corte\s+constitucional[\s\S]{0,200}(?:magistrado|magistrada)\s+ponente\s*:?\s*([^\n\.,]+?)(?:[\.,\n]|$)/gi
     ];
 
     for (const pattern of patterns) {

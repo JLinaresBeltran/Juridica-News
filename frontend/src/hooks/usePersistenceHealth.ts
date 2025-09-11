@@ -195,16 +195,14 @@ export const usePersistenceDashboard = () => {
   const { health, actions } = usePersistenceHealth()
   const [autoRefresh, setAutoRefresh] = useState(false)
 
-  // Auto-refresh cada 30 segundos si está habilitado
-  useEffect(() => {
-    if (!autoRefresh) return
-
-    const interval = setInterval(() => {
-      actions.checkHealth()
-    }, 30000)
-
-    return () => clearInterval(interval)
-  }, [autoRefresh, actions])
+  // Auto-refresh ELIMINADO - Solo verificación manual para evitar interrupciones
+  // useEffect(() => {
+  //   if (!autoRefresh) return
+  //   const interval = setInterval(() => {
+  //     actions.checkHealth()
+  //   }, 30000)
+  //   return () => clearInterval(interval)
+  // }, [autoRefresh, actions])
 
   const toggleAutoRefresh = useCallback(() => {
     setAutoRefresh(prev => !prev)

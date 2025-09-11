@@ -13,6 +13,17 @@ import ArticleEditorPage from '@/pages/articles/ArticleEditorPage'
 import PublicPortalPage from '@/pages/public/PublicPortalPage'
 import PublicArticlePage from '@/pages/public/PublicArticlePage'
 
+// Section Pages
+import DigitalPage from '@/pages/public/DigitalPage'
+import CivilPage from '@/pages/public/CivilPage'
+import PenalPage from '@/pages/public/PenalPage'
+import FamiliaPage from '@/pages/public/FamiliaPage'
+import LaboralPage from '@/pages/public/LaboralPage'
+import TributarioPage from '@/pages/public/TributarioPage'
+import ComercialPage from '@/pages/public/ComercialPage'
+import AdministrativoPage from '@/pages/public/AdministrativoPage'
+import OpinionPage from '@/pages/public/OpinionPage'
+
 function App() {
   const { isAuthenticated } = useAuthStore()
 
@@ -23,6 +34,17 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/portal" element={<PublicPortalPage />} />
         <Route path="/portal/articles/:slug" element={<PublicArticlePage />} />
+        
+        {/* Section routes */}
+        <Route path="/portal/digital" element={<DigitalPage />} />
+        <Route path="/portal/civil" element={<CivilPage />} />
+        <Route path="/portal/penal" element={<PenalPage />} />
+        <Route path="/portal/familia" element={<FamiliaPage />} />
+        <Route path="/portal/laboral" element={<LaboralPage />} />
+        <Route path="/portal/tributario" element={<TributarioPage />} />
+        <Route path="/portal/comercial" element={<ComercialPage />} />
+        <Route path="/portal/administrativo" element={<AdministrativoPage />} />
+        <Route path="/portal/opinion" element={<OpinionPage />} />
         
         {/* Protected routes */}
         <Route

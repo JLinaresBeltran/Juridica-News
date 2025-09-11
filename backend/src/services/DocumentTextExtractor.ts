@@ -135,7 +135,7 @@ export class DocumentTextExtractor {
       // Patrones mejorados para identificar secciones
       const patterns = {
         // Introducción: datos básicos de la sentencia
-        introduccion: /(?:en\s+la\s+ciudad\s+de|la\s+corte\s+constitucional|sala\s+plena|magistrado\s+ponente|expediente|radicación|demandante|demandado)/i,
+        introduccion: /(?:en\s+la\s+ciudad\s+de|la\s+corte\s+constitucional|sala\s+plena|(?:magistrado|magistrada)\s+ponente|expediente|radicación|demandante|demandado)/i,
         
         // Antecedentes: contexto del caso
         antecedentes: /(?:antecedentes|i\.\s*antecedentes|1\.\s*antecedentes|hechos\s+probados|síntesis\s+de\s+la\s+demanda)/i,

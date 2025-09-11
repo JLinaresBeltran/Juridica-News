@@ -8,7 +8,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001
 // Create axios instance
 export const api: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  timeout: 30000, // 30 segundos para operaciones de IA
   headers: {
     'Content-Type': 'application/json',
   },
@@ -19,6 +19,15 @@ api.interceptors.request.use(
   (config) => {
     const { accessToken } = useAuthStore.getState()
     
+    // Log all requests for debugging
+    console.log('🌐 API REQUEST:', {
+      method: config.method?.toUpperCase(),
+      url: config.url,
+      fullUrl: `${config.baseURL}${config.url}`,
+      hasAuth: !!accessToken,
+      data: config.data
+    })
+    
     if (accessToken) {
       config.headers.Authorization = `Bearer ${accessToken}`
     }
@@ -26,6 +35,7 @@ api.interceptors.request.use(
     return config
   },
   (error) => {
+    console.error('🚨 API REQUEST ERROR:', error)
     return Promise.reject(error)
   }
 )

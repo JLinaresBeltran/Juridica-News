@@ -16,7 +16,7 @@ import { useAppStore } from '@/stores/appStore'
 import { useCurationStore } from '@/stores/curationStore'
 import { clsx } from 'clsx'
 import documentsService from '@/services/documentsService'
-import { useEventStore } from '@/stores/eventStore'
+// import { useEventStore } from '@/stores/eventStore' // Ya no se usa
 
 // FUNCIÓN TEMPORAL - Eliminar datos mock, usar datos reales del backend
 const MOCK_DATA_TOTALS = {
@@ -46,72 +46,51 @@ export function Sidebar() {
   }))
   
   const { approvedDocuments, rejectedDocuments, readyDocuments, publishedDocuments, archivedDocuments } = useCurationStore()
-  const subscribe = useEventStore(state => state.subscribe)
+  // const subscribe = useEventStore(state => state.subscribe) // Ya no se usa
   
-  // Estado para documentos pendientes reales
-  const [realPendingCount, setRealPendingCount] = useState(0)
+  // Estados para contadores reales de la API
+  const [documentCounts, setDocumentCounts] = useState({
+    PENDING: 0,
+    APPROVED: 0,
+    REJECTED: 0,
+    READY: 0,
+    PUBLISHED: 0,
+    ARCHIVED: 0
+  })
   
-  // Cargar documentos pendientes de la API
+  // Cargar contadores de documentos desde la API
   useEffect(() => {
-    const loadPendingCount = async () => {
+    const loadDocumentCounts = async () => {
       try {
-        const response = await documentsService.getDocuments({
-          status: 'PENDING',
-          limit: 1 // Solo necesitamos el count total
+        // Cargar contadores de cada estado
+        const [pendingRes, approvedRes, rejectedRes] = await Promise.all([
+          documentsService.getDocuments({ status: 'PENDING', limit: 1 }),
+          documentsService.getDocuments({ status: 'APPROVED', limit: 1 }),
+          documentsService.getDocuments({ status: 'REJECTED', limit: 1 })
+        ])
+        
+        setDocumentCounts({
+          PENDING: pendingRes.pagination.total,
+          APPROVED: approvedRes.pagination.total,
+          REJECTED: rejectedRes.pagination.total,
+          READY: 0, // TODO: Cuando se implemente
+          PUBLISHED: 0, // TODO: Cuando se implemente  
+          ARCHIVED: 0 // TODO: Cuando se implemente
         })
-        setRealPendingCount(response.pagination.total)
-        console.debug('🔄 Sidebar: Pending count updated:', response.pagination.total)
+        
+        console.debug('🔄 Sidebar: Document counts loaded:', {
+          PENDING: pendingRes.pagination.total,
+          APPROVED: approvedRes.pagination.total,
+          REJECTED: rejectedRes.pagination.total
+        })
+        
       } catch (error) {
-        console.error('Error loading pending documents count:', error)
-        setRealPendingCount(0)
+        console.error('Error loading document counts:', error)
       }
     }
     
-    // Carga inicial
-    loadPendingCount()
-    
-    // Suscribirse a eventos de extracción para actualización inmediata
-    const unsubscribeExtraction = subscribe('DOCUMENTS_EXTRACTED', () => {
-      console.debug('🔔 Sidebar: Documents extracted event received, refreshing count')
-      loadPendingCount()
-    })
-    
-    const unsubscribeRefresh = subscribe('REFRESH_PENDING_COUNT', () => {
-      console.debug('🔔 Sidebar: Refresh pending count event received')
-      loadPendingCount()
-    })
-    
-    // Recargar cada 30 segundos (backup)
-    const interval = setInterval(loadPendingCount, 30000)
-    
-    return () => {
-      clearInterval(interval)
-      unsubscribeExtraction()
-      unsubscribeRefresh()
-    }
-  }, [subscribe])
-
-  // Memoizar el contador de pendientes usando datos reales
-  const pendingCount = useMemo(() => {
-    const processedIds = new Set([
-      ...approvedDocuments.map(doc => doc.id),
-      ...rejectedDocuments.map(doc => doc.id),
-      ...readyDocuments.map(doc => doc.id),
-      ...publishedDocuments.map(doc => doc.id),
-      ...archivedDocuments.map(doc => doc.id)
-    ])
-    
-    // Usar el conteo real de la API menos los procesados localmente
-    const count = Math.max(0, realPendingCount - processedIds.size)
-    
-    console.log('✅ Contador Pendientes (Real):', {
-      totalFromAPI: realPendingCount,
-      procesados: processedIds.size,
-      pendientes: count
-    })
-    
-    return count
-  }, [realPendingCount, approvedDocuments, rejectedDocuments, readyDocuments, publishedDocuments, archivedDocuments])
+    loadDocumentCounts()
+  }, [])
 
   const navigationSections: NavSection[] = [
     {
@@ -123,8 +102,8 @@ export function Sidebar() {
     {
       title: 'Revisión',
       items: [
-        { id: 'pending', label: 'Pendientes', icon: Clock, path: '/curation', count: pendingCount },
-        { id: 'approved', label: 'Aprobados', icon: CheckCircle, path: '/approved', count: () => approvedDocuments.length },
+        { id: 'pending', label: 'Pendientes', icon: Clock, path: '/curation', count: documentCounts.PENDING },
+        { id: 'approved', label: 'Aprobados', icon: CheckCircle, path: '/approved', count: documentCounts.APPROVED },
       ]
     },
     {
