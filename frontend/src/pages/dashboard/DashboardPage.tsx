@@ -217,7 +217,7 @@ export default function DashboardPage() {
       clearProgress() // Limpiar progreso anterior
       toast.loading('Iniciando extracción de documentos...', { id: 'extraction' })
       
-      const result = await scrapingService.extractCorteConstitucional(5, true) // Extraer 5 documentos con descarga habilitada
+      const result = await scrapingService.extractCorteConstitucional(20, true) // Extraer hasta 20 documentos (todas las de HOY y AYER)
       
       // Validar respuesta antes de mostrar modal
       if (!result) {
@@ -231,11 +231,15 @@ export default function DashboardPage() {
       
       // Normalizar la respuesta para asegurar que tenga la estructura esperada
       const normalizedResult: ExtractionResult = {
-        success: result.success !== false, // considerar como éxito si no es explícitamente false
-        documents: Array.isArray(result.documents) ? result.documents : [],
-        downloadedCount: result.downloadedCount || 0,
-        extractionTime: result.extractionTime || 0,
-        totalFound: result.totalFound || (Array.isArray(result.documents) ? result.documents.length : 0)
+        success: result.success !== false,
+        message: result.message || '',
+        data: {
+          jobId: result.data?.jobId || '',
+          documents: Array.isArray(result.data?.documents) ? result.data.documents : [],
+          totalFound: result.data?.totalFound || 0,
+          extractionTime: result.data?.extractionTime || 0,
+          downloadedCount: result.data?.downloadedCount || 0
+        }
       }
       
       setExtractionResult(normalizedResult)
@@ -247,32 +251,32 @@ export default function DashboardPage() {
         emit('DOCUMENTS_EXTRACTED', {
           source: 'dashboard',
           details: {
-            totalFound: normalizedResult.totalFound,
-            documentsProcessed: normalizedResult.documents.length,
-            downloadedCount: normalizedResult.downloadedCount,
-            extractionTime: normalizedResult.extractionTime
+            totalFound: normalizedResult.data.totalFound,
+            documentsProcessed: normalizedResult.data.documents.length,
+            downloadedCount: normalizedResult.data.downloadedCount,
+            extractionTime: normalizedResult.data.extractionTime
           }
         })
         
         // Si se procesaron documentos, recargar estadísticas locales
-        if (normalizedResult.documents.length > 0) {
+        if (normalizedResult.data.documents.length > 0) {
           toast.loading('Actualizando contadores...', { id: 'extraction' })
           await loadSystemStats() // Recargar las estadísticas para reflejar los nuevos documentos
         }
         
         console.info('🎉 Document extraction completed, events emitted:', {
-          totalFound: normalizedResult.totalFound,
-          processed: normalizedResult.documents.length
+          totalFound: normalizedResult.data.totalFound,
+          processed: normalizedResult.data.documents.length
         })
       }
       
       // Mensajes más descriptivos según el resultado
-      if (normalizedResult.totalFound === 0) {
+      if (normalizedResult.data.totalFound === 0) {
         toast.success('Extracción completada: No se encontraron documentos nuevos para las fechas recientes', { id: 'extraction' })
-      } else if (normalizedResult.documents.length === 0) {
-        toast.success(`Extracción completada: ${normalizedResult.totalFound} documentos encontrados pero no se pudieron procesar`, { id: 'extraction' })
+      } else if (normalizedResult.data.documents.length === 0) {
+        toast.success(`Extracción completada: ${normalizedResult.data.totalFound} documentos encontrados pero no se pudieron procesar`, { id: 'extraction' })
       } else {
-        toast.success(`Extracción completada: ${normalizedResult.totalFound} documentos encontrados y ${normalizedResult.documents.length} procesados`, { id: 'extraction' })
+        toast.success(`Extracción completada: ${normalizedResult.data.totalFound} documentos encontrados y ${normalizedResult.data.documents.length} procesados`, { id: 'extraction' })
       }
     } catch (error: any) {
       console.error('Error during extraction:', error)
@@ -778,8 +782,8 @@ export default function DashboardPage() {
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 lg:p-6 border-b border-gray-200 dark:border-gray-700">
                   <div className="flex items-center space-x-3 min-w-0">
-                    <div className={`p-2 rounded-lg flex-shrink-0 ${extractionResult.success ? 'bg-green-100' : 'bg-red-100'}`}>
-                      {extractionResult.success ? (
+                    <div className={`p-2 rounded-lg flex-shrink-0 ${extractionResult?.success ? 'bg-green-100' : 'bg-red-100'}`}>
+                      {extractionResult?.success ? (
                         <CheckCircle className="w-5 h-5 lg:w-6 lg:h-6 text-green-600" />
                       ) : (
                         <AlertCircle className="w-5 h-5 lg:w-6 lg:h-6 text-red-600" />
@@ -808,31 +812,31 @@ export default function DashboardPage() {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
                     <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg text-center">
                       <div className="text-lg font-semibold text-blue-600 dark:text-blue-400">
-                        {extractionResult.totalFound}
+                        {extractionResult?.data?.totalFound || 0}
                       </div>
                       <div className="text-xs text-blue-700 dark:text-blue-300">Encontrados</div>
                     </div>
                     <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-lg text-center">
                       <div className="text-lg font-semibold text-green-600 dark:text-green-400">
-                        {extractionResult.downloadedCount}
+                        {extractionResult?.data?.downloadedCount || 0}
                       </div>
                       <div className="text-xs text-green-700 dark:text-green-300">Descargados</div>
                     </div>
                     <div className="bg-purple-50 dark:bg-purple-900/20 p-3 rounded-lg text-center">
                       <div className="text-lg font-semibold text-purple-600 dark:text-purple-400">
-                        {extractionResult.extractionTime}s
+                        {extractionResult?.data?.extractionTime || 0}s
                       </div>
                       <div className="text-xs text-purple-700 dark:text-purple-300">Tiempo</div>
                     </div>
-                    <div className={`p-3 rounded-lg text-center ${extractionResult.success 
+                    <div className={`p-3 rounded-lg text-center ${extractionResult?.success 
                       ? 'bg-green-50 dark:bg-green-900/20' 
                       : 'bg-red-50 dark:bg-red-900/20'}`}>
-                      <div className={`text-lg font-semibold ${extractionResult.success 
+                      <div className={`text-lg font-semibold ${extractionResult?.success 
                         ? 'text-green-600 dark:text-green-400' 
                         : 'text-red-600 dark:text-red-400'}`}>
-                        {extractionResult.success ? 'OK' : 'ERROR'}
+                        {extractionResult?.success ? 'OK' : 'ERROR'}
                       </div>
-                      <div className={`text-xs ${extractionResult.success 
+                      <div className={`text-xs ${extractionResult?.success 
                         ? 'text-green-700 dark:text-green-300' 
                         : 'text-red-700 dark:text-red-300'}`}>
                         Estado
@@ -841,13 +845,13 @@ export default function DashboardPage() {
                   </div>
 
                   {/* Documents List */}
-                  {extractionResult.documents && extractionResult.documents.length > 0 && (
+                  {extractionResult?.data?.documents && extractionResult.data.documents.length > 0 && (
                     <div className="space-y-3">
                       <h3 className="font-medium text-gray-900 dark:text-gray-100">
-                        Documentos Extraídos ({extractionResult.documents.length})
+                        Documentos Extraídos ({extractionResult?.data?.documents?.length || 0})
                       </h3>
                       <div className="max-h-64 overflow-y-auto space-y-2">
-                        {extractionResult.documents.map((doc, index) => (
+                        {extractionResult?.data?.documents?.map((doc: any, index: number) => (
                           <div key={doc.document_id || index} className="border border-gray-200 dark:border-gray-600 rounded-lg p-3 bg-gray-50 dark:bg-gray-700">
                             <div className="flex items-start justify-between">
                               <div className="flex-1 min-w-0">
@@ -882,14 +886,14 @@ export default function DashboardPage() {
                   )}
 
                   {/* No Documents Message */}
-                  {(!extractionResult.documents || extractionResult.documents.length === 0) && (
+                  {(!extractionResult?.data?.documents || extractionResult.data.documents.length === 0) && (
                     <div className="text-center py-8">
                       <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                       <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
                         No se encontraron documentos
                       </h3>
                       <p className="text-gray-500 dark:text-gray-400">
-                        {extractionResult.success 
+                        {extractionResult?.success 
                           ? 'La extracción fue exitosa pero no se encontraron documentos nuevos.'
                           : 'Ocurrió un error durante la extracción de documentos.'
                         }
@@ -907,7 +911,7 @@ export default function DashboardPage() {
                     >
                       Cerrar
                     </button>
-                    {extractionResult.success && extractionResult.downloadedCount > 0 && (
+                    {extractionResult?.success && extractionResult?.data?.downloadedCount > 0 && (
                       <button
                         onClick={() => {
                           setShowExtractionModal(false)

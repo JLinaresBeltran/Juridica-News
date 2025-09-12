@@ -21,7 +21,7 @@ import mediaRoutes from '@/controllers/media';
 import authRoutes from '@/controllers/auth';
 import publicRoutes from '@/controllers/public';
 import auditRoutes from '@/controllers/audit';
-import scrapingRoutes from '@/controllers/scraping';
+import scrapingRoutes from '@/controllers/scraping-v2'; // ARQUITECTURA MODULAR V2
 import adminRoutes from '@/controllers/admin'; // FUNCIÓN TEMPORAL
 import { sseController } from '@/controllers/sse';
 import healthRoutes from '@/controllers/health';
@@ -114,7 +114,7 @@ app.use('/api/articles', authMiddleware, articleRoutes);
 app.use('/api/ai', authMiddleware, aiRoutes);
 app.use('/api/media', authMiddleware, mediaRoutes);
 app.use('/api/audit', authMiddleware, auditRoutes);
-app.use('/api/scraping', authMiddleware, scrapingRoutes);
+app.use('/api/scraping/v2', authMiddleware, scrapingRoutes); // ARQUITECTURA MODULAR V2
 app.use('/api/admin', authMiddleware, adminRoutes); // FUNCIÓN TEMPORAL - Solo para desarrollo
 
 // Static files serving (if needed)

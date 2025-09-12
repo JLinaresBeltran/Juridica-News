@@ -1,1 +1,0 @@
-# Servicio de Scraping para el Sistema Editorial Jurídico
