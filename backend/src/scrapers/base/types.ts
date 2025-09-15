@@ -44,6 +44,8 @@ export interface ExtractedDocument {
   source: string;
   url: string;
   content?: string;
+  fullTextContent?: string;
+  documentBuffer?: Buffer;
   summary?: string;
   documentType: string;
   legalArea: string;

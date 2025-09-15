@@ -66,6 +66,7 @@ export interface Document {
   url: string;
   originalFilePath?: string;
   publicationDate: string; // ISO string
+  webOfficialDate?: string; // ISO string - Fecha oficial de la web
   legalArea: LegalArea;
   documentType: DocumentType;
   priority: Priority;

@@ -50,6 +50,8 @@ model Document {
   title              String
   url                String    @unique
   content            String
+  fullTextContent    String?   @map("full_text_content")
+  documentPath       String?   @map("document_path")
   summary            String?
   source             String
   legalArea          String    @map("legal_area")
@@ -57,6 +59,7 @@ model Document {
   status             String    @default("PENDING")
   priority           String    @default("NORMAL")
   publicationDate    DateTime  @map("publication_date")
+  webOfficialDate    DateTime? @map("web_official_date")
   internalId         String?   @map("internal_id")
   extractionDate     DateTime  @default(now()) @map("extraction_date")
   lastReviewDate     DateTime? @map("last_review_date")

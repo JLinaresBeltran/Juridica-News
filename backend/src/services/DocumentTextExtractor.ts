@@ -111,7 +111,7 @@ export class DocumentTextExtractor {
   /**
    * Identificar y extraer secciones estructurales de sentencias judiciales
    */
-  private extractStructuredSections(content: string) {
+  public extractStructuredSections(content: string) {
     const sections = {
       introduccion: '',
       considerandos: '',
@@ -126,11 +126,33 @@ export class DocumentTextExtractor {
         .replace(/\r/g, '\n')
         .replace(/\n\s*\n\s*\n/g, '\n\n'); // Reducir múltiples saltos de línea
 
-      // Dividir en párrafos
-      const paragraphs = normalizedContent
+      // Dividir en párrafos - FILTRO MEJORADO para preservar párrafos cortos de RESUELVE
+      const allParagraphs = normalizedContent
         .split(/\n\s*\n/)
-        .filter(p => p.trim().length > 50)
-        .map(p => p.trim());
+        .map(p => p.trim())
+        .filter(p => p.length > 0);
+
+      // Encontrar posición de RESUELVE para aplicar filtro diferente
+      const resuelvePosition = normalizedContent.toLowerCase().indexOf('resuelve');
+      const isInResuelveSection = (paragraph: string, index: number) => {
+        if (resuelvePosition === -1) return false;
+
+        // Calcular posición aproximada del párrafo
+        let currentPos = 0;
+        for (let i = 0; i < index; i++) {
+          currentPos += allParagraphs[i].length + 2; // +2 por \n\n
+        }
+
+        return currentPos >= resuelvePosition - 1000; // 1000 caracteres antes de RESUELVE
+      };
+
+      // Aplicar filtro: párrafos largos (>50) EXCEPTO en sección RESUELVE (>10)
+      const paragraphs = allParagraphs.filter((p, index) => {
+        const minLength = isInResuelveSection(p, index) ? 10 : 50;
+        return p.length >= minLength;
+      });
+
+      logger.info(`🔍 DEBUG: Párrafos procesados - Total: ${allParagraphs.length}, Filtrados: ${paragraphs.length}, RESUELVE detectado: ${resuelvePosition !== -1}`);
 
       // Patrones mejorados para identificar secciones
       const patterns = {
@@ -143,8 +165,8 @@ export class DocumentTextExtractor {
         // Consideraciones: argumentación jurídica principal
         consideraciones: /(?:consideraciones|considerandos|ii\.\s*consideraciones|2\.\s*consideraciones|fundamentos\s+jurídicos|análisis\s+constitucional|problema\s+jurídico)/i,
         
-        // Decisión: parte resolutiva
-        decision: /(?:resuelve|decide|falla|iii\.\s*decisión|3\.\s*decisión|parte\s+resolutiva|por\s+tanto|en\s+mérito\s+de\s+lo\s+expuesto)/i,
+        // Decisión: parte resolutiva - Patrones más flexibles para detectar RESUELVE
+        decision: /(?:^|\n)[\s]*(?:(?:III|3)\.?\s*)?RESUELVE\s*[:\.]?[\s]*(?:\n|$)/im,
         
         // Contenido relevante adicional
         ratioDecidendi: /(?:ratio\s+decidendi|fundamento\s+central|tesis\s+principal|doctrina\s+constitucional)/i
@@ -174,12 +196,25 @@ export class DocumentTextExtractor {
           continue;
         }
 
-        // Detectar inicio de parte resolutiva
-        if (!decisionFound && patterns.decision.test(paragraphLower)) {
+        // Detectar inicio de parte resolutiva - Múltiples patrones más flexibles
+        const isResuelvePattern = patterns.decision.test(paragraph);
+        const isResuelveManual = /^[\s]*RESUELVE\s*[:\.]?[\s]*$/i.test(paragraph.trim());
+        const isResuelveInLine = /\bRESUELVE\s*[:\.]?\s*$/im.test(paragraph);
+        const isResuelveWithContext = /(?:corte|sala)[\s\S]*RESUELVE\s*[:\.]?\s*$/im.test(paragraph);
+
+        if (!decisionFound && (isResuelvePattern || isResuelveManual || isResuelveInLine || isResuelveWithContext)) {
+          logger.info(`🎯 RESUELVE DETECTADO! Párrafo: "${paragraph.trim()}" | Pattern: ${isResuelvePattern} | Manual: ${isResuelveManual} | InLine: ${isResuelveInLine} | Context: ${isResuelveWithContext}`);
           currentSection = 'resuelve';
           decisionFound = true;
           sections.resuelve += paragraph + '\n\n';
           continue;
+        }
+
+        // DEBUG: Log paragraphs cerca del final para detectar por qué no encuentra RESUELVE
+        if (paragraph.toLowerCase().includes('resuelve')) {
+          logger.info(`🔍 DEBUG: Párrafo con "resuelve" encontrado: "${paragraph.trim()}"`);
+          logger.info(`🔍 DEBUG: Pattern test: ${patterns.decision.test(paragraph)}`);
+          logger.info(`🔍 DEBUG: Manual test: ${/^[\s]*RESUELVE\s*[:\.]?[\s]*$/i.test(paragraph.trim())}`);
         }
 
         // Continuar agregando contenido a la sección actual
@@ -198,10 +233,8 @@ export class DocumentTextExtractor {
           }
         } else if (currentSection === 'resuelve') {
           sections.resuelve += paragraph + '\n\n';
-          // Limitar parte resolutiva
-          if (sections.resuelve.length > 1500) {
-            break;
-          }
+          // CAMBIO CRÍTICO: Capturar TODA la sección RESUELVE sin límites
+          // Ya no limitamos a 4000 caracteres para análisis completo
         }
 
         // Capturar contenido relevante adicional
@@ -210,17 +243,40 @@ export class DocumentTextExtractor {
         }
       }
 
-      // Fallback: si no se encontró estructura, usar distribución por posición
+      // Fallback mejorado: buscar RESUELVE manualmente si no se encontró estructura
+      if (!decisionFound) {
+        logger.warn('⚠️  RESUELVE no detectado con patrones, buscando manualmente...');
+
+        // 🎯 CORRECCIÓN: Buscar RESUELVE en el contenido ORIGINAL completo, no en párrafos filtrados
+        const resuelveIndex = normalizedContent.toLowerCase().indexOf('resuelve');
+
+        if (resuelveIndex !== -1) {
+          logger.info(`🔍 RESUELVE encontrado en posición ${resuelveIndex} del contenido original`);
+
+          // Capturar desde RESUELVE hasta el final del documento completo
+          const resuelveContent = normalizedContent.substring(resuelveIndex);
+          sections.resuelve = resuelveContent;
+
+          logger.info(`✅ RESUELVE extraído directamente del contenido original: ${sections.resuelve.length} caracteres`);
+          logger.info(`📋 Contenido RESUELVE: "${sections.resuelve.substring(0, 200)}..."`);
+          decisionFound = true;
+        } else {
+          logger.error('❌ RESUELVE no encontrado ni siquiera en búsqueda manual');
+        }
+      }
+
+      // Fallback final: si no se encontró estructura, usar distribución por posición
       if (!introduccionFound && !consideracionesFound && !decisionFound) {
         logger.warn('⚠️  No se detectó estructura jurídica, usando distribución por posición');
-        
+
         const firstPart = paragraphs.slice(0, Math.ceil(paragraphs.length * 0.2));
         const middlePart = paragraphs.slice(Math.ceil(paragraphs.length * 0.2), Math.ceil(paragraphs.length * 0.8));
         const lastPart = paragraphs.slice(Math.ceil(paragraphs.length * 0.8));
 
         sections.introduccion = firstPart.join('\n\n').substring(0, 2000);
         sections.considerandos = middlePart.join('\n\n').substring(0, 4000);
-        sections.resuelve = lastPart.join('\n\n').substring(0, 1500);
+        // CAMBIO: Capturar TODA la parte final como RESUELVE sin límites
+        sections.resuelve = lastPart.join('\n\n');
       }
 
       // Limpiar secciones vacías
@@ -231,6 +287,20 @@ export class DocumentTextExtractor {
       });
 
       logger.info(`📋 Secciones extraídas - Intro: ${sections.introduccion.length}ch, Considerandos: ${sections.considerandos.length}ch, Resuelve: ${sections.resuelve.length}ch`);
+
+      // DEBUG: Log final de la sección RESUELVE
+      if (sections.resuelve.length > 0) {
+        logger.info(`✅ RESUELVE encontrado: "${sections.resuelve.substring(0, 200)}..."`);
+      } else {
+        logger.warn(`❌ RESUELVE NO encontrado. Contenido total: ${content.length} caracteres`);
+        // Buscar manualmente en todo el contenido
+        const manualSearch = content.toLowerCase().indexOf('resuelve');
+        if (manualSearch !== -1) {
+          const contextStart = Math.max(0, manualSearch - 50);
+          const contextEnd = Math.min(content.length, manualSearch + 200);
+          logger.info(`🔍 RESUELVE encontrado manualmente en posición ${manualSearch}: "${content.substring(contextStart, contextEnd)}"`);
+        }
+      }
 
       return sections;
 
@@ -244,7 +314,8 @@ export class DocumentTextExtractor {
       return {
         introduccion: words.slice(0, third).join(' ').substring(0, 2000),
         considerandos: words.slice(third, third * 2).join(' ').substring(0, 4000),
-        resuelve: words.slice(third * 2).join(' ').substring(0, 1500),
+        // CAMBIO: Fallback también captura RESUELVE completo sin límites
+        resuelve: words.slice(third * 2).join(' '),
         otros: []
       };
     }

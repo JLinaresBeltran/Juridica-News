@@ -10,6 +10,9 @@ import { sseController } from '@/controllers/sse';
 import { SourceRegistry } from '@/scrapers/base/SourceRegistry';
 import { BaseScrapingService } from '@/scrapers/base/BaseScrapingService';
 import { QueueManager } from './QueueManager';
+import { DocumentTextExtractor } from '@/services/DocumentTextExtractor';
+import * as fs from 'fs/promises';
+import * as path from 'path';
 import {
   ExtractionParameters,
   ExtractionResult,
@@ -27,11 +30,18 @@ export class ScrapingOrchestrator extends EventEmitter {
   private queueManager: QueueManager;
   private activeJobs: Map<string, ScrapingJob> = new Map();
   private isInitialized = false;
+  private documentTextExtractor: DocumentTextExtractor;
+  private storageBasePath: string;
+  private jobQueue: ScrapingJob[] = [];
+  private isProcessingQueue = false;
+  private maxConcurrentJobs = 3;
 
   constructor() {
     super();
     this.registry = new SourceRegistry();
     this.queueManager = new QueueManager(this);
+    this.documentTextExtractor = new DocumentTextExtractor();
+    this.storageBasePath = path.join(process.cwd(), 'storage', 'documents');
     this.setupRegistryListeners();
   }
 
@@ -259,27 +269,63 @@ export class ScrapingOrchestrator extends EventEmitter {
         
         // Extraer metadatos específicos si están disponibles
         const extractedMetadata = doc.metadata?.extractedMetadata;
+        const structuredData = doc.metadata?.structuredData;
         let magistradoPonente = null;
         let expediente = null;
         let salaRevision = null;
         let numeroSentencia = null;
-        
+        let webOfficialDate = null;
+
         if (extractedMetadata) {
           magistradoPonente = extractedMetadata.magistradoPonente || null;
           expediente = extractedMetadata.expediente || null;
           salaRevision = extractedMetadata.salaRevision || null;
           numeroSentencia = extractedMetadata.numeroSentencia || null;
-          
+
           logger.info(`📋 Mapeando metadatos para ${doc.documentId}: Magistrado: ${magistradoPonente || 'N/A'}, Expediente: ${expediente || 'N/A'}, Sala: ${salaRevision || 'N/A'}`);
         } else {
           logger.warn(`⚠️ NO se encontraron extractedMetadata para ${doc.documentId}`);
         }
+
+        // Extraer fecha oficial de la web (structuredData.fechaPublicacion)
+        if (structuredData?.fechaPublicacion) {
+          try {
+            webOfficialDate = this.parseWebOfficialDate(structuredData.fechaPublicacion);
+            logger.info(`📅 Fecha web oficial extraída para ${doc.documentId}: ${structuredData.fechaPublicacion} -> ${webOfficialDate?.toISOString().split('T')[0] || 'N/A'}`);
+          } catch (error) {
+            logger.warn(`⚠️ Error parseando fecha web oficial "${structuredData.fechaPublicacion}" para ${doc.documentId}:`, error);
+          }
+        } else {
+          logger.debug(`📅 No se encontró fechaPublicacion en structuredData para ${doc.documentId}`);
+        }
         
-        // Crear nuevo documento
+        // ✅ IMPLEMENTACIÓN HÍBRIDA - Procesar contenido
+        let intelligentSummary = doc.content || '';
+        let fullTextContent = null;
+        let documentPath = null;
+
+        // Si el documento tiene texto completo, generar resumen inteligente
+        if (doc.fullTextContent && doc.fullTextContent.length > 1000) {
+          logger.info(`🧠 Generando resumen inteligente para ${doc.documentId} (${doc.fullTextContent.length} caracteres)`);
+          intelligentSummary = await this.generateIntelligentSummary(doc.fullTextContent);
+          fullTextContent = doc.fullTextContent;
+          
+          logger.info(`📋 Resumen generado: ${intelligentSummary.length} caracteres (optimizado para IA)`);
+        }
+
+        // Si el documento tiene buffer, guardar archivo original
+        if (doc.documentBuffer && doc.documentBuffer.length > 0) {
+          logger.info(`💾 Guardando archivo original para ${doc.documentId} (${doc.documentBuffer.length} bytes)`);
+          documentPath = await this.saveDocumentFile(doc.documentId, doc.documentBuffer, 'docx');
+        }
+
+        // Crear nuevo documento con solución híbrida
         const savedDocument = await prisma.document.create({
           data: {
             title: doc.title,
-            content: doc.content || '',
+            content: intelligentSummary,                    // ✅ Resumen inteligente para IA
+            fullTextContent: fullTextContent,               // ✅ Texto completo para referencia
+            documentPath: documentPath,                     // ✅ Ruta al archivo original
             summary: doc.summary || `Documento ${doc.documentId} extraído de ${doc.source}`,
             source: doc.source,
             url: doc.url,
@@ -291,6 +337,7 @@ export class ScrapingOrchestrator extends EventEmitter {
             legalArea: doc.legalArea || 'GENERAL',
             documentType: doc.documentType || 'DOCUMENT',
             publicationDate: doc.publicationDate,
+            webOfficialDate: webOfficialDate,               // ✅ Nueva fecha web oficial
             // Mapear metadatos extraídos a campos específicos
             magistradoPonente: magistradoPonente,
             expediente: expediente,
@@ -508,6 +555,110 @@ export class ScrapingOrchestrator extends EventEmitter {
    */
   private generateJobId(sourceId: string): string {
     return `scraping_${sourceId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  /**
+   * Generar resumen inteligente usando DocumentTextExtractor
+   */
+  private async generateIntelligentSummary(fullText: string): Promise<string> {
+    try {
+      const structured = this.documentTextExtractor.extractStructuredSections(fullText);
+      
+      // Crear resumen inteligente limitado para análisis IA
+      const summary = `${structured.introduccion}\n\n=== CONSIDERACIONES CLAVE ===\n${structured.considerandos.substring(0, 2000)}\n\n=== RESOLUCIÓN ===\n${structured.resuelve}`;
+      
+      // Limitar a 10K caracteres para optimización IA
+      return summary.substring(0, 10000);
+    } catch (error) {
+      logger.warn('⚠️ Error generando resumen inteligente, usando fallback', error);
+      // Fallback: usar primeros 8K caracteres
+      return fullText.substring(0, 8000);
+    }
+  }
+
+  /**
+   * Guardar archivo RTF/DOCX original en storage
+   */
+  private async saveDocumentFile(documentId: string, buffer: Buffer, extension: string = 'docx'): Promise<string | null> {
+    try {
+      // Asegurar que el directorio existe
+      await fs.mkdir(this.storageBasePath, { recursive: true });
+      
+      // Generar nombre de archivo único
+      const filename = `${documentId}.${extension}`;
+      const filePath = path.join(this.storageBasePath, filename);
+      
+      // Guardar archivo
+      await fs.writeFile(filePath, buffer);
+      
+      logger.info(`💾 Archivo guardado: ${filename} (${buffer.length} bytes)`);
+      return filePath;
+    } catch (error) {
+      logger.error(`❌ Error guardando archivo ${documentId}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Parsear fecha web oficial desde string a Date
+   */
+  private parseWebOfficialDate(fechaString: string): Date | null {
+    try {
+      if (!fechaString || fechaString.trim() === '') {
+        return null;
+      }
+
+      const fecha = fechaString.trim();
+
+      // Formato ISO YYYY-MM-DD (más común en las tablas web)
+      const isoMatch = fecha.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (isoMatch && isoMatch[1] && isoMatch[2] && isoMatch[3]) {
+        const [, year, month, day] = isoMatch;
+        return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+      }
+
+      // Formato DD/MM/YYYY
+      const ddmmyyyyMatch = fecha.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if (ddmmyyyyMatch && ddmmyyyyMatch[1] && ddmmyyyyMatch[2] && ddmmyyyyMatch[3]) {
+        const [, day, month, year] = ddmmyyyyMatch;
+        return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+      }
+
+      // Formato DD-MM-YYYY
+      const ddmmyyyyDashMatch = fecha.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+      if (ddmmyyyyDashMatch && ddmmyyyyDashMatch[1] && ddmmyyyyDashMatch[2] && ddmmyyyyDashMatch[3]) {
+        const [, day, month, year] = ddmmyyyyDashMatch;
+        return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+      }
+
+      // Formato "DD de MMMM de YYYY" (español)
+      const monthsSpanish: { [key: string]: number } = {
+        'enero': 0, 'febrero': 1, 'marzo': 2, 'abril': 3, 'mayo': 4, 'junio': 5,
+        'julio': 6, 'agosto': 7, 'septiembre': 8, 'octubre': 9, 'noviembre': 10, 'diciembre': 11
+      };
+
+      const spanishMatch = fecha.match(/^(\d{1,2})\s+de\s+(\w+)\s+de\s+(\d{4})$/i);
+      if (spanishMatch && spanishMatch[1] && spanishMatch[2] && spanishMatch[3]) {
+        const [, day, monthName, year] = spanishMatch;
+        const month = monthsSpanish[monthName.toLowerCase()];
+        if (month !== undefined) {
+          return new Date(parseInt(year), month, parseInt(day));
+        }
+      }
+
+      // Fallback: intentar Date.parse directamente
+      const parsedDate = new Date(fecha);
+      if (!isNaN(parsedDate.getTime())) {
+        return parsedDate;
+      }
+
+      logger.warn(`⚠️ No se pudo parsear fecha web oficial: "${fecha}"`);
+      return null;
+
+    } catch (error) {
+      logger.error(`❌ Error parseando fecha web oficial "${fechaString}":`, error);
+      return null;
+    }
   }
 
   /**

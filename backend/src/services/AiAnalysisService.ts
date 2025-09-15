@@ -33,6 +33,9 @@ export class AiAnalysisService {
   private openAiApiKey?: string;
   private geminiApiKey?: string;
   private defaultModel: 'openai' | 'gemini' = 'openai';
+  private openAiClient?: any; // Instancia singleton del cliente OpenAI
+  private analysisQueue: Array<() => Promise<void>> = []; // Cola de análisis pendientes
+  private isProcessingQueue: boolean = false; // Flag para evitar procesamiento concurrente
 
   constructor() {
     this.openAiApiKey = process.env.OPENAI_API_KEY;
@@ -53,7 +56,78 @@ export class AiAnalysisService {
   }
 
   /**
+   * Obtener instancia singleton del cliente OpenAI
+   */
+  private async getOpenAIClient() {
+    if (!this.openAiClient && this.openAiApiKey) {
+      try {
+        const OpenAI = (await import('openai')).default;
+        this.openAiClient = new OpenAI({
+          apiKey: this.openAiApiKey,
+          timeout: 120000, // 2 minutos de timeout
+          maxRetries: 2, // Máximo 2 reintentos
+        });
+        logger.info('✅ Cliente OpenAI singleton creado exitosamente');
+      } catch (error) {
+        logger.error('❌ Error creando cliente OpenAI:', error);
+        throw error;
+      }
+    }
+    return this.openAiClient;
+  }
+
+  /**
+   * Procesar cola de análisis secuencialmente
+   */
+  private async processAnalysisQueue(): Promise<void> {
+    if (this.isProcessingQueue || this.analysisQueue.length === 0) {
+      return;
+    }
+
+    this.isProcessingQueue = true;
+    logger.info(`📋 Procesando cola de análisis: ${this.analysisQueue.length} elementos pendientes`);
+
+    while (this.analysisQueue.length > 0) {
+      const task = this.analysisQueue.shift();
+      if (task) {
+        try {
+          await task();
+          // Esperar 2 segundos entre análisis para respetar rate limits
+          if (this.analysisQueue.length > 0) {
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          }
+        } catch (error) {
+          logger.error('❌ Error procesando tarea de análisis en cola:', error);
+        }
+      }
+    }
+
+    this.isProcessingQueue = false;
+    logger.info('✅ Cola de análisis completada');
+  }
+
+  /**
+   * Encolar análisis para procesamiento secuencial
+   */
+  private enqueueAnalysis(task: () => Promise<void>): void {
+    this.analysisQueue.push(task);
+    logger.info(`📋 Tarea encolada. Cola actual: ${this.analysisQueue.length} elementos. Procesando: ${this.isProcessingQueue}`);
+    
+    // Iniciar procesamiento de cola si no está en curso
+    if (!this.isProcessingQueue) {
+      logger.info(`🚀 Iniciando procesamiento de cola automáticamente`);
+      setTimeout(() => {
+        this.processAnalysisQueue().catch(error => {
+          logger.error('❌ Error procesando cola automáticamente:', error);
+        });
+      }, 100);
+    }
+  }
+
+  /**
    * Analizar documento completo con IA
+   * NOTA: documentContent ahora contiene resumen inteligente optimizado para IA (≤10K caracteres)
+   * generado por ScrapingOrchestrator usando DocumentTextExtractor
    */
   async analyzeDocument(
     documentContent: string,
@@ -62,45 +136,93 @@ export class AiAnalysisService {
   ): Promise<DocumentAnalysis | null> {
     try {
       const modelToUse = model || this.defaultModel;
-      
+
       logger.info(`🔍 Iniciando análisis de IA: "${documentTitle}" con ${modelToUse}`);
+      logger.info(`🔍 DEBUG 1: Preparando contenido para análisis...`);
 
       // 1. Preparar contenido para análisis
       let processedContent = documentContent;
-      
+      let extractedContent: any = null; // Mantener referencia al contenido extraído
+      logger.info(`🔍 DEBUG 2: Contenido procesado, longitud: ${processedContent.length} caracteres`);
+
       // Verificar si es contenido binario DOCX y extraer texto
       if (this.isLikelyDocxContent(documentContent)) {
         logger.info('📄 Detectado contenido DOCX binario, extrayendo texto...');
-        
-        const extractedContent = await this.extractTextFromDocxContent(documentContent, documentTitle);
+
+        extractedContent = await this.extractTextFromDocxContent(documentContent, documentTitle);
         if (extractedContent) {
           processedContent = this.buildTextFromExtractedContent(extractedContent);
           logger.info(`✅ Texto extraído exitosamente: ${processedContent.length} caracteres`);
+          logger.info(`🔍 DEBUG: Secciones extraídas - Intro: ${extractedContent.structuredContent.introduccion.length}ch, Considerandos: ${extractedContent.structuredContent.considerandos.length}ch, Resuelve: ${extractedContent.structuredContent.resuelve.length}ch`);
         } else {
           logger.error('❌ No se pudo extraer texto del contenido DOCX');
           return null;
         }
       }
 
-      // 🎯 STEP 1: Extraer metadatos estructurales con regex (pre-IA)
-      const regexMetadata = this.extractMetadataWithRegex(processedContent, documentTitle);
+      // 🎯 STEP 1: Extraer metadatos estructurales con regex (pre-IA) - CON TIMEOUT
+      logger.info(`🔍 DEBUG: Iniciando extracción regex...`);
+      let regexMetadata: Partial<DocumentAnalysis> = {};
+
+      try {
+        // Ejecutar con timeout de 10 segundos
+        const regexPromise = new Promise<Partial<DocumentAnalysis>>((resolve) => {
+          const result = this.extractMetadataWithRegex(processedContent, documentTitle);
+          resolve(result);
+        });
+
+        const timeoutPromise = new Promise<Partial<DocumentAnalysis>>((_, reject) => {
+          setTimeout(() => reject(new Error('Timeout en extracción regex')), 10000);
+        });
+
+        regexMetadata = await Promise.race([regexPromise, timeoutPromise]);
+
+      } catch (error) {
+        logger.error(`❌ Error/Timeout en extracción regex: ${error}`);
+        regexMetadata = {}; // Continuar con metadatos vacíos
+      }
+
       logger.info(`📊 Metadatos regex extraídos: Magistrado: ${regexMetadata.magistradoPonente || 'N/A'}, Expediente: ${regexMetadata.expediente || 'N/A'}, Sentencia: ${regexMetadata.numeroSentencia || 'N/A'}`);
 
-      // 2. Seleccionar fragmentos clave
-      const fragments = await this.selectKeyFragments(processedContent);
-      
+      // 2. Seleccionar fragmentos clave - NUEVA LÓGICA
+      logger.info(`🔍 DEBUG 3: Seleccionando fragmentos clave...`);
+      let fragments: FragmentSelection | null = null;
+
+      // 🎯 CORRECCIÓN: Si tenemos extracción exitosa con DocumentTextExtractor, usar directamente esas secciones
+      if (extractedContent && extractedContent.structuredContent) {
+        logger.info(`✅ Usando secciones ya extraídas por DocumentTextExtractor (incluye RESUELVE completo)`);
+        fragments = {
+          introduccion: extractedContent.structuredContent.introduccion || '',
+          considerandos: extractedContent.structuredContent.considerandos || '',
+          resuelve: extractedContent.structuredContent.resuelve || '',
+          otros: extractedContent.structuredContent.otros || []
+        };
+        logger.info(`🔍 RESUELVE directo del DocumentTextExtractor: ${fragments.resuelve.length} caracteres`);
+      } else {
+        // Solo usar selectKeyFragments() como fallback para contenido sin extracción previa
+        logger.info(`📄 Fallback: usando selectKeyFragments() para contenido sin extracción previa`);
+        fragments = await this.selectKeyFragments(processedContent);
+      }
+
       if (!fragments) {
         logger.error('❌ No se pudieron extraer fragmentos del documento');
         return null;
       }
+      logger.info(`🔍 DEBUG 4: Fragmentos seleccionados exitosamente`);
+      logger.info(`📋 Fragmentos finales - Intro: ${fragments.introduccion.length}ch, Considerandos: ${fragments.considerandos.length}ch, Resuelve: ${fragments.resuelve.length}ch`);
 
       // 2. Realizar análisis con el modelo seleccionado
+      logger.info(`🔍 DEBUG 5: Iniciando análisis con modelo: ${modelToUse}`);
       let analysis: DocumentAnalysis | null = null;
       
       if (modelToUse === 'openai' && this.openAiApiKey) {
+        logger.info(`🔍 DEBUG 6: Llamando analyzeWithOpenAI...`);
         analysis = await this.analyzeWithOpenAI(fragments, documentTitle);
+        logger.info(`🔍 DEBUG 7: analyzeWithOpenAI completado`);
       } else if (modelToUse === 'gemini' && this.geminiApiKey) {
+        logger.info(`🔍 DEBUG 6: Llamando analyzeWithGemini...`);
         analysis = await this.analyzeWithGemini(fragments, documentTitle);
+        logger.info(`🔍 DEBUG 7: analyzeWithGemini completado`);
       }
 
       if (!analysis) {
@@ -137,7 +259,9 @@ export class AiAnalysisService {
    */
   private async selectKeyFragments(content: string): Promise<FragmentSelection | null> {
     try {
+      logger.info(`🔍 DEBUG selectKeyFragments: Inicio del método`);
       const normalizedContent = content.toLowerCase();
+      logger.info(`🔍 DEBUG selectKeyFragments: Contenido normalizado, longitud: ${normalizedContent.length}`);
 
       // Patrones para identificar secciones importantes
       const patterns = {
@@ -146,7 +270,7 @@ export class AiAnalysisService {
         introduccion: /(?:en\s+la\s+ciudad\s+de|la\s+corte\s+constitucional|sala\s+plena)/i,
         antecedentes: /(?:antecedentes|i\.\s*antecedentes|1\.\s*antecedentes)/i,
         considerandos: /(?:consideraciones|considerandos|ii\.\s*consideraciones|2\.\s*consideraciones|fundamentos\s+jurídicos)/i,
-        resuelve: /(?:resuelve|decide|falla|iii\.\s*decisión|3\.\s*decisión)/i,
+        resuelve: /(?:^[\s]*(?:(?:III|3)\.?\s*)?RESUELVE\s*[:\.]?[\s]*$|^[\s]*RESUELVE\s*[:\.]?[\s]*$|resuelve|decide|falla|iii\.\s*decisión|3\.\s*decisión)/im,
         ratioDecidendi: /(?:ratio\s+decidendi|fundamento\s+central|tesis\s+principal)/i
       };
 
@@ -158,8 +282,11 @@ export class AiAnalysisService {
       };
 
       // Dividir el contenido en líneas para capturar mejor el encabezado
+      logger.info(`🔍 DEBUG selectKeyFragments: Dividiendo contenido en líneas...`);
       const lines = content.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+      logger.info(`🔍 DEBUG selectKeyFragments: ${lines.length} líneas procesadas`);
       const paragraphs = content.split(/\n\s*\n/).filter(p => p.trim().length > 20);
+      logger.info(`🔍 DEBUG selectKeyFragments: ${paragraphs.length} párrafos procesados`);
 
       // 1. PRIORIDAD: Capturar encabezado con datos estructurales
       const header = [];
@@ -175,6 +302,7 @@ export class AiAnalysisService {
       fragments.introduccion = header.join('\n') + '\n\n';
 
       // 2. Buscar secciones adicionales
+      logger.info(`🔍 DEBUG selectKeyFragments: Iniciando búsqueda de secciones en ${paragraphs.length} párrafos`);
       let considerandosFound = false;
       let resuelveFound = false;
 
@@ -195,12 +323,13 @@ export class AiAnalysisService {
           fragments.considerandos += paragraph + '\n\n';
         }
 
-        // Buscar parte resolutiva
+        // Buscar parte resolutiva - MEJORADO para capturar RESUELVE completo
         if (!resuelveFound && patterns.resuelve.test(paragraphLower)) {
           resuelveFound = true;
         }
 
-        if (resuelveFound && fragments.resuelve.length < 1000) {
+        // CAMBIO CRÍTICO: Capturar TODA la sección RESUELVE sin límite de 1000 caracteres
+        if (resuelveFound) {
           fragments.resuelve += paragraph + '\n\n';
         }
 
@@ -219,12 +348,44 @@ export class AiAnalysisService {
       }
 
       if (fragments.resuelve.length < 200) {
-        logger.warn('⚠️  Parte resolutiva corta, usando contenido final');
-        const finalPart = paragraphs.slice(-3).join('\n\n');
-        fragments.resuelve = finalPart.substring(0, 1000);
+        logger.warn('⚠️  Parte resolutiva corta, usando contenido final completo');
+        // CAMBIO: Buscar "RESUELVE" en últimas páginas del documento completo
+        const finalPortion = paragraphs.slice(-10); // Últimos 10 párrafos
+        let resuelveContent = '';
+        let foundResuelveTitle = false;
+
+        for (const p of finalPortion) {
+          // Buscar el título "RESUELVE" con cualquier puntuación (:", "." o sin puntos)
+          if (/^[\s]*RESUELVE\s*[:\.]?[\s]*$/i.test(p.trim())) {
+            foundResuelveTitle = true;
+          }
+
+          if (foundResuelveTitle) {
+            resuelveContent += p + '\n\n';
+          }
+        }
+
+        // Si encontró "RESUELVE", usar ese contenido, sino usar parte final completa
+        fragments.resuelve = resuelveContent || finalPortion.join('\n\n');
       }
 
       logger.info(`📄 Fragmentos extraídos: ${fragments.introduccion.length + fragments.considerandos.length + fragments.resuelve.length} caracteres`);
+      logger.info(`📋 RESUELVE extraído: ${fragments.resuelve.length} caracteres - Contenido: ${fragments.resuelve.substring(0, 100)}...`);
+
+      // DEBUG EXTRA: Si RESUELVE está vacío, verificar por qué
+      if (fragments.resuelve.length === 0) {
+        logger.warn(`❌ DEBUG AiAnalysis: RESUELVE vacío. Resuelve encontrado: ${resuelveFound}`);
+        logger.info(`🔍 DEBUG: Buscando "resuelve" manualmente en contenido de ${content.length} caracteres`);
+
+        const manualFind = content.toLowerCase().indexOf('resuelve');
+        if (manualFind !== -1) {
+          const contextStart = Math.max(0, manualFind - 100);
+          const contextEnd = Math.min(content.length, manualFind + 300);
+          logger.info(`🔍 DEBUG: "resuelve" encontrado manualmente: "${content.substring(contextStart, contextEnd)}"`);
+        } else {
+          logger.warn(`❌ DEBUG: "resuelve" NO encontrado en el contenido completo`);
+        }
+      }
 
       return fragments;
 
@@ -235,30 +396,63 @@ export class AiAnalysisService {
   }
 
   /**
-   * Análisis con OpenAI GPT-4 Mini
+   * Análisis con OpenAI GPT-4 Mini usando cola para evitar concurrencia
    */
   private async analyzeWithOpenAI(
     fragments: FragmentSelection,
     documentTitle: string
   ): Promise<DocumentAnalysis | null> {
-    try {
-      const OpenAI = (await import('openai')).default;
-      const openai = new OpenAI({
-        apiKey: this.openAiApiKey
+    logger.info(`🔄 Encolando análisis para: ${documentTitle}`);
+    
+    return new Promise((resolve, reject) => {
+      // Encolar el análisis para procesamiento secuencial
+      this.enqueueAnalysis(async () => {
+        try {
+          logger.info(`🔍 Ejecutando análisis desde cola para: ${documentTitle}`);
+          const result = await this.executeOpenAIAnalysis(fragments, documentTitle);
+          resolve(result);
+        } catch (error) {
+          logger.error(`❌ Error en análisis desde cola para ${documentTitle}:`, error);
+          reject(error);
+        }
       });
+    });
+  }
+
+  /**
+   * Ejecutar análisis con OpenAI GPT-4 Mini (método interno)
+   */
+  private async executeOpenAIAnalysis(
+    fragments: FragmentSelection,
+    documentTitle: string
+  ): Promise<DocumentAnalysis | null> {
+    try {
+      const openai = await this.getOpenAIClient();
+      
+      if (!openai) {
+        logger.error('❌ No se pudo obtener cliente OpenAI');
+        return null;
+      }
 
       const prompt = this.buildAnalysisPrompt(fragments, documentTitle);
 
+      // Log del prompt completo para debugging
       logger.info('🔍 Enviando análisis a OpenAI GPT-4 Mini...');
+      logger.info('📝 PROMPT COMPLETO ENVIADO A OPENAI:');
+      logger.info('=' .repeat(80));
+      logger.info(prompt);
+      logger.info('=' .repeat(80));
 
       const response = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [
           {
             role: 'system',
-            content: `Eres un experto jurista especializado en análisis de sentencias judiciales colombianas. 
-                     Tu tarea es analizar sentencias de la Corte Constitucional y extraer información clave.
-                     Responde siempre en español y mantén un tono profesional y preciso.`
+            content: `Eres un asistente de IA experto en el análisis y la síntesis de sentencias de la Corte Constitucional de Colombia. Tu tarea es procesar el documento legal que te proporcionaré y extraer sus componentes más importantes de manera clara y estructurada. No agregues opiniones ni información que no esté explícitamente en el texto.
+
+El rol del asistente es ser un analista legal de documentos y un sintetizador de información.
+
+El objetivo es identificar los componentes clave de una sentencia judicial de la Corte Constitucional, independientemente de su tipo (T, SU, C, etc.). Se debe extraer la siguiente información de forma precisa y estructurada: los hechos, el problema jurídico, las consideraciones principales de la corte (la ratio decidendi) y, finalmente, la decisión o las órdenes finales. El objetivo es que esta información sea comprensible para cualquier persona, sin necesidad de ser un experto en derecho.`
           },
           {
             role: 'user',
@@ -277,46 +471,29 @@ export class AiAnalysisService {
         return null;
       }
 
-      const parsedResult = JSON.parse(result);
+      // Log de la respuesta completa para debugging
+      logger.info('🤖 RESPUESTA COMPLETA DE OPENAI:');
+      logger.info('=' .repeat(80));
+      logger.info(result);
+      logger.info('=' .repeat(80));
 
-      // Función helper para limpiar respuestas "no disponible" - Mejorada para C-223/2025
-      const cleanField = (value: string | null | undefined): string | null => {
-        if (!value) return null;
-        
-        const trimmed = value.trim();
-        const lower = trimmed.toLowerCase();
-        
-        // Patrones que indican "no encontrado"
-        if (lower === 'no disponible' || 
-            lower === 'no identificado' ||
-            lower === 'no especificado' ||
-            lower === 'no se encuentra' ||
-            lower === 'n/a' ||
-            lower === 'null' ||
-            lower === 'undefined' ||
-            trimmed.length < 2) {
-          return null;
-        }
-        
-        // Limpiar puntos finales innecesarios pero conservar el contenido
-        return trimmed.replace(/\.$/, '');
-      };
+      const parsedResult = JSON.parse(result);
 
       return {
         temaPrincipal: parsedResult.tema_principal || 'No identificado',
         resumenIA: parsedResult.resumen || 'No disponible',
         decision: parsedResult.decision || 'No identificada',
-        numeroSentencia: cleanField(parsedResult.numero_sentencia),
-        magistradoPonente: cleanField(parsedResult.magistrado_ponente),
-        salaRevision: cleanField(parsedResult.sala_revision),
-        expediente: cleanField(parsedResult.expediente),
+        numeroSentencia: null, // Los metadatos se extraen por código separado
+        magistradoPonente: null, // Los metadatos se extraen por código separado
+        salaRevision: null, // Los metadatos se extraen por código separado
+        expediente: null, // Los metadatos se extraen por código separado
         fragmentosAnalizados: [
           fragments.introduccion.substring(0, 200),
           fragments.considerandos.substring(0, 300),
           fragments.resuelve.substring(0, 200)
         ],
         modeloUsado: 'gpt-4o-mini',
-        confidencia: parsedResult.confidencia || 0.8
+        confidencia: 0.9 // Alta confianza para análisis conceptual enfocado
       };
 
     } catch (error) {
@@ -359,16 +536,11 @@ export class AiAnalysisService {
       } catch (parseError) {
         logger.warn('⚠️  Respuesta de Gemini no es JSON válido, parseando manualmente');
         
-        // Fallback parsing manual
+        // Fallback parsing manual simplificado
         parsedResult = {
           tema_principal: this.extractFromText(text, /tema principal:?\s*([^\n]+)/i),
           resumen: this.extractFromText(text, /resumen:?\s*([^\n]+)/i),
-          decision: this.extractFromText(text, /decisión:?\s*([^\n]+)/i),
-          numero_sentencia: this.extractFromText(text, /número.*sentencia:?\s*([^\n]+)/i),
-          magistrado_ponente: this.extractFromText(text, /(?:magistrado|magistrada).*ponente:?\s*([^\n.,]+?)(?:[.,\n]|$)/i),
-          sala_revision: this.extractFromText(text, /sala.*revisión:?\s*([^\n]+)/i),
-          expediente: this.extractFromText(text, /expediente:?\s*([^\n]+)/i),
-          confidencia: 0.7
+          decision: this.extractDecisionFromText(text)
         };
       }
 
@@ -376,17 +548,17 @@ export class AiAnalysisService {
         temaPrincipal: parsedResult.tema_principal || 'No identificado',
         resumenIA: parsedResult.resumen || 'No disponible',
         decision: parsedResult.decision || 'No identificada',
-        numeroSentencia: parsedResult.numero_sentencia || null,
-        magistradoPonente: parsedResult.magistrado_ponente || null,
-        salaRevision: parsedResult.sala_revision || null,
-        expediente: parsedResult.expediente || null,
+        numeroSentencia: null, // Los metadatos se extraen por código separado
+        magistradoPonente: null, // Los metadatos se extraen por código separado
+        salaRevision: null, // Los metadatos se extraen por código separado
+        expediente: null, // Los metadatos se extraen por código separado
         fragmentosAnalizados: [
           fragments.introduccion.substring(0, 200),
           fragments.considerandos.substring(0, 300),
           fragments.resuelve.substring(0, 200)
         ],
         modeloUsado: 'gemini-1.5-flash',
-        confidencia: parsedResult.confidencia || 0.7
+        confidencia: 0.9 // Alta confianza para análisis conceptual enfocado
       };
 
     } catch (error) {
@@ -400,8 +572,6 @@ export class AiAnalysisService {
    */
   private buildAnalysisPrompt(fragments: FragmentSelection, documentTitle: string): string {
     return `
-Analiza la siguiente sentencia judicial colombiana y extrae la información solicitada. Responde en formato JSON válido.
-
 **Título del documento**: ${documentTitle}
 
 **Fragmentos clave de la sentencia**:
@@ -415,67 +585,40 @@ ${fragments.considerandos}
 **PARTE RESOLUTIVA**:
 ${fragments.resuelve}
 
-**INSTRUCCIONES DE EXTRACCIÓN**:
-1. Identifica el TEMA PRINCIPAL de la sentencia (materia jurídica central)
-2. Redacta un RESUMEN conciso de máximo 200 palabras
-3. Identifica la DECISIÓN final del tribunal (estimatoria, desestimatoria, exequibilidad, etc.)
+---
 
-4. **EXTRACCIÓN ESTRUCTURAL ESPECÍFICA** - Busca estos campos exactos en el documento:
+**Instrucciones para el análisis:**
 
-   **NÚMERO DE SENTENCIA**: 
-   - Busca patrones como: "SENTENCIA T-123/2025", "C-456/2025", "SU-789/2025"
-   - También: "Sentencia T-123 de 2025", "C-456 de 2025"
-   - Extrae solo el código: "T-123/2025", "C-456/2025", etc.
+1. **Análisis del tema principal:** Identifica el tema central y la naturaleza del caso. El tema debe ser una descripción de no más de 20 palabras.
+   * **Ejemplo de respuesta:** "Protección del derecho a la salud de un niño indígena en estado de abandono."
 
-   **MAGISTRADO PONENTE**:
-   - Busca líneas como: "Magistrado ponente: [NOMBRE]", "Magistrada ponente: [NOMBRE]", "M.P.: [NOMBRE]"
-   - También: "Magistrado Sustanciador:", "Magistrada Sustanciadora:", "Ponente:", "Magistrado(a) Ponente"
-   - IMPORTANTE: Puede ser masculino O femenino (Magistrado/Magistrada)
-   - Extrae el nombre completo exactamente como aparece, incluyendo puntos finales
+2. **Resumen concreto:** Crea un resumen narrativo y conciso de los hechos, las partes involucradas y las consideraciones de la corte. El resumen debe tener un máximo de 150 palabras.
+   * **Puntos clave a incluir:**
+     * Identidad de las partes (demandante y demandado).
+     * Hechos relevantes que llevaron a la disputa.
+     * Diagnóstico o situación de la persona afectada.
+     * Razones de la corte para tomar su decisión.
 
-   **SALA DE REVISIÓN**:
-   - Busca: "Sala Primera", "Sala Segunda", "Sala Tercera", "Sala Plena"
-   - También: "-Sala Primera-", "Sala Primera de Revisión", "Sala Plena de la Corte"
-   - Mantén el formato encontrado: "Sala Primera", "Sala Plena", etc.
+3. **Resumen de la decisión y parte resolutiva:** Elabora un resumen concreto y detallado de la parte resolutiva de la sentencia. Debe incluir:
+   * La decisión principal adoptada por la Corte (conceder, negar, declarar exequible, etc.)
+   * Las órdenes específicas emitidas por la Corte a las entidades involucradas
+   * Los plazos establecidos para el cumplimiento (si aplica)
+   * Las medidas de seguimiento ordenadas (si aplica)
+   * El alcance y limitaciones de la decisión
+   
+   **Formato requerido:** Resumen narrativo de máximo 120 palabras que explique QUÉ decidió la Corte y QUÉ órdenes específicas emitió. No uses solo palabras como "CONCEDE" o "NIEGA", sino explica detalladamente las resoluciones adoptadas.
 
-   **EXPEDIENTE**:
-   - Busca: "Expediente: [CÓDIGO]", "Exp.: [CÓDIGO]", "Expediente No. [CÓDIGO]"
-   - Patrones típicos: "D-15.479", "D-15.207", "T-1234567", "E-123", etc.
-   - IMPORTANTE: Los códigos pueden tener múltiples números y puntos (D-15.207)
-   - Puede tener punto final (ej: "Expediente: D-15.207.")
-   - Extrae el código COMPLETO del expediente, SIN el punto final
-   - EJEMPLO: "Expediente: D-15.207." → expediente: "D-15.207"
-
-5. **REGLAS IMPORTANTES**:
-   - Si encuentras la información, extráela exactamente como aparece en el documento
-   - Si NO encuentras un campo específico, usa null (sin comillas en JSON)
-   - NO inventes o deduzcas información que no esté explícita
-   - Prioriza la información que aparece al inicio del documento (encabezado)
-
-6. Asigna un nivel de CONFIDENCIA del análisis (0.1 a 1.0)
-
-**FORMATO DE RESPUESTA** (JSON estricto):
+**FORMATO DE RESPUESTA** (Solo JSON, sin comentarios):
 {
-  "tema_principal": "Tema o materia principal de la sentencia",
-  "resumen": "Resumen conciso de los hechos, argumentos y conclusiones",
-  "decision": "Decisión final del tribunal con el sentido del fallo",
-  "numero_sentencia": "T-353/2025",
-  "magistrado_ponente": "Jorge Enrique Ibáñez Najar",
-  "sala_revision": "Sala Plena",
-  "expediente": "D-15.479",
-  "confidencia": 0.9
+  "tema_principal": "Tema central del caso en máximo 20 palabras",
+  "resumen": "Resumen narrativo de máximo 150 palabras incluyendo hechos, partes y consideraciones de la corte",
+  "decision": "Resumen detallado de la parte resolutiva en máximo 120 palabras explicando qué decidió la Corte y qué órdenes específicas emitió"
 }
 
-**EJEMPLOS DE EXTRACCIÓN CORRECTA**:
-- Si ves "SENTENCIA C-278 de 2025" → numero_sentencia: "C-278/2025"
-- Si ves "Magistrado ponente: Jorge Enrique Ibáñez Najar" → magistrado_ponente: "Jorge Enrique Ibáñez Najar"
-- Si ves "Magistrada ponente: Natalia Ángel Cabo." → magistrado_ponente: "Natalia Ángel Cabo"
-- Si ves "-Sala Plena-" → sala_revision: "Sala Plena"
-- Si ves "Expediente: D-15.479" → expediente: "D-15.479"
-- Si ves "Expediente: D-15.207." → expediente: "D-15.207"
-- Si ves líneas múltiples como "Expediente:\n\nD-15.207." → expediente: "D-15.207"
-
-CRÍTICO: Responde únicamente el JSON solicitado, sin comentarios adicionales.
+**IMPORTANTE**: 
+- Responde ÚNICAMENTE el JSON, sin texto adicional
+- No agregues campos que no se soliciten
+- Mantén los límites de palabras especificados
 `;
   }
 
@@ -485,6 +628,52 @@ CRÍTICO: Responde únicamente el JSON solicitado, sin comentarios adicionales.
   private extractFromText(text: string, regex: RegExp): string {
     const match = text.match(regex);
     return match ? match[1].trim() : 'No identificado';
+  }
+
+  /**
+   * Extraer decisión con patrones específicos para Corte Constitucional
+   */
+  private extractDecisionFromText(text: string): string {
+    const lowerText = text.toLowerCase();
+    
+    // Patrones para decisiones INHIBIDAS (más común en C-sentencias)
+    if (lowerText.includes('inhibida') || lowerText.includes('se inhibe') || 
+        lowerText.includes('declarar inhibida') || lowerText.includes('inhibirse')) {
+      return 'INHIBIDA';
+    }
+    
+    // Patrones para otras decisiones comunes
+    if (lowerText.includes('exequible condicionado') || lowerText.includes('condicionalmente exequible')) {
+      return 'EXEQUIBLE CONDICIONADO';
+    }
+    
+    if (lowerText.includes('inexequible') || lowerText.includes('inconstitucional')) {
+      return 'INEXEQUIBLE';
+    }
+    
+    if (lowerText.includes('exequible')) {
+      return 'EXEQUIBLE';
+    }
+    
+    if (lowerText.includes('concede') && lowerText.includes('tutela')) {
+      return 'CONCEDE LA TUTELA';
+    }
+    
+    if (lowerText.includes('niega') && lowerText.includes('tutela')) {
+      return 'NIEGA LA TUTELA';
+    }
+    
+    if (lowerText.includes('inadmite')) {
+      return 'INADMITE';
+    }
+    
+    if (lowerText.includes('unifica')) {
+      return 'UNIFICA JURISPRUDENCIA';
+    }
+    
+    // Fallback con regex general
+    const match = text.match(/decisión:?\s*([^\n]+)/i);
+    return match ? match[1].trim() : 'No identificada';
   }
 
   /**
@@ -596,39 +785,105 @@ CRÍTICO: Responde únicamente el JSON solicitado, sin comentarios adicionales.
    * Funciona como sistema principal para campos estructurales específicos
    */
   private extractMetadataWithRegex(content: string, documentTitle: string): Partial<DocumentAnalysis> {
+    logger.info(`🔍 DEBUG extractMetadataWithRegex: Iniciando extracción de metadatos, contenido: ${content.length} caracteres`);
     const metadata: Partial<DocumentAnalysis> = {};
+
+    // Timeout para evitar bloqueos
+    const startTime = Date.now();
+    const TIMEOUT_MS = 15000; // 15 segundos máximo
     
-    // 1. Magistrado Ponente
+    // 1. Magistrado Ponente - Patrones simplificados para evitar catastrophic backtracking
+    logger.info(`🔍 DEBUG extractMetadataWithRegex: Extrayendo magistrado ponente...`);
     const magistradoPatterns = [
-      /(?:magistrado|magistrada)\s+ponente[:\s]*\n?\s*([^\n.,]+?)(?:[.,\n]|$)/im,
-      /(?:magistrado|magistrada)\s+sustanciador[ao]?[:\s]*\n?\s*([^\n.,]+?)(?:[.,\n]|$)/im,
-      /m\.p\.[\s:]*([^\n.,]+?)(?:[.,\n]|$)/im,
-      // Mejorado: evitar "componente" y ser más específico
-      /(?:^|\s)ponente[:\s]+([^\n.,]+?)(?:[.,\n]|$)/im
+      // Patrones muy simplificados para evitar catastrophic backtracking
+      /magistrado ponente[:\s]*([A-ZÁÉÍÓÚÑ][^\n]{5,40})/im,
+      /magistrada ponente[:\s]*([A-ZÁÉÍÓÚÑ][^\n]{5,40})/im,
+      /m\.p\.[:\s]*([A-ZÁÉÍÓÚÑ][^\n]{10,40})/im,
+      /ponente[:\s]*([A-ZÁÉÍÓÚÑ][^\n]{10,40})/im
     ];
     
-    for (const pattern of magistradoPatterns) {
-      const match = content.match(pattern);
-      if (match && match[1].trim().length > 2) {
-        metadata.magistradoPonente = match[1].trim().replace(/\.$/, '');
-        logger.info(`🔧 Regex extrajo magistrado: "${metadata.magistradoPonente}"`);
+    for (let i = 0; i < magistradoPatterns.length; i++) {
+      logger.info(`🔍 DEBUG: Probando patrón magistrado ${i + 1}/${magistradoPatterns.length}`);
+      try {
+        const pattern = magistradoPatterns[i];
+        const match = content.match(pattern);
+        if (match && match[1]) {
+          logger.info(`🔍 DEBUG: Match encontrado con patrón ${i + 1}: "${match[1]}"`);
+        } else {
+          logger.info(`🔍 DEBUG: No match con patrón ${i + 1}`);
+          continue;
+        }
+        let cleanName = match[1].trim()
+          .replace(/\.$/, '') // Eliminar punto final
+          .replace(/\s+/g, ' ') // Normalizar espacios
+          .replace(/[^\w\sáéíóúñÁÉÍÓÚÑ]/g, '') // Solo letras, números, espacios y tildes
+          .trim();
+
+        logger.info(`🔍 DEBUG: Nombre limpiado: "${cleanName}"`);
+
+        // Validación mejorada: debe tener al menos 2 palabras y formato de nombre
+        const words = cleanName.split(' ').filter(w => w.length > 0);
+        const isValidName = words.length >= 2 && words.length <= 5 &&
+                           cleanName.length >= 10 && cleanName.length <= 60 &&
+                           /^[A-ZÁÉÍÓÚÑ]/.test(cleanName) && // Comienza con mayúscula
+                           !/\d{2,}/.test(cleanName); // No tiene secuencias largas de números
+
+        logger.info(`🔍 DEBUG: Validación nombre - palabras: ${words.length}, longitud: ${cleanName.length}, válido: ${isValidName}`);
+
+        if (isValidName) {
+          // Capitalizar correctamente
+          metadata.magistradoPonente = cleanName
+            .split(' ')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            .join(' ');
+          logger.info(`🔧 Regex extrajo magistrado: "${metadata.magistradoPonente}"`);
+          break;
+        } else {
+          logger.warn(`⚠️ Regex descartó magistrado inválido: "${cleanName}" (palabras: ${words.length})`);
+        }
+      } catch (error) {
+        logger.error(`❌ Error con patrón magistrado ${i + 1}:`, error);
+      }
+
+      // Verificar timeout
+      if (Date.now() - startTime > TIMEOUT_MS) {
+        logger.warn(`⚠️ Timeout en extracción de magistrado después de ${TIMEOUT_MS}ms`);
         break;
       }
     }
-    
-    // 2. Expediente
+
+    logger.info(`🔍 DEBUG: Magistrado completado en ${Date.now() - startTime}ms`);
+
+    // 2. Expediente - Patrones mejorados
     const expedientePatterns = [
-      /expediente[:\s]*\n?\s*([A-Z]-[\d.]+)(?:\.|$)/im,
-      /exp\.[\s:]*([A-Z]-[\d.]+)(?:\.|$)/im,
-      /radicaci[oó]n[:\s]*([A-Z]-[\d.]+)(?:\.|$)/im
+      // Patrones más específicos para expedientes válidos
+      /expediente[:\s]*\n?\s*([A-Z]-\d{1,2}[.,]?\d{3,4})\s*\.?(?:\s|$|,|\n)/im,
+      /exp\.[\s:]*([A-Z]-\d{1,2}[.,]?\d{3,4})\s*\.?(?:\s|$|,|\n)/im,
+      /radicaci[oó]n[:\s]*([A-Z]-\d{1,2}[.,]?\d{3,4})\s*\.?(?:\s|$|,|\n)/im,
+      // Patrón para expedientes con formato T-########
+      /expediente[:\s]*\n?\s*([T]-\d{6,8})\s*\.?(?:\s|$|,|\n)/im,
+      // Patrón de respaldo más general
+      /expediente[:\s]*\n?\s*([A-Z]-[\d.]{3,10})\s*\.?(?:\s|$|,|\n)/im
     ];
     
     for (const pattern of expedientePatterns) {
       const match = content.match(pattern);
       if (match) {
-        metadata.expediente = match[1].trim().replace(/\.$/, ''); // Eliminar punto final
-        logger.info(`🔧 Regex extrajo expediente: "${metadata.expediente}"`);
-        break;
+        let expediente = match[1].trim().replace(/\.$/, ''); // Eliminar punto final
+        // Normalizar separadores de miles (punto a coma si es necesario)
+        if (expediente.includes('.') && expediente.match(/\d\.\d{3}/)) {
+          // Solo si parece ser separador de miles, no punto decimal
+          // Ejemplo: D-15.479 -> mantener; D-15.4 -> mantener
+        }
+        
+        // Validar formato de expediente (letra-números con posibles puntos/comas)
+        if (/^[A-Z]-[\d.,]{1,10}$/.test(expediente) && expediente.length <= 15) {
+          metadata.expediente = expediente;
+          logger.info(`🔧 Regex extrajo expediente: "${metadata.expediente}"`);
+          break;
+        } else {
+          logger.warn(`⚠️ Regex descartó expediente inválido: "${expediente}"`);
+        }
       }
     }
     
@@ -703,21 +958,52 @@ CRÍTICO: Responde únicamente el JSON solicitado, sin comentarios adicionales.
       }
     }
     
-    // 4. Sala de Revisión
+    // 4. Sala de Revisión - Patrones mejorados y más específicos
     const salaPatterns = [
-      /\b(sala\s+plena)\b/im,
-      /\b(sala\s+primera)\b/im,
-      /\b(sala\s+segunda)\b/im,
-      /\b(sala\s+tercera)\b/im,
-      /-\s*(sala\s+(?:plena|primera|segunda|tercera))\s*-/im
+      // Patrones exactos para salas conocidas
+      /\b(sala\s+plena)(?:\s|$|,|\.|\n)/im,
+      /\b(sala\s+primera)(?:\s+de\s+revisi[óo]n)?(?:\s|$|,|\.|\n)/im,
+      /\b(sala\s+segunda)(?:\s+de\s+revisi[óo]n)?(?:\s|$|,|\.|\n)/im,
+      /\b(sala\s+tercera)(?:\s+de\s+revisi[óo]n)?(?:\s|$|,|\.|\n)/im,
+      /\b(sala\s+cuarta)(?:\s+de\s+revisi[óo]n)?(?:\s|$|,|\.|\n)/im,
+      /\b(sala\s+quinta)(?:\s+de\s+revisi[óo]n)?(?:\s|$|,|\.|\n)/im,
+      /\b(sala\s+sexta)(?:\s+de\s+revisi[óo]n)?(?:\s|$|,|\.|\n)/im,
+      /\b(sala\s+s[ée]ptima)(?:\s+de\s+revisi[óo]n)?(?:\s|$|,|\.|\n)/im,
+      /\b(sala\s+octava)(?:\s+de\s+revisi[óo]n)?(?:\s|$|,|\.|\n)/im,
+      /\b(sala\s+novena)(?:\s+de\s+revisi[óo]n)?(?:\s|$|,|\.|\n)/im,
+      // Patrones con guiones
+      /-\s*(sala\s+(?:plena|primera|segunda|tercera|cuarta|quinta|sexta|s[ée]ptima|octava|novena))\s*-/im,
+      // Patrón más específico para evitar capturas largas
+      /(?:^|\n|\.)\s*(sala\s+(?:plena|primera|segunda|tercera|cuarta|quinta|sexta|s[ée]ptima|octava|novena))(?:\s+de\s+revisi[óo]n)?\s*(?:$|,|\.|\n)/im
     ];
     
     for (const pattern of salaPatterns) {
       const match = content.match(pattern);
       if (match) {
-        metadata.salaRevision = match[1].replace(/\b\w/g, l => l.toUpperCase()); // Title Case
-        logger.info(`🔧 Regex extrajo sala: "${metadata.salaRevision}"`);
-        break;
+        let sala = match[1].trim()
+          .replace(/\s+/g, ' ') // Normalizar espacios
+          .replace(/\b\w/g, l => l.toUpperCase()); // Title Case
+        
+        // Lista de salas válidas conocidas para validación
+        const salasValidas = [
+          'Sala Plena', 'Sala Primera', 'Sala Segunda', 'Sala Tercera', 
+          'Sala Cuarta', 'Sala Quinta', 'Sala Sexta', 'Sala Séptima', 
+          'Sala Septima', 'Sala Octava', 'Sala Novena'
+        ];
+        
+        // Validar que la sala está en la lista o es una variación válida
+        const salaValida = salasValidas.some(validSala => 
+          validSala.toLowerCase() === sala.toLowerCase() ||
+          (validSala + ' De Revisión').toLowerCase() === sala.toLowerCase()
+        );
+        
+        if (salaValida && sala.length <= 30) {
+          metadata.salaRevision = sala;
+          logger.info(`🔧 Regex extrajo sala: "${metadata.salaRevision}"`);
+          break;
+        } else {
+          logger.warn(`⚠️ Regex descartó sala inválida: "${sala}"`);
+        }
       }
     }
     
@@ -767,19 +1053,49 @@ CRÍTICO: Responde únicamente el JSON solicitado, sin comentarios adicionales.
 
       // Extraer texto del archivo DOCX
       const extractedContent = await documentTextExtractor.extractFromDocxFile(filePath);
-      
+
       if (!extractedContent) {
         logger.error(`❌ No se pudo extraer contenido de ${filePath}`);
         return null;
       }
 
-      // Construir texto para análisis
+      logger.info(`🔍 DEBUG: Secciones extraídas directamente - Intro: ${extractedContent.structuredContent.introduccion.length}ch, Considerandos: ${extractedContent.structuredContent.considerandos.length}ch, Resuelve: ${extractedContent.structuredContent.resuelve.length}ch`);
+
+      // 🎯 CORRECCIÓN: Usar directamente las secciones extraídas SIN doble procesamiento
+      const fragments: FragmentSelection = {
+        introduccion: extractedContent.structuredContent.introduccion || '',
+        considerandos: extractedContent.structuredContent.considerandos || '',
+        resuelve: extractedContent.structuredContent.resuelve || '',
+        otros: extractedContent.structuredContent.otros || []
+      };
+
+      logger.info(`✅ Usando secciones directas del archivo DOCX (evita duplicación)`);
+      logger.info(`📋 Fragmentos directos - Intro: ${fragments.introduccion.length}ch, Considerandos: ${fragments.considerandos.length}ch, Resuelve: ${fragments.resuelve.length}ch`);
+
+      // Extraer metadatos con regex directamente del texto estructurado
       const textContent = this.buildTextFromExtractedContent(extractedContent);
-      
-      // Realizar análisis de IA
-      const analysis = await this.analyzeDocument(textContent, documentTitle, model);
-      
+      const regexMetadata = this.extractMetadataWithRegex(textContent, documentTitle);
+
+      // Realizar análisis directo con las secciones sin doble extracción
+      let analysis: DocumentAnalysis | null = null;
+
+      if (model === 'openai' && this.openAiApiKey) {
+        analysis = await this.analyzeWithOpenAI(fragments, documentTitle);
+      } else if (model === 'gemini' && this.geminiApiKey) {
+        analysis = await this.analyzeWithGemini(fragments, documentTitle);
+      } else {
+        // Usar modelo por defecto
+        if (this.defaultModel === 'openai' && this.openAiApiKey) {
+          analysis = await this.analyzeWithOpenAI(fragments, documentTitle);
+        } else if (this.defaultModel === 'gemini' && this.geminiApiKey) {
+          analysis = await this.analyzeWithGemini(fragments, documentTitle);
+        }
+      }
+
       if (analysis) {
+        // Combinar metadatos regex con análisis IA
+        analysis = this.combineMetadata(regexMetadata, analysis);
+
         // Agregar metadata de extracción
         analysis.fragmentosAnalizados = [
           `Extraído con ${extractedContent.metadata.extractionMethod}`,

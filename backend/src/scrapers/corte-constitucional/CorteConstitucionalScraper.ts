@@ -192,6 +192,104 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
             structuredData: (linkData as any).structuredData
           };
 
+          // 🔥 FIX: Si no hay structuredData (método fallback), intentar extraer fechaPublicacion de la página HTML individual
+          if (!(linkData as any).structuredData && linkData.htmlUrl) {
+            try {
+              logger.info(`🔍 Método fallback detectado - intentando extraer fecha de publicación de: ${linkData.htmlUrl}`);
+
+              const page = await this.browser!.newPage();
+              await page.goto(linkData.htmlUrl, { waitUntil: 'networkidle2', timeout: 15000 });
+
+              // Buscar la fecha de publicación en la página HTML individual
+              const fechaPublicacion = await page.evaluate(() => {
+                // Buscar patrones comunes de fecha en páginas de sentencias
+                const selectors = [
+                  // Buscar texto que contenga "fecha de publicación" o similar
+                  'td:contains("Fecha de publicación")',
+                  'th:contains("Fecha de publicación")',
+                  'span:contains("Fecha de publicación")',
+                  'p:contains("Fecha de publicación")',
+                  // Buscar en metadatos
+                  'meta[name*="date"]',
+                  'meta[property*="date"]',
+                  // Buscar fechas en formato típico de la Corte
+                  'td', 'th', 'span', 'p', 'div'
+                ];
+
+                // Función para verificar si un texto contiene fecha en formato de Corte Constitucional
+                const extractDateFromText = (text: string): string | null => {
+                  if (!text) return null;
+
+                  // Patrones de fecha comunes en la Corte Constitucional
+                  const datePatterns = [
+                    /(\d{4}-\d{2}-\d{2})/g, // YYYY-MM-DD
+                    /(\d{1,2})\s*de\s*(\w+)\s*de\s*(\d{4})/gi, // DD de MONTH de YYYY
+                    /(\d{1,2})\/(\d{1,2})\/(\d{4})/g, // DD/MM/YYYY
+                  ];
+
+                  for (const pattern of datePatterns) {
+                    const match = text.match(pattern);
+                    if (match) {
+                      return match[0];
+                    }
+                  }
+                  return null;
+                };
+
+                // Buscar en todos los elementos de la página
+                const allElements = document.querySelectorAll('*');
+                for (const element of allElements) {
+                  const textContent = element.textContent || '';
+
+                  // Buscar específicamente líneas que mencionen "fecha de publicación"
+                  if (textContent.toLowerCase().includes('fecha de publicación') ||
+                      textContent.toLowerCase().includes('fecha publicación') ||
+                      textContent.toLowerCase().includes('publicación')) {
+
+                    const parentText = element.parentElement?.textContent || textContent;
+                    const extractedDate = extractDateFromText(parentText);
+                    if (extractedDate) {
+                      return extractedDate;
+                    }
+                  }
+
+                  // También buscar fechas en formato YYYY-MM-DD directamente
+                  const directDate = extractDateFromText(textContent);
+                  if (directDate && directDate.match(/\d{4}-\d{2}-\d{2}/)) {
+                    // Verificar que la fecha sea razonable (año 2020-2030)
+                    const year = parseInt(directDate.split('-')[0]);
+                    if (year >= 2020 && year <= 2030) {
+                      return directDate;
+                    }
+                  }
+                }
+
+                return null;
+              });
+
+              await page.close();
+
+              if (fechaPublicacion) {
+                logger.info(`✅ Fecha de publicación extraída del HTML: ${fechaPublicacion}`);
+
+                // Crear structuredData sintético con la fecha extraída
+                documentMetadata.structuredData = {
+                  fechaPublicacion: fechaPublicacion,
+                  tipoDocumento: typeKey,
+                  numeroDocumento: linkData.documentId,
+                  extractionMethod: 'fallback-html-individual-page'
+                };
+
+                logger.info(`🎯 StructuredData sintético creado para documento fallback: ${linkData.documentId}`);
+              } else {
+                logger.warn(`⚠️ No se pudo extraer fecha de publicación del HTML para: ${linkData.documentId}`);
+              }
+
+            } catch (htmlExtractionError) {
+              logger.warn(`⚠️ Error extrayendo fecha del HTML individual: ${(htmlExtractionError as Error).message}`);
+            }
+          }
+
           if (documentVerification.success) {
             logger.debug(`✅ Documento RTF verificado: ${linkData.documentId}`);
             finalUrl = documentVerification.localPath || linkData.url;
@@ -262,6 +360,8 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
             publicationDate,
             extractionDate: new Date(),
             content,
+            fullTextContent: documentVerification.extractedText,       // ✅ Texto completo para solución híbrida
+            documentBuffer: documentVerification.documentBuffer,       // ✅ Buffer original para guardar archivo
             summary: `${linkData.title} - Documento oficial de la Corte Constitucional de Colombia${documentVerification.success ? ' (RTF verificado)' : ''}`,
             metadata: finalMetadata  // ✅ Usar metadatos finales que incluyen extractedMetadata
           };
@@ -830,12 +930,14 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
             }
           }
           
-          // Crear el objeto de documento
+          // Crear el objeto de documento con solución híbrida
           const document = {
             documentId: sentence.documentId,
             title: sentence.title,
             url: sentence.url,
             content: rtfVerification.extractedText || `Documento jurídico extraído: ${sentence.documentId}\n\nURL: ${sentence.url}\nTipo: SENTENCIA\n\nEste documento fue extraído del sitio web oficial de la Corte Constitucional de Colombia.`,
+            fullTextContent: rtfVerification.extractedText,       // ✅ Texto completo para solución híbrida
+            documentBuffer: rtfVerification.documentBuffer,       // ✅ Buffer original para guardar archivo
             summary: `${sentence.documentId} - Documento oficial de la Corte Constitucional de Colombia (RTF procesado)`,
             documentType: 'SENTENCE' as const,
             legalArea: 'CONSTITUTIONAL' as const,
@@ -843,7 +945,7 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
             publicationDate: new Date(),
             metadata: {
               extractionMethod: 'puppeteer-typescript-v3',
-              extractionVersion: 'v3-with-rtf-verification',
+              extractionVersion: 'v3-with-rtf-verification-hybrid',
               rtfVerification: rtfVerification,
               structuredData: sentence.structuredData || null,
               extractionSource: sentence.extractionSource,
@@ -980,21 +1082,44 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
     // 2. Procesar AYER (si es día hábil)
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
-    processDate(yesterday, 'AYER');
-    
-    // 3. Si no tenemos días hábiles, buscar el último día hábil anterior
-    if (datesToExtract.length === 0) {
-      logger.warn('⚠️ Ni HOY ni AYER son días hábiles, buscando último día hábil...');
-      
+    const yesterdayWasWorkingDay = processDate(yesterday, 'AYER');
+
+    // 3. Si AYER no es día hábil, buscar el último día hábil anterior
+    if (!yesterdayWasWorkingDay) {
+      logger.info('🔍 AYER no es día hábil, buscando último día hábil anterior...');
+
       let searchDate = new Date(today);
       let daysSearched = 0;
       const maxSearch = 7; // Buscar máximo 7 días atrás
-      
+
+      while (daysSearched < maxSearch) {
+        searchDate.setDate(searchDate.getDate() - 1);
+        daysSearched++;
+
+        if (processDate(searchDate, `ÚLTIMO DÍA HÁBIL (-${daysSearched} días)`)) {
+          logger.info(`✅ Encontrado último día hábil: ${searchDate.toLocaleDateString('es-CO')}`);
+          break;
+        }
+      }
+
+      if (daysSearched >= maxSearch) {
+        logger.warn(`⚠️ No se encontró día hábil anterior en los últimos ${maxSearch} días`);
+      }
+    }
+
+    // 4. Fallback: Si aún no tenemos días hábiles, buscar más amplio
+    if (datesToExtract.length === 0) {
+      logger.warn('⚠️ Ni HOY ni días anteriores son hábiles, buscando último día hábil...');
+
+      let searchDate = new Date(today);
+      let daysSearched = 0;
+      const maxSearch = 14; // Buscar máximo 2 semanas atrás
+
       while (datesToExtract.length === 0 && daysSearched < maxSearch) {
         searchDate.setDate(searchDate.getDate() - 1);
         daysSearched++;
-        
-        if (processDate(searchDate, `ÚLTIMO DÍA HÁBIL (-${daysSearched} días)`)) {
+
+        if (processDate(searchDate, `FALLBACK DÍA HÁBIL (-${daysSearched} días)`)) {
           break;
         }
       }
@@ -1047,6 +1172,7 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
     isValidOffice?: boolean;
     contentType?: string;
     extractedText?: string;
+    documentBuffer?: Buffer;
     error?: string;
   }> {
     try {
@@ -1129,7 +1255,8 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
         isValidOffice: true,
         contentType,
         localPath: url,
-        extractedText
+        extractedText,
+        documentBuffer: buffer
       };
       
     } catch (error) {

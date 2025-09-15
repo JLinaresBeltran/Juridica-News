@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { validateRequest } from '@/middleware/validation';
+import { logger } from '@/utils/logger';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -165,6 +166,173 @@ router.get('/articles/:slug', async (req: Request, res: Response) => {
   } catch (error) {
     res.status(500).json({
       error: 'Failed to retrieve article',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/public/preview:
+ *   get:
+ *     summary: Proxy endpoint for document preview to avoid CORS issues
+ *     tags: [Public]
+ *     parameters:
+ *       - in: query
+ *         name: url
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: URL of the document to preview
+ */
+router.get('/preview', async (req: Request, res: Response) => {
+  try {
+    const { url } = req.query;
+    
+    if (!url || typeof url !== 'string') {
+      return res.status(400).json({
+        error: 'URL parameter is required'
+      });
+    }
+
+    logger.info(`📄 Proxying document preview: ${url}`);
+
+    // Verificar que la URL sea válida
+    let targetUrl: URL;
+    try {
+      targetUrl = new URL(url);
+    } catch (error) {
+      return res.status(400).json({
+        error: 'Invalid URL format'
+      });
+    }
+
+    // Solo permitir URLs HTTPS para seguridad
+    if (targetUrl.protocol !== 'https:') {
+      return res.status(400).json({
+        error: 'Only HTTPS URLs are allowed'
+      });
+    }
+
+    // Fetch del documento
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; EditorialJuridico/1.0)',
+        'Accept': 'application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,application/rtf,*/*',
+      },
+      // Timeout de 15 segundos
+      signal: AbortSignal.timeout(15000)
+    });
+
+    if (!response.ok) {
+      logger.error(`❌ Error fetching document: ${response.status} ${response.statusText}`);
+      return res.status(response.status).json({
+        error: `Document fetch failed: ${response.statusText}`
+      });
+    }
+
+    // Obtener el tipo de contenido
+    const contentType = response.headers.get('content-type') || 'application/octet-stream';
+    const contentLength = response.headers.get('content-length');
+
+    // Obtener el contenido como buffer
+    const buffer = await response.arrayBuffer();
+    const bufferData = Buffer.from(buffer);
+
+    // Detectar tipo de archivo por magic bytes y extensión/content-type
+    const urlLower = url.toLowerCase();
+    const magicBytes = bufferData.toString('hex', 0, 4);
+    
+    // DOCX files start with PK (ZIP format): 504B0304
+    const isDOCX = urlLower.includes('.docx') || 
+                   contentType.includes('wordprocessingml') ||
+                   magicBytes.startsWith('504b');
+                   
+    // RTF files start with {\rtf
+    const isRTF = (urlLower.includes('.rtf') || contentType.includes('rtf')) &&
+                  !isDOCX; // Evitar conflicto con DOCX mal etiquetados
+    
+    if (isRTF && !isDOCX) {
+      try {
+        // Solo procesar RTF reales, no DOCX mal etiquetados
+        let textContent = bufferData.toString('utf8');
+        
+        // Verificar que realmente sea RTF (debe empezar con {\rtf)
+        if (textContent.startsWith('{\\rtf')) {
+          // Limpiar RTF básico (remover códigos de formato RTF)
+          textContent = textContent
+            .replace(/\\[a-z]+\d*\s?/g, '') // Remover comandos RTF
+            .replace(/[{}]/g, '') // Remover llaves
+            .replace(/\\\\/g, '\\') // Escapar backslashes
+            .replace(/\n{3,}/g, '\n\n') // Normalizar saltos de línea
+            .trim();
+
+          // Si tenemos texto legible, devolverlo como texto plano
+          if (textContent.length > 100 && /[a-zA-ZÁ-ú]/.test(textContent)) {
+            res.set({
+              'Content-Type': 'text/plain; charset=utf-8',
+              'Content-Disposition': 'inline',
+              'Cache-Control': 'public, max-age=300',
+              'X-Proxied-From': url,
+              'X-Content-Converted': 'RTF-to-text'
+            });
+            
+            return res.send(textContent);
+          }
+        }
+      } catch (extractError) {
+        logger.warn(`⚠️ Could not extract text from RTF ${url}: ${extractError}`);
+        // Continuar con la respuesta original
+      }
+    }
+    
+    // Para DOCX u otros archivos, devolver el contenido original
+    if (isDOCX) {
+      logger.info(`📄 Serving DOCX file for viewer: ${url}`);
+      
+      res.set({
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'Content-Disposition': 'inline',
+        'Cache-Control': 'public, max-age=300',
+        'X-Proxied-From': url,
+        'X-Document-Type': 'DOCX'
+      });
+      
+      if (contentLength) {
+        res.set('Content-Length', contentLength);
+      }
+
+      return res.send(bufferData);
+    }
+
+    // Respuesta normal para otros tipos de archivo
+    res.set({
+      'Content-Type': contentType,
+      'Content-Disposition': 'inline',
+      'Cache-Control': 'public, max-age=300',
+      'X-Proxied-From': url
+    });
+
+    if (contentLength) {
+      res.set('Content-Length', contentLength);
+    }
+
+    res.send(bufferData);
+
+    logger.info(`✅ Document preview proxied successfully: ${contentType}, ${contentLength || 'unknown size'} bytes`);
+
+  } catch (error) {
+    logger.error('❌ Error in document preview proxy:', error);
+    
+    if (error instanceof Error && error.name === 'TimeoutError') {
+      return res.status(408).json({
+        error: 'Document fetch timeout'
+      });
+    }
+    
+    res.status(500).json({
+      error: 'Failed to fetch document preview',
       message: error instanceof Error ? error.message : 'Unknown error'
     });
   }

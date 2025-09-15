@@ -47,6 +47,7 @@ interface Document {
   title: string
   type: string
   publicationDate: string
+  webOfficialDate?: string // Nueva fecha web oficial
   identifier: string
   status: 'available' | 'unavailable'
   area: string
@@ -57,7 +58,7 @@ interface Document {
   expediente?: string
   tema?: string
   decision?: string
-  
+
   // AI Analysis Fields
   numeroSentencia?: string
   salaRevision?: string
@@ -153,6 +154,9 @@ export default function CurationPage() {
   const [isLoadingDocuments, setIsLoadingDocuments] = useState(false)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   
+  // ✅ FIX: Control de análisis concurrentes
+  const [analyzingDocuments, setAnalyzingDocuments] = useState<Set<string>>(new Set())
+  
   // Zustand stores
   const { 
     approveDocument, 
@@ -191,6 +195,13 @@ export default function CurationPage() {
       
       // Mapear documentos de la API al formato esperado por la UI
       
+      // ✅ FIX: Contabilizar y resetear estados PROCESSING colgados
+      const processingDocs = response.data.filter((doc: ApiDocument) => doc.aiAnalysisStatus === 'PROCESSING')
+      if (processingDocs.length > 0) {
+        console.warn(`🔄 Reseteando ${processingDocs.length} documentos con estado PROCESSING colgado:`, 
+          processingDocs.map(d => d.id))
+      }
+
       const mappedDocs: RealDocument[] = response.data.map((doc: ApiDocument) => {
         const mapped = {
           id: doc.id,
@@ -198,6 +209,7 @@ export default function CurationPage() {
           title: doc.title,
           type: doc.documentType,
           publicationDate: doc.publicationDate,
+          webOfficialDate: (doc as any).webOfficialDate, // Nueva fecha web oficial
           identifier: doc.externalId || doc.id,
           status: 'available' as const,
           area: mapLegalArea(doc.legalArea),
@@ -214,7 +226,8 @@ export default function CurationPage() {
           temaPrincipal: doc.temaPrincipal,
           resumenIA: doc.resumenIA,
           decision: doc.decision,
-          aiAnalysisStatus: doc.aiAnalysisStatus,
+          // ✅ FIX: Resetear estados PROCESSING que puedan haber quedado colgados
+          aiAnalysisStatus: doc.aiAnalysisStatus === 'PROCESSING' ? 'PENDING' : doc.aiAnalysisStatus,
           aiAnalysisDate: doc.aiAnalysisDate,
           aiModel: doc.aiModel,
           fragmentosAnalisis: doc.fragmentosAnalisis
@@ -410,7 +423,16 @@ export default function CurationPage() {
 
   const handleAnalyzeDocument = useCallback(async (docId: string) => {
     try {
+      // ✅ FIX: Prevenir análisis concurrentes del mismo documento
+      if (analyzingDocuments.has(docId)) {
+        console.log(`⚠️ Análisis ya en progreso para documento: ${docId}`)
+        return
+      }
+
       console.log(`🔍 Iniciando análisis de IA para documento: ${docId}`)
+      
+      // Marcar como analizando
+      setAnalyzingDocuments(prev => new Set(prev).add(docId))
       
       // ✅ FIX: Actualizar solo el estado de análisis sin cambiar otros campos
       setRealDocuments(prev => 
@@ -427,69 +449,66 @@ export default function CurationPage() {
       if (response.success) {
         console.log('✅ Análisis completado exitosamente', response.data)
         
-        // Extraer datos del análisis IA
-        const aiAnalysis = response.data?.analysis?.aiAnalysis
+        // ✅ FIX: Usar directamente el documento actualizado del backend
         const updatedDocument = response.data?.document
+        const aiAnalysis = response.data?.analysis?.aiAnalysis
         
-        console.log('🔍 Debug aiAnalysis:', aiAnalysis)
         console.log('🔍 Debug updatedDocument:', updatedDocument)
+        console.log('🔍 Debug aiAnalysis:', aiAnalysis)
         
-        // ✅ FIX: Actualización más conservadora, preservando documento original
-        setRealDocuments(prev => 
-          prev.map(doc => {
-            if (doc.id !== docId) return doc
-            
-            // Preservar el documento original y solo actualizar campos específicos de IA
-            return {
-              ...doc, // ✅ Mantener TODOS los campos originales
-              // Solo actualizar campos de análisis IA
-              ...(aiAnalysis && {
-                temaPrincipal: aiAnalysis.temaPrincipal || doc.temaPrincipal,
-                resumenIA: aiAnalysis.resumenIA || doc.resumenIA,
-                decision: aiAnalysis.decision || doc.decision,
-                numeroSentencia: aiAnalysis.numeroSentencia || doc.numeroSentencia,
-                magistradoPonente: aiAnalysis.magistradoPonente || doc.magistradoPonente,
-                salaRevision: aiAnalysis.salaRevision || doc.salaRevision,
-                expediente: aiAnalysis.expediente || doc.expediente,
-                aiModel: aiAnalysis.modeloUsado || doc.aiModel
-              }),
-              // Actualizar metadatos del análisis
-              aiAnalysisStatus: 'COMPLETED' as any,
-              aiAnalysisDate: new Date().toISOString(),
-              // Preservar otros campos importantes del documento original
-              id: doc.id,
-              source: doc.source,
-              title: doc.title,
-              type: doc.type,
-              status: doc.status,
-              area: doc.area,
-              url: doc.url,
-              publicationDate: doc.publicationDate,
-              extractionDate: doc.extractionDate,
-              identifier: doc.identifier
-            }
-          })
-        )
+        if (updatedDocument) {
+          // ✅ FIX: Actualizar con los datos del backend, que ya tiene todo procesado
+          setRealDocuments(prev => 
+            prev.map(doc => {
+              if (doc.id !== docId) return doc
+              
+              // Usar documento del backend y mapear a formato frontend
+              return {
+                ...doc, // Mantener campos del frontend
+                // Actualizar con datos del backend
+                temaPrincipal: updatedDocument.temaPrincipal || doc.temaPrincipal,
+                resumenIA: updatedDocument.resumenIA || doc.resumenIA,
+                decision: updatedDocument.decision || doc.decision,
+                numeroSentencia: updatedDocument.numeroSentencia || doc.numeroSentencia,
+                magistradoPonente: updatedDocument.magistradoPonente || doc.magistradoPonente,
+                salaRevision: updatedDocument.salaRevision || doc.salaRevision,
+                expediente: updatedDocument.expediente || doc.expediente,
+                aiModel: updatedDocument.aiModel || doc.aiModel,
+                aiAnalysisStatus: updatedDocument.aiAnalysisStatus || 'COMPLETED' as any,
+                aiAnalysisDate: updatedDocument.aiAnalysisDate || new Date().toISOString()
+              }
+            })
+          )
+        } else {
+          console.warn('⚠️ No se recibió documento actualizado del backend')
+          // Fallback: marcar como completado sin datos adicionales
+          setRealDocuments(prev => 
+            prev.map(doc => 
+              doc.id === docId 
+                ? { ...doc, aiAnalysisStatus: 'COMPLETED' as any, aiAnalysisDate: new Date().toISOString() }
+                : doc
+            )
+          )
+        }
         
-        // ✅ FIX: Si el documento está en el modal, actualizarlo de forma consistente
-        if (selectedDocument && selectedDocument.id === docId) {
+        // ✅ FIX: Si el documento está en el modal, actualizarlo con datos del backend
+        if (selectedDocument && selectedDocument.id === docId && updatedDocument) {
           setSelectedDocument(prev => {
             if (!prev || prev.id !== docId) return prev
             
             return {
-              ...prev, // Preservar documento del modal
-              ...(aiAnalysis && {
-                temaPrincipal: aiAnalysis.temaPrincipal || prev.temaPrincipal,
-                resumenIA: aiAnalysis.resumenIA || prev.resumenIA,
-                decision: aiAnalysis.decision || prev.decision,
-                numeroSentencia: aiAnalysis.numeroSentencia || prev.numeroSentencia,
-                magistradoPonente: aiAnalysis.magistradoPonente || prev.magistradoPonente,
-                salaRevision: aiAnalysis.salaRevision || prev.salaRevision,
-                expediente: aiAnalysis.expediente || prev.expediente,
-                aiModel: aiAnalysis.modeloUsado || prev.aiModel
-              }),
-              aiAnalysisStatus: 'COMPLETED' as any,
-              aiAnalysisDate: new Date().toISOString()
+              ...prev, // Preservar campos del modal
+              // Actualizar con datos del backend
+              temaPrincipal: updatedDocument.temaPrincipal || prev.temaPrincipal,
+              resumenIA: updatedDocument.resumenIA || prev.resumenIA,
+              decision: updatedDocument.decision || prev.decision,
+              numeroSentencia: updatedDocument.numeroSentencia || prev.numeroSentencia,
+              magistradoPonente: updatedDocument.magistradoPonente || prev.magistradoPonente,
+              salaRevision: updatedDocument.salaRevision || prev.salaRevision,
+              expediente: updatedDocument.expediente || prev.expediente,
+              aiModel: updatedDocument.aiModel || prev.aiModel,
+              aiAnalysisStatus: updatedDocument.aiAnalysisStatus || 'COMPLETED' as any,
+              aiAnalysisDate: updatedDocument.aiAnalysisDate || new Date().toISOString()
             }
           })
         }
@@ -514,22 +533,42 @@ export default function CurationPage() {
         fullError: error
       })
       
-      // ✅ FIX: Solo actualizar el estado de análisis en caso de error
+      // ✅ FIX: Revertir estado a PENDING si falla la conexión/timeout
+      // Si es error de red o timeout, volver a PENDING, si es error lógico, marcar FAILED
+      const isFailed = error instanceof Error && 
+        (error.message.includes('Insufficient content') || 
+         error.message.includes('Analysis failed') ||
+         error.message.includes('Invalid response'))
+      
       setRealDocuments(prev => 
         prev.map(doc => 
           doc.id === docId 
-            ? { ...doc, aiAnalysisStatus: 'FAILED' as any }
+            ? { ...doc, aiAnalysisStatus: isFailed ? 'FAILED' as any : 'PENDING' as any }
             : doc
         )
       )
       
-      // Mostrar error al usuario de forma menos intrusiva
+      // También revertir documento del modal si está abierto
+      if (selectedDocument && selectedDocument.id === docId) {
+        setSelectedDocument(prev => 
+          prev ? { ...prev, aiAnalysisStatus: isFailed ? 'FAILED' as any : 'PENDING' as any } : prev
+        )
+      }
+      
+      // Mostrar error al usuario
       console.warn(`❌ Error en el análisis de IA: ${errorMessage}`)
     } finally {
+      // ✅ FIX: Limpiar estado de análisis concurrente
+      setAnalyzingDocuments(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(docId)
+        return newSet
+      })
+      
       // Siempre trigger polling después de análisis (exitoso o fallido)
       triggerPoll('analyze', true)
     }
-  }, [realDocuments, selectedDocument, triggerPoll])
+  }, [realDocuments, selectedDocument, triggerPoll, analyzingDocuments])
 
   const handleDocumentAction = useCallback((docId: string, action: 'approve' | 'reject' | 'preview' | 'analyze') => {
     const document = (realDocuments.length > 0 ? realDocuments : mockDocuments).find(doc => doc.id === docId)
@@ -912,20 +951,21 @@ export default function CurationPage() {
                                   {/* PRIORIDAD 3: Información adicional */}
                                   <div className="space-y-1 text-xs text-gray-500">
                                     <div>
-                                      <span><strong>Web Oficial:</strong> {new Date(doc.publicationDate).toLocaleDateString('es-ES', {
-                                        year: '2-digit',
-                                        month: '2-digit',
-                                        day: '2-digit',
-                                        hour: '2-digit',
-                                        minute: '2-digit',
-                                        hour12: true
-                                      })}</span>
+                                      <span><strong>Web oficial:</strong> {
+                                        doc.webOfficialDate
+                                          ? new Date(doc.webOfficialDate).toISOString().split('T')[0] // Formato YYYY-MM-DD
+                                          : new Date(doc.publicationDate).toLocaleDateString('es-ES', {
+                                              year: '2-digit',
+                                              month: '2-digit',
+                                              day: '2-digit'
+                                            })
+                                      }</span>
                                     </div>
                                     <div>
                                       <span><strong>Extracción:</strong> {new Date(doc.extractionDate).toLocaleDateString('es-ES', {
                                         year: 'numeric',
                                         month: '2-digit',
-                                        day: '2-digit', 
+                                        day: '2-digit',
                                         hour: '2-digit',
                                         minute: '2-digit',
                                         hour12: true
@@ -955,28 +995,28 @@ export default function CurationPage() {
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation()
-                                        if (doc.aiAnalysisStatus !== 'PROCESSING') {
+                                        if (doc.aiAnalysisStatus !== 'PROCESSING' && !analyzingDocuments.has(doc.id)) {
                                           handleDocumentAction(doc.id, 'analyze')
                                         }
                                       }}
-                                      disabled={doc.aiAnalysisStatus === 'PROCESSING'}
+                                      disabled={doc.aiAnalysisStatus === 'PROCESSING' || analyzingDocuments.has(doc.id)}
                                       className={clsx(
                                         'px-4 py-2 text-xs border rounded-full transition-all duration-200 flex items-center',
-                                        doc.aiAnalysisStatus === 'PROCESSING' 
+                                        (doc.aiAnalysisStatus === 'PROCESSING' || analyzingDocuments.has(doc.id))
                                           ? 'text-yellow-600 border-yellow-300 bg-yellow-50 cursor-not-allowed'
                                           : doc.aiAnalysisStatus === 'COMPLETED'
                                           ? 'text-blue-700 border-blue-300 hover:bg-blue-50'
                                           : 'text-purple-700 border-purple-300 hover:bg-purple-50'
                                       )}
                                       title={
-                                        doc.aiAnalysisStatus === 'PROCESSING' 
+                                        (doc.aiAnalysisStatus === 'PROCESSING' || analyzingDocuments.has(doc.id))
                                           ? 'Análisis en progreso...' 
                                           : doc.aiAnalysisStatus === 'COMPLETED' 
                                           ? 'Reanalizar con IA' 
                                           : 'Analizar con IA'
                                       }
                                     >
-                                      {doc.aiAnalysisStatus === 'PROCESSING' ? (
+                                      {(doc.aiAnalysisStatus === 'PROCESSING' || analyzingDocuments.has(doc.id)) ? (
                                         <>
                                           <Loader2 className="w-3 h-3 mr-1 animate-spin" />
                                           Procesando...
@@ -1225,20 +1265,21 @@ export default function CurationPage() {
                       {/* PRIORIDAD 3: Información adicional */}
                       <div className="space-y-1 text-xs text-gray-500">
                         <div>
-                          <span><strong>Web Oficial:</strong> {new Date(doc.publicationDate).toLocaleDateString('es-ES', {
-                            year: '2-digit',
-                            month: '2-digit',
-                            day: '2-digit',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            hour12: true
-                          })}</span>
+                          <span><strong>Web oficial:</strong> {
+                            doc.webOfficialDate
+                              ? new Date(doc.webOfficialDate).toISOString().split('T')[0] // Formato YYYY-MM-DD
+                              : new Date(doc.publicationDate).toLocaleDateString('es-ES', {
+                                  year: '2-digit',
+                                  month: '2-digit',
+                                  day: '2-digit'
+                                })
+                          }</span>
                         </div>
                         <div>
                           <span><strong>Extracción:</strong> {new Date(doc.extractionDate).toLocaleDateString('es-ES', {
                             year: 'numeric',
                             month: '2-digit',
-                            day: '2-digit', 
+                            day: '2-digit',
                             hour: '2-digit',
                             minute: '2-digit',
                             hour12: true
@@ -1264,28 +1305,28 @@ export default function CurationPage() {
                       {doc.status === 'available' && (
                         <button
                           onClick={() => {
-                            if (doc.aiAnalysisStatus !== 'PROCESSING') {
+                            if (doc.aiAnalysisStatus !== 'PROCESSING' && !analyzingDocuments.has(doc.id)) {
                               handleDocumentAction(doc.id, 'analyze')
                             }
                           }}
-                          disabled={doc.aiAnalysisStatus === 'PROCESSING'}
+                          disabled={doc.aiAnalysisStatus === 'PROCESSING' || analyzingDocuments.has(doc.id)}
                           className={clsx(
                             'px-4 py-2 text-xs border rounded-full transition-all duration-200 flex items-center',
-                            doc.aiAnalysisStatus === 'PROCESSING' 
+                            (doc.aiAnalysisStatus === 'PROCESSING' || analyzingDocuments.has(doc.id))
                               ? 'text-yellow-600 border-yellow-300 bg-yellow-50 cursor-not-allowed'
                               : doc.aiAnalysisStatus === 'COMPLETED'
                               ? 'text-blue-700 border-blue-300 hover:bg-blue-50'
                               : 'text-purple-700 border-purple-300 hover:bg-purple-50'
                           )}
                           title={
-                            doc.aiAnalysisStatus === 'PROCESSING' 
+                            (doc.aiAnalysisStatus === 'PROCESSING' || analyzingDocuments.has(doc.id))
                               ? 'Análisis en progreso...' 
                               : doc.aiAnalysisStatus === 'COMPLETED' 
                               ? 'Reanalizar con IA' 
                               : 'Analizar con IA'
                           }
                         >
-                          {doc.aiAnalysisStatus === 'PROCESSING' ? (
+                          {(doc.aiAnalysisStatus === 'PROCESSING' || analyzingDocuments.has(doc.id)) ? (
                             <>
                               <Loader2 className="w-3 h-3 mr-1 animate-spin" />
                               Procesando...

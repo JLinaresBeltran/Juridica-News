@@ -1,9 +1,12 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { 
   X, 
   CheckCircle, 
   XCircle, 
-  FileText
+  FileText,
+  ExternalLink,
+  Download,
+  Eye
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { getEntityColors, getStatusColors, getAreaColors } from '../../constants/entityColors'
@@ -63,7 +66,315 @@ interface DocumentPreviewModalProps {
   mode?: 'preview' | 'generation' // 'preview' para pendientes, 'generation' para aprobados
 }
 
-// Ya no necesitamos esta definición - usamos el sistema centralizado
+// Componente mejorado para vista previa de documentos
+interface DocumentViewerProps {
+  url: string;
+  title: string;
+  documentType: string;
+}
+
+function DocumentViewer({ url, title, documentType }: DocumentViewerProps) {
+  const [viewerError, setViewerError] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [currentViewerIndex, setCurrentViewerIndex] = useState(0);
+  const [showTextView, setShowTextView] = useState(false);
+  const [documentText, setDocumentText] = useState<string | null>(null);
+
+  // Solo viewers confiables y que funcionan bien
+  const viewers = [
+    // Google Docs como primera opción (funciona excelente en iframe)
+    {
+      name: 'Google Docs',
+      url: url.includes('https://') ? `https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true` : null,
+      supportedTypes: ['pdf', 'rtf', 'docx', 'doc'],
+      timeout: 12000,
+      allowIframe: true
+    },
+    // LibreOffice Online como segunda opción (abre en ventana nueva)
+    {
+      name: 'LibreOffice Online',
+      url: url.includes('https://') ? `https://www.viewdocs.com/viewer?url=${encodeURIComponent(url)}` : null,
+      supportedTypes: ['rtf', 'docx', 'doc', 'odt'],
+      timeout: 8000,
+      allowIframe: false,
+      openInNewWindow: true
+    },
+    // PDF directo para PDFs
+    {
+      name: 'Vista PDF Directa',
+      url: url.toLowerCase().includes('.pdf') ? url : null,
+      supportedTypes: ['pdf'],
+      timeout: 5000,
+      allowIframe: true
+    },
+    // PDF.js como fallback final para PDFs
+    {
+      name: 'PDF.js',
+      url: url.toLowerCase().includes('.pdf') ? `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(url)}` : null,
+      supportedTypes: ['pdf'],
+      timeout: 12000,
+      allowIframe: true
+    }
+  ].filter(viewer => viewer.url); // Filtrar viewers sin URL válida
+
+  // Determinar el viewer más adecuado
+  const getPreferredViewer = () => {
+    const docType = documentType.toLowerCase();
+    const availableViewers = viewers.filter(viewer => 
+      viewer.supportedTypes.some(type => 
+        docType.includes(type) || url.toLowerCase().includes(`.${type}`)
+      )
+    );
+    return availableViewers.length > 0 ? availableViewers : viewers;
+  };
+
+  const availableViewers = getPreferredViewer();
+  const currentViewer = availableViewers[currentViewerIndex] || availableViewers[0];
+
+  const handleViewerLoad = () => {
+    setIsLoading(false);
+    setViewerError(false);
+  };
+
+  const handleViewerError = () => {
+    console.log(`❌ Error with ${currentViewer?.name}, trying next viewer...`);
+    console.log(`📊 Estado actual: ViewerIndex=${currentViewerIndex}, TotalViewers=${availableViewers.length}`);
+    
+    // Intentar siguiente viewer si hay más opciones
+    if (currentViewerIndex < availableViewers.length - 1) {
+      console.log(`➡️ Cambiando a viewer ${currentViewerIndex + 1}: ${availableViewers[currentViewerIndex + 1]?.name}`);
+      setCurrentViewerIndex(prev => prev + 1);
+      setIsLoading(true);
+    } else {
+      console.log(`🚫 No hay más viewers disponibles, mostrando error`);
+      setIsLoading(false);
+      setViewerError(true);
+    }
+  };
+
+  // Detectar viewers que requieren ventana nueva
+  React.useEffect(() => {
+    if (currentViewer) {
+      console.log(`🎯 Viewer activo: ${currentViewer.name}`, {
+        url: currentViewer.url,
+        allowIframe: currentViewer.allowIframe,
+        openInNewWindow: currentViewer.openInNewWindow,
+        timeout: currentViewer.timeout
+      });
+    }
+    
+    if (currentViewer?.openInNewWindow && !currentViewer.allowIframe) {
+      setIsLoading(false);
+      setViewerError(false);
+    }
+  }, [currentViewerIndex, currentViewer]);
+
+  // Timeout automático para evitar carga infinita
+  React.useEffect(() => {
+    if (!isLoading) return;
+    if (currentViewer?.openInNewWindow && !currentViewer.allowIframe) return;
+
+    const timeout = setTimeout(() => {
+      console.log(`⏰ Timeout for ${currentViewer?.name}, trying next viewer...`);
+      handleViewerError();
+    }, currentViewer?.timeout || 15000);
+
+    return () => clearTimeout(timeout);
+  }, [isLoading, currentViewerIndex]);
+
+  // Función para obtener el contenido como texto
+  const fetchDocumentText = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch(`/api/public/preview?url=${encodeURIComponent(url)}`);
+      
+      if (response.ok) {
+        const text = await response.text();
+        setDocumentText(text);
+        setShowTextView(true);
+      } else {
+        throw new Error('Failed to fetch document text');
+      }
+    } catch (error) {
+      console.error('Error fetching document text:', error);
+      setDocumentText('Error al obtener el contenido del documento.');
+      setShowTextView(true);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Reset cuando cambia el documento
+  React.useEffect(() => {
+    setCurrentViewerIndex(0);
+    setViewerError(false);
+    setIsLoading(true);
+    setShowTextView(false);
+    setDocumentText(null);
+  }, [url]);
+
+  if (viewerError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-gray-400 p-8">
+        <FileText className="w-16 h-16 mb-4" />
+        <h4 className="text-lg font-medium mb-2 text-gray-900 dark:text-gray-100">
+          Vista previa no disponible
+        </h4>
+        <p className="text-center text-gray-600 dark:text-gray-300 mb-6">
+          No se puede mostrar la vista previa del documento en este momento.<br/>
+          Intentamos {availableViewers.length} método{availableViewers.length > 1 ? 's' : ''} diferente{availableViewers.length > 1 ? 's' : ''}.
+        </p>
+        
+        {/* Mostrar información de debugging */}
+        <div className="mb-4 text-xs text-gray-500 bg-gray-100 dark:bg-gray-700 p-3 rounded">
+          <p><strong>URL:</strong> {url}</p>
+          <p><strong>Tipo:</strong> {documentType}</p>
+          <p><strong>Último intento:</strong> {currentViewer?.name || 'N/A'}</p>
+        </div>
+        
+        <div className="flex flex-col space-y-2 w-full max-w-sm">
+          <button 
+            onClick={() => window.open(url, '_blank')}
+            className="inline-flex items-center justify-center px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-colors"
+          >
+            <ExternalLink className="w-4 h-4 mr-2" />
+            Abrir en Nueva Pestaña
+          </button>
+          <a 
+            href={url}
+            download
+            className="inline-flex items-center justify-center px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Descargar Archivo
+          </a>
+          <button
+            onClick={() => {
+              setViewerError(false);
+              setIsLoading(true);
+              setCurrentViewerIndex(0);
+            }}
+            className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+          >
+            🔄 Reintentar Vista Previa
+          </button>
+          <button
+            onClick={fetchDocumentText}
+            disabled={isLoading}
+            className="inline-flex items-center justify-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors disabled:opacity-50"
+          >
+            <Eye className="w-4 h-4 mr-2" />
+            Ver Como Texto
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Visor de texto alternativo
+  if (showTextView) {
+    return (
+      <div className="h-full flex flex-col">
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-750">
+          <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 flex items-center">
+            <FileText className="w-4 h-4 mr-2" />
+            Vista de Texto - {title}
+          </h4>
+          <button
+            onClick={() => setShowTextView(false)}
+            className="text-xs px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+          >
+            Volver a Vista Previa
+          </button>
+        </div>
+        <div className="flex-1 overflow-auto p-4 bg-white dark:bg-gray-800">
+          {documentText ? (
+            <pre className="whitespace-pre-wrap text-xs text-gray-800 dark:text-gray-200 font-mono leading-relaxed">
+              {documentText}
+            </pre>
+          ) : (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-2"></div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Cargando contenido de texto...</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative h-full">
+      {isLoading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-white dark:bg-gray-800">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-2"></div>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Cargando vista previa...</p>
+          </div>
+        </div>
+      )}
+      {currentViewer && currentViewer.allowIframe !== false && (
+        <iframe
+          key={`${currentViewer.name}-${currentViewerIndex}`}
+          src={currentViewer.url}
+          className="w-full h-full"
+          title={`Vista previa de ${title}`}
+          onLoad={handleViewerLoad}
+          onError={handleViewerError}
+          style={{ border: 'none' }}
+        />
+      )}
+      
+      {currentViewer && currentViewer.openInNewWindow && !currentViewer.allowIframe && (
+        <div className="flex items-center justify-center h-full bg-gray-50 dark:bg-gray-800">
+          <div className="text-center p-8">
+            <ExternalLink className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+              Vista Previa con {currentViewer.name}
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-sm">
+              Este documento debe abrirse en una ventana nueva para visualizarse correctamente.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <button
+                onClick={() => window.open(currentViewer.url, '_blank', 'noopener,noreferrer')}
+                className="inline-flex items-center justify-center px-6 py-3 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-colors"
+              >
+                <ExternalLink className="w-4 h-4 mr-2" />
+                Abrir en {currentViewer.name}
+              </button>
+              <button
+                onClick={handleViewerError}
+                className="inline-flex items-center justify-center px-4 py-3 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
+              >
+                Probar Siguiente Viewer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {!isLoading && currentViewer && (
+        <div className="absolute top-2 right-2 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded flex items-center space-x-2">
+          <span>{currentViewer.name}</span>
+          {currentViewerIndex > 0 && (
+            <span className="text-yellow-300">
+              (Intento #{currentViewerIndex + 1})
+            </span>
+          )}
+        </div>
+      )}
+      
+      {isLoading && currentViewerIndex > 0 && (
+        <div className="absolute top-2 left-2 bg-blue-600 bg-opacity-80 text-white text-xs px-2 py-1 rounded">
+          Probando {currentViewer?.name}...
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function DocumentPreviewModal({ 
   isOpen, 
@@ -458,37 +769,12 @@ export function DocumentPreviewModal({
                               <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">Vista Previa del Documento</h4>
                             </div>
                             
-                            {/* PDF Content */}
+                            {/* PDF Content - MEJORADO */}
                             <div className="flex-1 bg-gray-100 dark:bg-gray-800">
-                              <iframe
-                                src={`https://docs.google.com/gview?url=${encodeURIComponent(selectedDoc.url)}&embedded=true`}
-                                className="w-full h-full"
-                                title={`Vista previa de ${selectedDoc.title}`}
-                                onError={(e) => {
-                                  const iframe = e.target as HTMLIFrameElement;
-                                  iframe.style.display = 'none';
-                                  const parent = iframe.parentElement;
-                                  if (parent) {
-                                    parent.innerHTML = `
-                                      <div class="flex flex-col items-center justify-center h-full text-gray-500 dark:text-gray-400 p-8">
-                                        <svg class="w-16 h-16 mb-4" fill="currentColor" viewBox="0 0 20 20">
-                                          <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"></path>
-                                        </svg>
-                                        <h4 class="text-lg font-medium mb-2 text-gray-900 dark:text-gray-100">Vista previa no disponible</h4>
-                                        <p class="text-center text-gray-600 dark:text-gray-300 mb-4">No se puede mostrar la vista previa del documento en este momento.</p>
-                                        <button 
-                                          onclick="window.open('${selectedDoc.url}', '_blank')"
-                                          class="inline-flex items-center px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
-                                        >
-                                          <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
-                                          </svg>
-                                          Ver Documento
-                                        </button>
-                                      </div>
-                                    `;
-                                  }
-                                }}
+                              <DocumentViewer 
+                                url={selectedDoc.url}
+                                title={selectedDoc.title}
+                                documentType={selectedDoc.type}
                               />
                             </div>
                           </div>
@@ -643,37 +929,12 @@ export function DocumentPreviewModal({
                               <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">Vista Previa del Documento</h4>
                             </div>
                             
-                            {/* PDF Content */}
+                            {/* PDF Content - MEJORADO */}
                             <div className="flex-1 bg-gray-100 dark:bg-gray-800">
-                              <iframe
-                                src={`https://docs.google.com/gview?url=${encodeURIComponent(selectedDoc.url)}&embedded=true`}
-                                className="w-full h-full"
-                                title={`Vista previa de ${selectedDoc.title}`}
-                                onError={(e) => {
-                                  const iframe = e.target as HTMLIFrameElement;
-                                  iframe.style.display = 'none';
-                                  const parent = iframe.parentElement;
-                                  if (parent) {
-                                    parent.innerHTML = `
-                                      <div class="flex flex-col items-center justify-center h-full text-gray-500 dark:text-gray-400 p-8">
-                                        <svg class="w-16 h-16 mb-4" fill="currentColor" viewBox="0 0 20 20">
-                                          <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"></path>
-                                        </svg>
-                                        <h4 class="text-lg font-medium mb-2 text-gray-900 dark:text-gray-100">Vista previa no disponible</h4>
-                                        <p class="text-center text-gray-600 dark:text-gray-300 mb-4">No se puede mostrar la vista previa del documento en este momento.</p>
-                                        <button 
-                                          onclick="window.open('${selectedDoc.url}', '_blank')"
-                                          class="inline-flex items-center px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
-                                        >
-                                          <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
-                                          </svg>
-                                          Ver Documento
-                                        </button>
-                                      </div>
-                                    `;
-                                  }
-                                }}
+                              <DocumentViewer 
+                                url={selectedDoc.url}
+                                title={selectedDoc.title}
+                                documentType={selectedDoc.type}
                               />
                             </div>
                           </div>
