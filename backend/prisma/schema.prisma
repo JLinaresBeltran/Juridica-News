@@ -81,11 +81,22 @@ model Document {
   aiAnalysisDate     DateTime? @map("ai_analysis_date")
   aiModel            String?   @map("ai_model")
   fragmentosAnalisis String?   @default("") @map("fragmentos_analisis")
+  // Campos para artículos y títulos generados
+  generatedArticle   String?   @map("generated_article")
+  generatedTitles    String?   @map("generated_titles") // JSON array de títulos
+  selectedTitle      String?   @map("selected_title")
+  articleStyle       String?   @map("article_style") // serious, catchy, educational
+  titleStyle         String?   @map("title_style")
+  articleModel       String?   @map("article_model") // gpt4o-mini, gemini
+  titleModel         String?   @map("title_model")
+  articleGeneratedAt DateTime? @map("article_generated_at")
+  titlesGeneratedAt  DateTime? @map("titles_generated_at")
   curatorId          String?   @map("curator_id")
   createdAt          DateTime  @default(now()) @map("created_at")
   updatedAt          DateTime  @updatedAt @map("updated_at")
   user               User?     @relation("DocumentExtractor", fields: [userId], references: [id])
   curator            User?     @relation("DocumentCreator", fields: [curatorId], references: [id])
+  generatedImages    GeneratedImage[]
 
   @@map("documents")
 }
@@ -115,6 +126,7 @@ model Article {
   versions           ArticleVersion[]
   author             User             @relation("ArticleAuthor", fields: [authorId], references: [id])
   mediaAssets        MediaAsset[]
+  generatedImages    GeneratedImage[]
 
   @@map("articles")
 }
@@ -193,4 +205,33 @@ model ExtractionHistory {
   user               User?     @relation(fields: [userId], references: [id])
 
   @@map("extraction_history")
+}
+
+model GeneratedImage {
+  id              String    @id @default(cuid())
+  documentId      String?   @map("document_id")
+  articleId       String?   @map("article_id")
+  imageId         String    @map("image_id") // ID único de la imagen generada
+  originalUrl     String    @map("original_url")
+  localPath       String    @map("local_path")
+  filename        String
+  size            Int       // Tamaño del archivo en bytes
+  width           Int
+  height          Int
+  format          String
+  model           String    // dalle, gemini
+  style           String    // persona, paisaje, elemento
+  prompt          String
+  metaDescription String?   @map("meta_description") // Metadescripción ≤125 caracteres para SEO
+  tags            String    @default("[]") // JSON array de etiquetas temáticas
+  savedToLibrary  Boolean   @default(false) @map("saved_to_library") // Guardada en biblioteca
+  isPublic        Boolean   @default(false) @map("is_public") // Compartible entre documentos
+  usageCount      Int       @default(0) @map("usage_count") // Veces que se ha reutilizado
+  lastUsedAt      DateTime? @map("last_used_at") // Última vez que se usó
+  createdAt       DateTime  @default(now()) @map("created_at")
+  document        Document? @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  article         Article?  @relation(fields: [articleId], references: [id], onDelete: SetNull)
+
+  @@unique([imageId])
+  @@map("generated_images")
 }

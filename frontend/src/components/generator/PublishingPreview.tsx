@@ -157,7 +157,7 @@ export default function PublishingPreview({
 
             {/* Imagen del artículo */}
             {generatedArticle.image && (
-              <div className="relative h-64 bg-gray-100 dark:bg-gray-700">
+              <div className="relative bg-gray-100 dark:bg-gray-700" style={{ aspectRatio: '16/9', maxHeight: '300px' }}>
                 <img
                   src={generatedArticle.image}
                   alt={generatedArticle.title}

@@ -14,7 +14,6 @@ import {
 import { clsx } from 'clsx'
 import { useCurationStore } from '../../stores/curationStore'
 import documentsService from '../../services/documentsService'
-import ArticleGeneratorModal from '../../components/articles/ArticleGeneratorModal'
 import { DocumentPreviewModal } from '../../components/curation/DocumentPreviewModal'
 import { getEntityColors, getStatusColors, getAreaColors } from '../../constants/entityColors'
 
@@ -23,7 +22,6 @@ import { getEntityColors, getStatusColors, getAreaColors } from '../../constants
 export default function ApprovedDocumentsPage() {
   const searchTerm = '' // Search functionality removed
   const [selectedDocument, setSelectedDocument] = useState(null)
-  const [isGeneratorModalOpen, setIsGeneratorModalOpen] = useState(false)
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false)
   const [approvedDocuments, setApprovedDocuments] = useState([])
   const [isLoading, setIsLoading] = useState(true)
@@ -345,15 +343,6 @@ export default function ApprovedDocumentsPage() {
         mode="generation"
       />
 
-      {/* Article Generator Modal */}
-      <ArticleGeneratorModal
-        isOpen={isGeneratorModalOpen}
-        onClose={() => {
-          setIsGeneratorModalOpen(false)
-          setSelectedDocument(null)
-        }}
-        document={selectedDocument}
-      />
     </div>
   )
 }

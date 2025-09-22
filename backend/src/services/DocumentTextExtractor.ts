@@ -152,7 +152,7 @@ export class DocumentTextExtractor {
         return p.length >= minLength;
       });
 
-      logger.info(`🔍 DEBUG: Párrafos procesados - Total: ${allParagraphs.length}, Filtrados: ${paragraphs.length}, RESUELVE detectado: ${resuelvePosition !== -1}`);
+      // Debug párrafos procesados (log removido)
 
       // Patrones mejorados para identificar secciones
       const patterns = {
@@ -245,20 +245,20 @@ export class DocumentTextExtractor {
 
       // Fallback mejorado: buscar RESUELVE manualmente si no se encontró estructura
       if (!decisionFound) {
-        logger.warn('⚠️  RESUELVE no detectado con patrones, buscando manualmente...');
+        // RESUELVE no detectado con patrones, buscando manualmente (log removido)
 
         // 🎯 CORRECCIÓN: Buscar RESUELVE en el contenido ORIGINAL completo, no en párrafos filtrados
         const resuelveIndex = normalizedContent.toLowerCase().indexOf('resuelve');
 
         if (resuelveIndex !== -1) {
-          logger.info(`🔍 RESUELVE encontrado en posición ${resuelveIndex} del contenido original`);
+          // RESUELVE encontrado en contenido original (log removido)
 
           // Capturar desde RESUELVE hasta el final del documento completo
           const resuelveContent = normalizedContent.substring(resuelveIndex);
           sections.resuelve = resuelveContent;
 
           logger.info(`✅ RESUELVE extraído directamente del contenido original: ${sections.resuelve.length} caracteres`);
-          logger.info(`📋 Contenido RESUELVE: "${sections.resuelve.substring(0, 200)}..."`);
+          // Contenido RESUELVE extraído (log removido)
           decisionFound = true;
         } else {
           logger.error('❌ RESUELVE no encontrado ni siquiera en búsqueda manual');
@@ -290,7 +290,7 @@ export class DocumentTextExtractor {
 
       // DEBUG: Log final de la sección RESUELVE
       if (sections.resuelve.length > 0) {
-        logger.info(`✅ RESUELVE encontrado: "${sections.resuelve.substring(0, 200)}..."`);
+        logger.info(`✅ RESUELVE encontrado: ${sections.resuelve.length} caracteres`);
       } else {
         logger.warn(`❌ RESUELVE NO encontrado. Contenido total: ${content.length} caracteres`);
         // Buscar manualmente en todo el contenido

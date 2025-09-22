@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react'
-import { 
-  X, 
-  CheckCircle, 
-  XCircle, 
+import {
+  X,
+  CheckCircle,
+  XCircle,
   FileText,
   ExternalLink,
   Download,
-  Eye
+  Eye,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { getEntityColors, getStatusColors, getAreaColors } from '../../constants/entityColors'
@@ -40,16 +42,34 @@ interface Document {
 
 interface GeneratedArticle {
   title: string
+  subtitle?: string
   titleStyle?: string
   content: string
   image?: string
   imagePrompt?: string
+  imageMetaDescription?: string | null // Nueva propiedad para metadescripción de imagen
+  // Campos para persistir títulos generados - NUEVOS
+  generatedTitleSets?: Array<{
+    metaTitle: string
+    realTitle: string
+    realSubtitle?: string
+  }>
+  // Campos legacy para compatibilidad
+  generatedTitles?: string[]
+  generatedSubtitles?: string[]
+  titlesStyle?: string
+  titlesModel?: string
   metadata: {
     description: string
     keywords: string[]
     section: string
     customTags: string[]
     seoTitle: string
+    seoSubtitle?: string
+    // Nuevos campos SEO
+    metaTitle?: string
+    realTitle?: string
+    realSubtitle?: string
     readingTime: number
   }
 }
@@ -80,7 +100,7 @@ function DocumentViewer({ url, title, documentType }: DocumentViewerProps) {
   const [showTextView, setShowTextView] = useState(false);
   const [documentText, setDocumentText] = useState<string | null>(null);
 
-  // Solo viewers confiables y que funcionan bien
+  // Solo Google Docs y LibreOffice Online
   const viewers = [
     // Google Docs como primera opción (funciona excelente en iframe)
     {
@@ -98,22 +118,6 @@ function DocumentViewer({ url, title, documentType }: DocumentViewerProps) {
       timeout: 8000,
       allowIframe: false,
       openInNewWindow: true
-    },
-    // PDF directo para PDFs
-    {
-      name: 'Vista PDF Directa',
-      url: url.toLowerCase().includes('.pdf') ? url : null,
-      supportedTypes: ['pdf'],
-      timeout: 5000,
-      allowIframe: true
-    },
-    // PDF.js como fallback final para PDFs
-    {
-      name: 'PDF.js',
-      url: url.toLowerCase().includes('.pdf') ? `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(url)}` : null,
-      supportedTypes: ['pdf'],
-      timeout: 12000,
-      allowIframe: true
     }
   ].filter(viewer => viewer.url); // Filtrar viewers sin URL válida
 
@@ -498,6 +502,28 @@ export function DocumentPreviewModal({
     }
   }, [selectedDoc?.area])
 
+  // Auto-save metadata changes immediately
+  useEffect(() => {
+    if (!isOpen || !selectedDoc) return
+
+    // Only save if we have some metadata content
+    const hasMetadata = generatedArticle.metadata && (
+      generatedArticle.metadata.seoTitle ||
+      generatedArticle.metadata.seoTitleOptimized ||
+      generatedArticle.metadata.description ||
+      generatedArticle.metadata.keywords.length > 0
+    )
+
+    if (hasMetadata) {
+      const timeoutId = setTimeout(() => {
+        saveCurrentState()
+        console.log('💾 Auto-guardado inmediato por cambio en metadata')
+      }, 500) // 500ms debounce
+
+      return () => clearTimeout(timeoutId)
+    }
+  }, [generatedArticle.metadata, isOpen, selectedDoc])
+
   // Load saved draft on open (only once when modal opens, not on step changes)
   useEffect(() => {
     if (!isOpen || !selectedDoc) return
@@ -537,19 +563,58 @@ export function DocumentPreviewModal({
     }))
   }
 
-  const handleTitleSelected = (title: string, style: string = '') => {
+  // Nuevo handler actualizado para manejar 4 parámetros (metaTitle, title, subtitle, style)
+  const handleTitleSelected = (metaTitle: string, title: string, subtitle: string, style: string) => {
+    console.log('📝 DocumentPreviewModal: Título seleccionado recibido:', { metaTitle, title, subtitle, style })
     setGeneratedArticle(prev => ({
       ...prev,
       title,
-      titleStyle: style
+      subtitle,
+      titleStyle: style,
+      metadata: {
+        ...prev.metadata,
+        metaTitle: metaTitle,        // Meta title para <title> tag
+        realTitle: title,            // H1 title
+        realSubtitle: subtitle,      // H2 subtitle
+        seoTitle: title,             // Mantener compatibilidad
+        seoSubtitle: subtitle        // Mantener compatibilidad
+      }
     }))
   }
 
-  const handleImageGenerated = (imageUrl: string, prompt: string = '') => {
+  // Nuevo handler actualizado para manejar titleSets formato
+  const handleTitlesGenerated = (titleSets: any[], style: string, model: string) => {
+    console.log('📝 DocumentPreviewModal: TitleSets generados recibidos:', { titleSets, style, model })
+
+    // Extraer arrays para compatibilidad con formato legacy
+    const titles = titleSets?.map(set => set.realTitle || set.title) || []
+    const subtitles = titleSets?.map(set => set.realSubtitle || set.subtitle) || []
+
+    setGeneratedArticle(prev => ({
+      ...prev,
+      // Nuevo formato con titleSets
+      generatedTitleSets: titleSets,
+      // Formato legacy para compatibilidad
+      generatedTitles: titles,
+      generatedSubtitles: subtitles,
+      titlesStyle: style,
+      titlesModel: model
+    }))
+  }
+
+  const handleImageGenerated = (imageUrl: string, prompt: string = '', metaDescription?: string) => {
+    console.log('📸 DEBUG: handleImageGenerated called', {
+      imageUrl: imageUrl.substring(0, 50) + '...',
+      prompt: prompt.substring(0, 100) + '...',
+      metaDescription,
+      hasMetaDescription: !!metaDescription
+    })
+
     setGeneratedArticle(prev => ({
       ...prev,
       image: imageUrl,
-      imagePrompt: prompt
+      imagePrompt: prompt,
+      imageMetaDescription: metaDescription || null
     }))
   }
 
@@ -680,7 +745,7 @@ export function DocumentPreviewModal({
       {/* Modal */}
       <div className="fixed inset-0 overflow-hidden">
         <div className="flex items-center justify-center min-h-full p-2">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-[98vw] h-[96vh] flex flex-col">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-[98vw] max-h-[96vh] flex flex-col">
 
             {/* Floating Close Button */}
             <button
@@ -696,10 +761,9 @@ export function DocumentPreviewModal({
               <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
 
                 {/* Progress Steps */}
-                <div className="flex items-center justify-center space-x-2">
+                <div className="flex items-center justify-center space-x-2 mb-4">
                 {[
-                  { id: 'preview', name: 'Previsualización', description: 'Vista dividida de trabajo' },
-                  { id: 'article', name: 'Artículo', description: 'Generar y editar artículo' },
+                  { id: 'article', name: 'Artículo', description: '' },
                   { id: 'image', name: 'Imagen', description: 'Generar imagen principal' },
                   { id: 'metadata', name: 'Metadata', description: 'Configurar SEO y etiquetas' },
                   { id: 'publish', name: 'Aprobar', description: 'Revisión final y aprobación' }
@@ -738,7 +802,7 @@ export function DocumentPreviewModal({
                         {step.name}
                       </div>
                     </div>
-                    {index < 4 && (
+                    {index < 3 && (
                       <div className={clsx(
                         'w-8 h-0.5 mx-2 mt-[-16px]',
                         index < currentStep 
@@ -749,11 +813,76 @@ export function DocumentPreviewModal({
                   </div>
                 ))}
               </div>
+
+              {/* Navigation Buttons - pegados a la barra de progreso */}
+              <div className="flex items-center justify-between mt-4">
+                {/* Botón Atrás */}
+                <div className="flex items-center space-x-4">
+                  <button
+                    onClick={() => {
+                      if (onStepChange && currentStep > 0) {
+                        const previousStep = currentStep - 1
+                        console.log('🎯 BOTÓN ATRÁS:', { currentStep, previousStep })
+                        saveCurrentState()
+                        onStepChange(previousStep)
+                        setTimeout(() => saveCurrentState(previousStep), 100)
+                        console.log(`⬅️ Retrocedido a paso ${previousStep}`)
+                      }
+                    }}
+                    disabled={currentStep === 0 || !onStepChange}
+                    className={clsx(
+                      'flex items-center space-x-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200',
+                      currentStep === 0 || !onStepChange
+                        ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                        : 'bg-gray-600 dark:bg-gray-600 text-white hover:bg-gray-700 dark:hover:bg-gray-500'
+                    )}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    <span>Atrás</span>
+                  </button>
+
+                  {/* Indicador de guardado */}
+                  {lastSaved && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Guardado: {lastSaved.toLocaleTimeString('es-ES', {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </p>
+                  )}
+                </div>
+
+                {/* Botón Siguiente */}
+                <div className="flex items-center">
+                  <button
+                    onClick={() => {
+                      if (onStepChange && currentStep < 3) {
+                        const nextStep = currentStep + 1
+                        console.log('🎯 BOTÓN SIGUIENTE:', { currentStep, nextStep })
+                        saveCurrentState()
+                        onStepChange(nextStep)
+                        setTimeout(() => saveCurrentState(nextStep), 100)
+                        console.log(`✅ Avanzado a paso ${nextStep}`)
+                      }
+                    }}
+                    disabled={currentStep === 3 || !onStepChange}
+                    className={clsx(
+                      'flex items-center space-x-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200',
+                      currentStep === 3 || !onStepChange
+                        ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                        : 'bg-[#04315a] text-[#3ff3f2] hover:bg-[#062847] shadow-sm hover:shadow-md'
+                    )}
+                  >
+                    <span>Siguiente</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
             </div>
             )}
 
             {/* Content - Changes based on current step */}
-            <div className="flex-1 flex overflow-hidden">
+            <div className="flex-1 flex overflow-auto">
 
               {/* Modo Preview: Solo previsualización para Pendientes */}
               {mode === 'preview' && (
@@ -915,138 +1044,34 @@ export function DocumentPreviewModal({
                 </>
               )}
 
-              {/* Modo Generation: Pasos completos para Aprobados */}
-              {mode === 'generation' && currentStep === 0 && (
-                <>
-                  {/* Document Preview - 65% width */}
-                  <div className="w-[65%] bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex flex-col">
-                    <div className="flex-1 overflow-auto p-6">
-                      {selectedDoc.url ? (
-                        <div className="h-full">
-                          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-600 h-full flex flex-col">
-                            {/* PDF Viewer Header - Solo título */}
-                            <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-750 rounded-t-lg">
-                              <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">Vista Previa del Documento</h4>
-                            </div>
-                            
-                            {/* PDF Content - MEJORADO */}
-                            <div className="flex-1 bg-gray-100 dark:bg-gray-800">
-                              <DocumentViewer 
-                                url={selectedDoc.url}
-                                title={selectedDoc.title}
-                                documentType={selectedDoc.type}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-gray-400">
-                          <FileText className="w-16 h-16 mb-4" />
-                          <h4 className="text-lg font-medium mb-2 text-gray-900 dark:text-gray-100">Documento no disponible</h4>
-                          <p className="text-center text-gray-600 dark:text-gray-300">
-                            El documento no está disponible para vista previa en este momento.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
 
-                  {/* Metadata Panel - 35% width */}
-                  <div className="w-[35%] bg-white dark:bg-gray-800 flex flex-col">
-                    <div className="flex-1 overflow-auto p-4">
-                      <div className="space-y-4">
-                        {/* All the metadata sections */}
-                        <div className="flex items-center space-x-2">
-                          <div className={clsx(
-                            'flex items-center space-x-1 px-2 py-1 rounded text-xs font-medium',
-                            getStatusColors(selectedDoc.status).bgColor,
-                            getStatusColors(selectedDoc.status).textColor
-                          )}>
-                            {(() => {
-                              const StatusIcon = getStatusColors(selectedDoc.status).icon
-                              return <StatusIcon className="w-3 h-3" />
-                            })()}
-                            <span>{getStatusColors(selectedDoc.status).name}</span>
-                          </div>
-                          <span className={clsx(
-                            'text-xs px-2 py-1 rounded',
-                            getAreaColors(selectedDoc.area).bgColor,
-                            getAreaColors(selectedDoc.area).textColor
-                          )}>
-                            {getAreaColors(selectedDoc.area).name}
-                          </span>
-                        </div>
-
-                        {/* Main Document Info */}
-                        <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg border-l-2 border-primary-600">
-                          <div className="mb-3">
-                            <h4 className="font-semibold text-base text-gray-900 dark:text-gray-100">
-                              {selectedDoc.numeroSentencia || `${selectedDoc.type} No. ${selectedDoc.identifier}`}
-                            </h4>
-                          </div>
-                          <div className="space-y-1.5 mb-3">
-                            {selectedDoc.magistradoPonente && (
-                              <div className="text-xs text-gray-600 dark:text-gray-300">
-                                <span className="font-medium">Magistrado P.:</span> {selectedDoc.magistradoPonente}
-                              </div>
-                            )}
-                            {selectedDoc.salaRevision && (
-                              <div className="text-xs text-gray-600 dark:text-gray-300">
-                                <span className="font-medium">Sala de Revisión:</span> {selectedDoc.salaRevision}
-                              </div>
-                            )}
-                            {selectedDoc.expediente && (
-                              <div className="text-xs text-gray-600 dark:text-gray-300">
-                                <span className="font-medium">No. de expediente:</span> {selectedDoc.expediente}
-                              </div>
-                            )}
-                          </div>
-                          {selectedDoc.temaPrincipal && (
-                            <div className="pt-2 border-t border-gray-200 dark:border-gray-600 mb-3">
-                              <span className="font-medium text-sm text-gray-900 dark:text-gray-100">Tema Principal:</span>
-                              <p className="text-xs text-gray-700 dark:text-gray-300 mt-1 leading-relaxed">{selectedDoc.temaPrincipal}</p>
-                            </div>
-                          )}
-                          {(selectedDoc.resumenIA || selectedDoc.summary) && (
-                            <div className="pt-2 border-t border-gray-200 dark:border-gray-600 mb-3">
-                              <span className="font-medium text-sm text-gray-900 dark:text-gray-100">Resumen:</span>
-                              <p className="text-xs text-gray-700 dark:text-gray-300 mt-1 leading-relaxed">
-                                {selectedDoc.resumenIA || selectedDoc.summary}
-                              </p>
-                            </div>
-                          )}
-                          {selectedDoc.decision && (
-                            <div className="pt-2 border-t border-gray-200 dark:border-gray-600">
-                              <span className="font-medium text-sm text-gray-900 dark:text-gray-100">Decisión:</span>
-                              <span className="text-xs text-gray-700 dark:text-gray-300 ml-2">{selectedDoc.decision}</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {/* Paso 1: Generación de artículo */}
-              {mode === 'generation' && currentStep === 1 && selectedDoc && (
-                <div className="w-full h-full bg-white dark:bg-gray-800">
-                  <div className="p-6 h-full overflow-auto w-full">
+              {/* Paso 0: Generación de artículo con previsualización */}
+              {mode === 'generation' && currentStep === 0 && selectedDoc && (
+                <div className="w-full bg-white dark:bg-gray-800">
+                  <div className="p-6 w-full">
                     <ArticleGenerator
                       document={selectedDoc}
                       onArticleGenerated={handleArticleGenerated}
                       onTitleSelected={handleTitleSelected}
+                      onTitlesGenerated={handleTitlesGenerated}
                       generatedArticle={generatedArticle.content}
                       selectedTitle={generatedArticle.title}
+                      selectedSubtitle={generatedArticle.subtitle}
+                      selectedMetaTitle={generatedArticle.metadata.metaTitle}
+                      persistedTitleSets={generatedArticle.generatedTitleSets}
+                      persistedTitles={generatedArticle.generatedTitles}
+                      persistedSubtitles={generatedArticle.generatedSubtitles}
+                      persistedTitlesStyle={generatedArticle.titlesStyle}
+                      persistedTitlesModel={generatedArticle.titlesModel}
                     />
                   </div>
                 </div>
               )}
 
-              {/* Paso 2: Generación de imagen */}
-              {mode === 'generation' && currentStep === 2 && selectedDoc && (
-                <div className="w-full h-full bg-white dark:bg-gray-800">
-                  <div className="p-6 h-full overflow-auto w-full">
+              {/* Paso 1: Generación de imagen */}
+              {mode === 'generation' && currentStep === 1 && selectedDoc && (
+                <div className="w-full bg-white dark:bg-gray-800">
+                  <div className="p-6 w-full">
                     <ImageGenerator
                       document={selectedDoc}
                       onImageGenerated={handleImageGenerated}
@@ -1057,24 +1082,26 @@ export function DocumentPreviewModal({
                 </div>
               )}
 
-              {/* Paso 3: Editor de metadata */}
-              {mode === 'generation' && currentStep === 3 && selectedDoc && (
-                <div className="h-full bg-white dark:bg-gray-800">
-                  <div className="p-6 h-full overflow-auto">
+              {/* Paso 2: Editor de metadata */}
+              {mode === 'generation' && currentStep === 2 && selectedDoc && (
+                <div className="bg-white dark:bg-gray-800">
+                  <div className="p-6">
                     <MetadataEditor
                       document={selectedDoc}
                       articleTitle={generatedArticle.title}
+                      articleContent={generatedArticle.content}
                       onMetadataChange={handleMetadataChange}
                       initialMetadata={generatedArticle.metadata}
+                      imageMetaDescription={generatedArticle.imageMetaDescription || undefined}
                     />
                   </div>
                 </div>
               )}
 
-              {/* Paso 4: Vista previa y publicación */}
-              {mode === 'generation' && currentStep === 4 && selectedDoc && (
-                <div className="h-full bg-white dark:bg-gray-800">
-                  <div className="p-6 h-full overflow-auto">
+              {/* Paso 3: Vista previa y publicación */}
+              {mode === 'generation' && currentStep === 3 && selectedDoc && (
+                <div className="bg-white dark:bg-gray-800">
+                  <div className="p-6">
                     <PublishingPreview
                       document={selectedDoc}
                       generatedArticle={generatedArticle}

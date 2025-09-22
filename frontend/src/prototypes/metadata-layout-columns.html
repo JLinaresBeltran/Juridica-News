@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Metadata Editor - Layout por Columnas</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #f8fafc;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #04315a 0%, #062847 100%);
+            color: white;
+            padding: 24px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .layout-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 32px;
+            padding: 32px;
+            min-height: 800px;
+        }
+
+        /* Grupo 1: Información Básica */
+        .group {
+            background: #fff;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            overflow: hidden;
+        }
+
+        .group-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #e2e8f0;
+            font-weight: 600;
+            font-size: 16px;
+            display: flex;
+            items-center;
+            gap: 8px;
+        }
+
+        .group-header.basic {
+            background: #f1f5f9;
+            color: #334155;
+        }
+
+        .group-header.ai {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .group-header.diagnostic {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .group-content {
+            padding: 20px;
+            space-y: 20px;
+        }
+
+        .field {
+            margin-bottom: 20px;
+        }
+
+        .field-label {
+            display: flex;
+            items-center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 6px;
+        }
+
+        .field-input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+
+        .field-input:focus {
+            outline: none;
+            border-color: #04315a;
+            box-shadow: 0 0 0 3px rgba(4, 49, 90, 0.1);
+        }
+
+        .field-textarea {
+            min-height: 60px;
+            resize: vertical;
+        }
+
+        .checkbox-group {
+            display: flex;
+            items-center;
+            gap: 8px;
+            margin-top: 8px;
+            font-size: 13px;
+            color: #6b7280;
+        }
+
+        /* Botón de IA */
+        .ai-button {
+            width: 100%;
+            background: linear-gradient(135deg, #04315a 0%, #3ff3f2 100%);
+            color: white;
+            border: none;
+            padding: 16px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin-bottom: 24px;
+        }
+
+        .ai-button:hover {
+            transform: translateY(-1px);
+        }
+
+        /* Vista previa de Google */
+        .google-preview {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 16px;
+            margin: 16px 0;
+        }
+
+        .google-title {
+            color: #1a0dab;
+            font-size: 18px;
+            font-weight: 400;
+            margin-bottom: 4px;
+        }
+
+        .google-url {
+            color: #006621;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .google-description {
+            color: #545454;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        /* Diagnóstico SEO */
+        .seo-score {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .score-circle {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: conic-gradient(#10b981 0deg 252deg, #e5e7eb 252deg 360deg);
+            display: flex;
+            items-center;
+            justify-content: center;
+            margin: 0 auto 12px;
+            position: relative;
+        }
+
+        .score-circle::before {
+            content: '';
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            background: white;
+            position: absolute;
+        }
+
+        .score-number {
+            font-size: 24px;
+            font-weight: 700;
+            color: #10b981;
+            z-index: 1;
+        }
+
+        .validation-item {
+            display: flex;
+            items-center;
+            gap: 12px;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+
+        .validation-item.success {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+        }
+
+        .validation-item.warning {
+            background: #fffbeb;
+            border: 1px solid #fed7aa;
+        }
+
+        .validation-icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            items-center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .validation-icon.success {
+            background: #10b981;
+            color: white;
+        }
+
+        .validation-icon.warning {
+            background: #f59e0b;
+            color: white;
+        }
+
+        .validation-text {
+            font-size: 14px;
+            color: #374151;
+        }
+
+        /* Keywords chips */
+        .keywords-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .keyword-chip {
+            background: #e0f2fe;
+            color: #0369a1;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            display: flex;
+            items-center;
+            gap: 4px;
+        }
+
+        .keyword-chip .remove {
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .layout-grid {
+                grid-template-columns: 1fr;
+                gap: 24px;
+            }
+        }
+
+        /* Iconos */
+        .icon {
+            width: 16px;
+            height: 16px;
+            fill: currentColor;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Editor de Metadata SEO</h1>
+            <p>Layout por Columnas - Organización Vertical</p>
+        </div>
+
+        <div class="layout-grid">
+            <!-- Grupo 1: Información Básica -->
+            <div class="group">
+                <div class="group-header basic">
+                    <span>📝</span>
+                    <span>Información Básica</span>
+                </div>
+                <div class="group-content">
+                    <div class="field">
+                        <div class="field-label">
+                            <span>🔗</span>
+                            <span>URL del Artículo</span>
+                        </div>
+                        <input type="text" class="field-input" placeholder="/constitucional/nueva-sentencia-laboral" />
+                    </div>
+
+                    <div class="field">
+                        <div class="field-label">
+                            <span>#</span>
+                            <span>Sección</span>
+                        </div>
+                        <select class="field-input">
+                            <option>Constitucional</option>
+                            <option>Administrativo</option>
+                            <option>Civil</option>
+                        </select>
+                    </div>
+
+                    <div class="field">
+                        <div class="field-label">
+                            <span>⏱️</span>
+                            <span>Tiempo de lectura: 3 min</span>
+                        </div>
+                        <input type="range" min="1" max="5" value="3" class="field-input" />
+                    </div>
+
+                    <div class="field">
+                        <div class="field-label">
+                            <span>📄</span>
+                            <span>Título SEO</span>
+                            <span style="font-size: 12px; background: #e5e7eb; padding: 2px 6px; border-radius: 4px;">78 chars</span>
+                        </div>
+                        <textarea class="field-input field-textarea" placeholder="Título completo para SEO"></textarea>
+                        <div class="checkbox-group">
+                            <input type="checkbox" checked />
+                            <span>Usar como título oficial del artículo</span>
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <div class="field-label">
+                            <span>🎯</span>
+                            <span>Título para Google</span>
+                            <span style="font-size: 12px; background: #fef3c7; padding: 2px 6px; border-radius: 4px;">45/60</span>
+                        </div>
+                        <textarea class="field-input field-textarea" placeholder="Versión optimizada para Google"></textarea>
+                        <div class="checkbox-group">
+                            <input type="checkbox" />
+                            <span>Usar como título oficial del artículo</span>
+                        </div>
+                        <button style="margin-top: 8px; padding: 6px 12px; background: #04315a; color: white; border: none; border-radius: 4px; font-size: 12px;">
+                            🔧 Ajustar automáticamente
+                        </button>
+                    </div>
+
+                    <div class="field">
+                        <div class="field-label">
+                            <span>🖼️</span>
+                            <span>Alt Text de Imagen</span>
+                        </div>
+                        <input type="text" class="field-input" placeholder="Descripción de la imagen para accesibilidad" />
+                        <div style="font-size: 12px; color: #6b7280; margin-top: 4px; font-style: italic;">
+                            "Si leo solo este Alt Text, ¿entiendo qué muestra la imagen y cómo se relaciona con el artículo?"
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <div class="field-label">
+                            <span>🏷️</span>
+                            <span>Etiquetas</span>
+                        </div>
+                        <div class="keywords-container">
+                            <span class="keyword-chip">jurisprudencia <span class="remove">×</span></span>
+                            <span class="keyword-chip">laboral <span class="remove">×</span></span>
+                            <span class="keyword-chip">constitucional <span class="remove">×</span></span>
+                        </div>
+                        <input type="text" class="field-input" placeholder="Agregar nueva etiqueta" style="margin-top: 8px;" />
+                    </div>
+                </div>
+            </div>
+
+            <!-- Grupo 2: Generación con IA -->
+            <div class="group">
+                <div class="group-header ai">
+                    <span>🤖</span>
+                    <span>Generación Automática con IA</span>
+                </div>
+                <div class="group-content">
+                    <button class="ai-button">
+                        ✨ Generar con IA
+                    </button>
+
+                    <div class="field">
+                        <div class="field-label">
+                            <span>📝</span>
+                            <span>Meta Description</span>
+                            <span style="font-size: 12px; background: #dcfce7; padding: 2px 6px; border-radius: 4px;">142/160</span>
+                        </div>
+                        <textarea class="field-input field-textarea" placeholder="Descripción que aparecerá en Google">Análisis completo de la nueva sentencia sobre derechos laborales. Conoce las implicaciones legales, precedentes y efectos en el sistema jurídico colombiano.</textarea>
+                    </div>
+
+                    <div class="field">
+                        <div class="field-label">
+                            <span>👁️</span>
+                            <span>Vista previa en Google</span>
+                        </div>
+                        <div class="google-preview">
+                            <div class="google-title">Nueva Sentencia sobre Derechos Laborales | Análisis Jurídico</div>
+                            <div class="google-url">https://linea-judicial.com/constitucional/nueva-sentencia-laboral</div>
+                            <div class="google-description">Análisis completo de la nueva sentencia sobre derechos laborales. Conoce las implicaciones legales, precedentes y efectos en el sistema jurídico colombiano.</div>
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <div class="field-label">
+                            <span>🔍</span>
+                            <span>Palabras Clave</span>
+                        </div>
+                        <div class="keywords-container">
+                            <span class="keyword-chip">derechos laborales <span class="remove">×</span></span>
+                            <span class="keyword-chip">sentencia constitucional <span class="remove">×</span></span>
+                            <span class="keyword-chip">jurisprudencia <span class="remove">×</span></span>
+                            <span class="keyword-chip">precedente judicial <span class="remove">×</span></span>
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <div class="field-label">
+                            <span>🎯</span>
+                            <span>Keyword Principal</span>
+                        </div>
+                        <input type="text" class="field-input" value="derechos laborales sentencia" />
+                    </div>
+
+                    <div class="field">
+                        <div class="field-label">
+                            <span>📊</span>
+                            <span>Schema.org</span>
+                        </div>
+                        <details style="background: #f8fafc; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 12px;">
+                            <summary style="cursor: pointer; font-weight: 600;">Ver JSON Schema</summary>
+                            <pre style="margin-top: 8px; color: #374151;">{
+  "@type": "Article",
+  "headline": "Nueva Sentencia sobre Derechos Laborales",
+  "author": "Línea Judicial",
+  "datePublished": "2025-01-18"
+}</pre>
+                        </details>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Grupo 3: Diagnóstico SEO -->
+            <div class="group">
+                <div class="group-header diagnostic">
+                    <span>📊</span>
+                    <span>Diagnóstico SEO</span>
+                </div>
+                <div class="group-content">
+                    <div class="seo-score">
+                        <div class="score-circle">
+                            <span class="score-number">85</span>
+                        </div>
+                        <div style="font-weight: 600; color: #10b981;">Muy Bueno</div>
+                        <div style="font-size: 12px; color: #6b7280;">Score SEO General</div>
+                    </div>
+
+                    <div style="space-y: 12px;">
+                        <div class="validation-item success">
+                            <div class="validation-icon success">✓</div>
+                            <div class="validation-text">Título SEO optimizado (45-60 caracteres)</div>
+                        </div>
+
+                        <div class="validation-item success">
+                            <div class="validation-icon success">✓</div>
+                            <div class="validation-text">Meta description en rango óptimo</div>
+                        </div>
+
+                        <div class="validation-item warning">
+                            <div class="validation-icon warning">!</div>
+                            <div class="validation-text">URL podría ser más descriptiva</div>
+                        </div>
+
+                        <div class="validation-item success">
+                            <div class="validation-icon success">✓</div>
+                            <div class="validation-text">Keyword principal detectada en título</div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 24px;">
+                        <div class="field-label" style="margin-bottom: 12px;">
+                            <span>📈</span>
+                            <span>Métricas Detalladas</span>
+                        </div>
+
+                        <div style="background: #f8fafc; padding: 16px; border-radius: 8px; space-y: 12px;">
+                            <div style="display: flex; justify-content: space-between; font-size: 14px;">
+                                <span>Longitud de URL:</span>
+                                <span style="color: #10b981; font-weight: 600;">Óptima (45 chars)</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; font-size: 14px;">
+                                <span>Densidad de keywords:</span>
+                                <span style="color: #10b981; font-weight: 600;">2.1% (Ideal)</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; font-size: 14px;">
+                                <span>Tiempo de lectura:</span>
+                                <span style="color: #10b981; font-weight: 600;">Óptimo (3 min)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 20px;">
+                        <div class="field-label" style="margin-bottom: 8px;">
+                            <span>💡</span>
+                            <span>Sugerencias</span>
+                        </div>
+                        <ul style="font-size: 13px; color: #6b7280; padding-left: 16px; space-y: 4px;">
+                            <li>Considera agregar sinónimos de tu keyword principal</li>
+                            <li>La URL podría incluir el año de la sentencia</li>
+                            <li>Añade más palabras clave de cola larga</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

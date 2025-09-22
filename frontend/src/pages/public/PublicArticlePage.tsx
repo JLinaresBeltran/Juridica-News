@@ -141,9 +141,9 @@ export default function PublicArticlePage() {
         {/* Subtítulo/resumen debajo de la imagen */}
         <div className="bg-white">
           <div className="max-w-4xl mx-auto px-6 sm:px-8 py-6">
-            <p className="text-lg sm:text-xl text-gray-600 mb-6 leading-relaxed">
+            <h2 className="text-lg sm:text-xl text-gray-600 mb-6 leading-relaxed font-medium">
               {article.excerpt}
-            </p>
+            </h2>
 
             {/* Botones de compartir minimalistas */}
             <div className="flex items-center justify-center gap-3 mb-8">
@@ -231,16 +231,39 @@ export default function PublicArticlePage() {
         <div className="bg-white">
           <div className="max-w-4xl mx-auto px-6 sm:px-8 py-8 sm:py-12">
             <div className="prose prose-lg max-w-none">
-              {/* Contenido mock del artículo */}
+              {/* Contenido típico del artículo - flujo natural sin subtítulos forzados */}
+
               <p className="text-gray-700 leading-relaxed mb-6">
-                Este es el contenido completo del artículo. En una implementación real, este contenido vendría de la base de datos y podría incluir texto enriquecido, imágenes adicionales, videos, y otros elementos multimedia.
+                El presente caso surge cuando [partes procesales] presentaron [tipo de acción] ante [tribunal competente],
+                alegando vulneración de [derechos fundamentales específicos]. Los hechos que dieron origen a la controversia se relacionan con
+                [descripción específica del conflicto jurídico].
               </p>
+
               <p className="text-gray-700 leading-relaxed mb-6">
-                El artículo "{article.title}" proporciona un análisis detallado sobre el tema, incluyendo jurisprudencia relevante, implicaciones prácticas y recomendaciones para profesionales del derecho.
+                La Corte Constitucional, en aplicación de la jurisprudencia establecida en sentencias [precedentes citados],
+                determinó que los hechos del caso configuran una vulneración del derecho fundamental [específico].
+                Para llegar a esta conclusión, el tribunal aplicó el test de [criterio jurídico específico],
+                considerando los elementos de [análisis técnico] establecidos en la doctrina constitucional vigente.
               </p>
+
               <p className="text-gray-700 leading-relaxed mb-6">
-                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris.
+                En consecuencia, la Corte ordenó a [sujetos obligados] [medidas específicas] dentro del plazo de [tiempo determinado],
+                estableciendo mecanismos de seguimiento y verificación de cumplimiento. Esta decisión sienta un precedente importante
+                para casos similares, estableciendo criterios claros para la protección de [derechos específicos].
               </p>
+
+              <p className="text-gray-700 leading-relaxed mb-6">
+                El impacto de esta sentencia trasciende el caso particular, fortaleciendo la jurisprudencia constitucional en materia de
+                [área jurídica] y proporcionando herramientas jurídicas concretas para la protección efectiva de los derechos fundamentales
+                en situaciones similares.
+              </p>
+
+              {/* Llamada a la acción */}
+              <div className="bg-blue-50 border-l-4 border-blue-400 p-4 my-8">
+                <p className="text-blue-800 font-medium">
+                  📄 <strong>Descarga la sentencia completa</strong> - Accede al documento oficial de esta decisión totalmente gratis.
+                </p>
+              </div>
             </div>
 
             {/* Tags del artículo */}

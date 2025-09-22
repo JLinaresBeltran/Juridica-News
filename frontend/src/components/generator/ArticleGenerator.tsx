@@ -1,21 +1,112 @@
 import { useState, useEffect } from 'react'
-import { 
-  Sparkles, 
-  RefreshCw, 
-  Check, 
+import {
+  Sparkles,
+  RefreshCw,
+  Check,
   BookOpen,
   Zap,
   GraduationCap,
-  FileText
+  FileText,
+  Eye
 } from 'lucide-react'
 import { clsx } from 'clsx'
+import ModelSelector from '../common/ModelSelector'
+import type { AIModel } from '../common/ModelSelector'
+
+interface TitleSet {
+  metaTitle: string
+  realTitle: string
+  realSubtitle?: string
+}
 
 interface ArticleGeneratorProps {
   document: any
   onArticleGenerated: (article: string, style: string) => void
-  onTitleSelected: (title: string, style: string) => void
+  onTitleSelected: (metaTitle: string, title: string, subtitle: string, style: string) => void
+  onTitlesGenerated: (titleSets: TitleSet[], style: string, model: string) => void
   generatedArticle?: string
   selectedTitle?: string
+  selectedSubtitle?: string
+  selectedMetaTitle?: string
+  // Props para persistencia de títulos
+  persistedTitleSets?: TitleSet[]
+  persistedTitles?: string[]
+  persistedSubtitles?: string[]
+  persistedTitlesStyle?: string
+  persistedTitlesModel?: string
+}
+
+// Componente para vista previa del documento original
+function DocumentViewer({ url, title, documentType }: { url: string; title: string; documentType: string }) {
+  const [viewerError, setViewerError] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Solo Google Docs y LibreOffice Online
+  const viewers = [
+    {
+      name: 'Google Docs',
+      url: url.includes('https://') ? `https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true` : null,
+      allowIframe: true
+    },
+    {
+      name: 'LibreOffice Online',
+      url: url.includes('https://') ? `https://www.viewdocs.com/viewer?url=${encodeURIComponent(url)}` : null,
+      allowIframe: false,
+      openInNewWindow: true
+    }
+  ].filter(viewer => viewer.url);
+
+  const currentViewer = viewers[0]; // Usar Google Docs por defecto
+
+  const handleViewerLoad = () => {
+    setIsLoading(false);
+    setViewerError(false);
+  };
+
+  const handleViewerError = () => {
+    setIsLoading(false);
+    setViewerError(true);
+  };
+
+  if (viewerError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-gray-400 p-4">
+        <FileText className="w-12 h-12 mb-3" />
+        <h4 className="text-sm font-medium mb-2 text-gray-900 dark:text-gray-100">
+          Vista previa no disponible
+        </h4>
+        <button
+          onClick={() => window.open(url, '_blank')}
+          className="text-xs px-3 py-1 bg-primary-600 text-white rounded hover:bg-primary-700 transition-colors"
+        >
+          Abrir en Nueva Pestaña
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative h-full">
+      {isLoading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-white dark:bg-gray-800">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600 mx-auto mb-2"></div>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Cargando vista previa...</p>
+          </div>
+        </div>
+      )}
+      {currentViewer && currentViewer.allowIframe && (
+        <iframe
+          src={currentViewer.url}
+          className="w-full h-full"
+          title={`Vista previa de ${title}`}
+          onLoad={handleViewerLoad}
+          onError={handleViewerError}
+          style={{ border: 'none' }}
+        />
+      )}
+    </div>
+  );
 }
 
 const ARTICLE_STYLES = {
@@ -45,28 +136,88 @@ const ARTICLE_STYLES = {
   }
 }
 
-export default function ArticleGenerator({ 
-  document, 
-  onArticleGenerated, 
+export default function ArticleGenerator({
+  document,
+  onArticleGenerated,
   onTitleSelected,
+  onTitlesGenerated,
   generatedArticle = '',
-  selectedTitle = ''
+  selectedTitle = '',
+  selectedSubtitle = '',
+  selectedMetaTitle = '',
+  persistedTitleSets = [],
+  persistedTitles = [],
+  persistedSubtitles = [],
+  persistedTitlesStyle = '',
+  persistedTitlesModel = ''
 }: ArticleGeneratorProps) {
   const [isGenerating, setIsGenerating] = useState(false)
   const [isGeneratingTitles, setIsGeneratingTitles] = useState(false)
   const [selectedStyle, setSelectedStyle] = useState<string | null>(null)
   const [articleText, setArticleText] = useState(generatedArticle)
+  const [generatedTitleSets, setGeneratedTitleSets] = useState<TitleSet[]>([])
   const [generatedTitles, setGeneratedTitles] = useState<string[]>([])
+  const [generatedSubtitles, setGeneratedSubtitles] = useState<string[]>([])
+  const [selectedModel, setSelectedModel] = useState<AIModel>('')
+  const [showEditMode, setShowEditMode] = useState(false)
+  const [showPreview, setShowPreview] = useState(false) // Control de vista previa
 
   // Actualizar el texto cuando cambie el artículo generado externamente
   useEffect(() => {
     setArticleText(generatedArticle)
   }, [generatedArticle])
 
+  // Cargar titleSets persistidos cuando se reciban desde el modal padre
+  useEffect(() => {
+    if (persistedTitleSets && persistedTitleSets.length > 0) {
+      console.log('📥 ArticleGenerator: Cargando titleSets persistidos:', persistedTitleSets)
+      setGeneratedTitleSets(persistedTitleSets)
+      setSelectedStyle(persistedTitlesStyle || null)
+      if (persistedTitlesModel) {
+        setSelectedModel(persistedTitlesModel as AIModel)
+      }
+    }
+    // Fallback: cargar formato anterior
+    else if (persistedTitles && persistedTitles.length > 0) {
+      console.log('📥 ArticleGenerator: Cargando títulos legacy:', persistedTitles)
+      setGeneratedTitles(persistedTitles)
+      setGeneratedSubtitles(persistedSubtitles || [])
+      setSelectedStyle(persistedTitlesStyle || null)
+      if (persistedTitlesModel) {
+        setSelectedModel(persistedTitlesModel as AIModel)
+      }
+    }
+  }, [persistedTitleSets, persistedTitles, persistedSubtitles, persistedTitlesStyle, persistedTitlesModel])
+
+  // Cargar modelo preferido del localStorage al montar
+  useEffect(() => {
+    const savedModel = localStorage.getItem('preferredAIModel') as AIModel
+    if (savedModel && (savedModel === 'gpt4o-mini' || savedModel === 'gemini')) {
+      setSelectedModel(savedModel)
+    } else {
+      // Por defecto, usar GPT-4o Mini
+      setSelectedModel('gpt4o-mini')
+    }
+  }, [])
+
+  // Guardar modelo seleccionado en localStorage cuando cambie
+  useEffect(() => {
+    if (selectedModel) {
+      localStorage.setItem('preferredAIModel', selectedModel)
+    }
+  }, [selectedModel])
+
   const generateArticle = async (styleKey: string) => {
     setIsGenerating(true)
     setSelectedStyle(styleKey)
-    
+
+    // Reset estados previos al generar nuevo artículo
+    setGeneratedTitleSets([])
+    setGeneratedTitles([])
+    setGeneratedSubtitles([])
+    onTitleSelected('', '', '', '')
+    setShowPreview(false)
+
     try {
       console.log('🚀 GENERANDO ARTÍCULO REAL CON AI - Estilo:', styleKey)
       console.log('📄 Documento para generación:', document)
@@ -76,9 +227,9 @@ export default function ArticleGenerator({
       
       const result = await aiService.generateArticle({
         documentId: document.id,
-        model: 'gpt4o-mini',
-        maxWords: 500,
-        tone: styleKey === 'serious' ? 'professional' : styleKey === 'educational' ? 'accessible' : 'professional',
+        model: selectedModel,
+        maxWords: 600,
+        tone: styleKey === 'serious' ? 'professional' : styleKey === 'educational' ? 'accessible' : 'professional', // Por defecto profesional
         customInstructions: `Genera un artículo en estilo ${styleKey === 'serious' ? 'formal y profesional' : styleKey === 'catchy' ? 'atractivo y dinámico' : 'educativo y claro'}`
       })
       
@@ -92,104 +243,12 @@ export default function ArticleGenerator({
       setArticleText(generatedText)
       onArticleGenerated(generatedText, styleKey)
       
-      // Backup con mock data solo si falla la API
-      const mockArticles = {
-        serious: `# Análisis Jurisprudencial: ${document.identifier || 'Sentencia'} sobre ${document.area?.toLowerCase() || 'derecho'}
-
-La reciente decisión judicial ${document.numeroSentencia || document.identifier} constituye un precedente significativo en el desarrollo del derecho ${document.area?.toLowerCase() || 'constitucional'} colombiano. Esta sentencia, proferida por ${document.magistradoPonente ? `el Magistrado ${document.magistradoPonente}` : 'la autoridad competente'}, aborda cuestiones fundamentales que requieren análisis detallado.
-
-## Antecedentes del Caso
-
-${document.expediente ? `En el expediente ${document.expediente}, ` : ''}la controversia planteada se centra en ${document.temaPrincipal || 'aspectos relevantes del derecho constitucional'}. Las circunstancias fácticas del caso presentan características particulares que ameritan consideración especial.
-
-## Consideraciones Jurídicas
-
-${document.resumenIA || document.summary || 'La decisión analiza los fundamentos constitucionales y legales aplicables al caso, estableciendo criterios jurisprudenciales claros.'}
-
-## Decisión Adoptada
-
-${document.decision || 'La Corte adoptó una decisión fundamentada en los principios constitucionales aplicables, estableciendo precedente para casos similares.'}
-
-## Implicaciones Jurídicas
-
-Esta decisión tiene implicaciones significativas para la práctica jurídica y el desarrollo del derecho ${document.area?.toLowerCase() || 'constitucional'}, estableciendo criterios que orientarán futuras decisiones judiciales.`,
-
-        catchy: `# 🚨 ¡DECISIÓN JUDICIAL QUE ESTÁ CAMBIANDO TODO EN COLOMBIA! 
-
-¿Sabías que la reciente sentencia ${document.numeroSentencia || document.identifier} está revolucionando el panorama jurídico colombiano? ¡Te contamos todo lo que necesitas saber!
-
-## 💥 Lo Que Está Pasando
-
-${document.magistradoPonente ? `El Magistrado ${document.magistradoPonente} ` : 'La autoridad judicial '}acaba de tomar una decisión que tiene a todos los abogados hablando. Esta sentencia sobre ${document.temaPrincipal || 'temas constitucionales fundamentales'} está generando un impacto sin precedentes.
-
-## 🔥 ¿Por Qué Es Tan Importante?
-
-${document.resumenIA || document.summary || 'Esta decisión está redefiniendo conceptos fundamentales del derecho colombiano y estableciendo nuevos precedentes que afectarán miles de casos futuros.'}
-
-## ⚖️ La Decisión Que Todos Esperaban
-
-${document.decision || 'La Corte tomó una decisión contundente que marca un antes y un después en la jurisprudencia nacional.'}
-
-## 🎯 Lo Que Esto Significa Para Ti
-
-Si eres abogado, estudiante de derecho o simplemente te interesa la justicia en Colombia, esta sentencia cambiará tu perspectiva sobre ${document.area?.toLowerCase() || 'el derecho constitucional'}.
-
-¡No te pierdas los detalles completos de esta decisión histórica!`,
-
-        educational: `# Guía Completa: Entendiendo la Sentencia ${document.numeroSentencia || document.identifier}
-
-¿Te has preguntado cómo interpretar las decisiones judiciales? Te explicamos paso a paso todo lo que necesitas saber sobre esta importante sentencia.
-
-## ¿Qué Es Esta Sentencia?
-
-La sentencia ${document.numeroSentencia || document.identifier} es una decisión judicial que aborda ${document.temaPrincipal || 'temas fundamentales del derecho'}. ${document.magistradoPonente ? `Fue redactada por el Magistrado ${document.magistradoPonente}` : 'Representa una decisión colegiada de la autoridad competente'}.
-
-## ¿Por Qué Es Importante?
-
-Esta decisión es relevante porque:
-- Establece precedentes jurídicos claros
-- Resuelve controversias importantes en ${document.area?.toLowerCase() || 'derecho constitucional'}
-- Orienta futuras decisiones judiciales
-
-## ¿Qué Decidió la Corte?
-
-De manera sencilla, la decisión establece que: ${document.decision || 'se deben respetar los principios constitucionales fundamentales en casos similares'}.
-
-## Contexto y Antecedentes
-
-${document.resumenIA || document.summary || 'La sentencia surge de un caso particular que planteaba interrogantes importantes sobre la aplicación del derecho en situaciones específicas.'}
-
-## ¿Cómo Nos Afecta?
-
-Esta decisión tiene implicaciones prácticas para:
-- La comunidad jurídica
-- Los ciudadanos en general
-- Casos futuros similares
-
-## Conclusión
-
-La sentencia ${document.numeroSentencia || document.identifier} representa un avance significativo en el desarrollo del derecho ${document.area?.toLowerCase() || 'constitucional'} colombiano, proporcionando claridad y orientación para situaciones similares.`
-      }
       
     } catch (error) {
-      console.error('❌ ERROR EN GENERACIÓN CON AI, usando mock data como respaldo:', error)
-      
-      // Fallback a mock data si falla la API
-      const mockArticles = {
-        serious: `# Análisis Jurisprudencial: ${document.identifier || 'Sentencia'} sobre ${document.area?.toLowerCase() || 'derecho'}
+      console.error('❌ ERROR EN GENERACIÓN CON AI:', error)
 
-La reciente decisión judicial ${document.numeroSentencia || document.identifier} constituye un precedente significativo en el desarrollo del derecho ${document.area?.toLowerCase() || 'constitucional'} colombiano.`,
-        catchy: `# 🚨 ¡DECISIÓN JUDICIAL QUE ESTÁ CAMBIANDO TODO EN COLOMBIA! 
-
-¿Sabías que la reciente sentencia ${document.numeroSentencia || document.identifier} está revolucionando el panorama jurídico colombiano?`,
-        educational: `# Guía Completa: Entendiendo la Sentencia ${document.numeroSentencia || document.identifier}
-
-¿Te has preguntado cómo interpretar las decisiones judiciales? Te explicamos paso a paso todo lo que necesitas saber.`
-      }
-      
-      const generatedText = mockArticles[styleKey as keyof typeof mockArticles] || ''
-      setArticleText(generatedText)
-      onArticleGenerated(generatedText, styleKey)
+      // No usar fallback, manejar error directamente
+      alert('Error al generar el artículo. Por favor, intenta nuevamente.')
     } finally {
       setIsGenerating(false)
     }
@@ -201,9 +260,18 @@ La reciente decisión judicial ${document.numeroSentencia || document.identifier
       return
     }
 
+    if (!selectedModel) {
+      alert('Primero debes seleccionar un modelo de IA')
+      return
+    }
+
     setIsGeneratingTitles(true)
     setSelectedStyle(styleKey)
-    
+
+    // Reset vista previa al regenerar títulos
+    setShowPreview(false)
+    onTitleSelected('', '', '', '') // Limpiar meta title, título y subtítulo seleccionado previo
+
     try {
       console.log('🚀 GENERANDO TÍTULOS REALES CON AI - Estilo:', styleKey)
       
@@ -212,46 +280,80 @@ La reciente decisión judicial ${document.numeroSentencia || document.identifier
       
       const result = await aiService.generateTitles({
         documentId: document.id,
-        model: 'gpt4o-mini',
+        model: selectedModel,
         style: styleKey as 'serious' | 'catchy' | 'educational',
-        count: 3
+        count: 3,
+        articleContent: articleText, // Pasar el contenido del artículo generado
+        includeSubtitle: true // Incluir subtítulos H2
       })
-      
+
       console.log('✅ TÍTULOS GENERADOS POR AI:', result.titles)
-      setGeneratedTitles(result.titles)
-      
-    } catch (error) {
-      console.error('❌ ERROR EN GENERACIÓN DE TÍTULOS CON AI, usando mock data:', error)
-      
-      // Fallback a mock data si falla la API  
-      const mockTitles = {
-        serious: [
-          `Análisis jurisprudencial: ${document.numeroSentencia || document.identifier} sobre ${document.area?.toLowerCase() || 'derecho constitucional'}`,
-          `Implicaciones del ${document.numeroSentencia || document.identifier} en el desarrollo del derecho ${document.area?.toLowerCase() || 'constitucional'}`,
-          `Estudio técnico de la decisión judicial ${document.numeroSentencia || document.identifier} - ${document.area || 'Constitucional'}`
-        ],
-        catchy: [
-          `🚨 La decisión que está revolucionando el ${document.area?.toLowerCase() || 'derecho constitucional'} en Colombia`,
-          `¡Atención abogados! Esta sentencia cambia todo en ${document.area?.toLowerCase() || 'derecho constitucional'}`,
-          `El fallo que todos están comentando: ${document.numeroSentencia || document.identifier} explicado`
-        ],
-        educational: [
-          `¿Qué significa realmente ${document.numeroSentencia || document.identifier}? Todo lo que debes saber`,
-          `Guía completa: Cómo entender el ${document.numeroSentencia || document.identifier} paso a paso`,
-          `${document.numeroSentencia || document.identifier} explicado en términos simples para todos`
-        ]
+      console.log('✅ SUBTÍTULOS GENERADOS POR AI:', result.subtitles)
+      console.log('✅ TITLE SETS GENERADOS POR AI:', result.titleSets)
+
+      // Priorizar titleSets si están disponibles
+      if (result.titleSets && result.titleSets.length > 0) {
+        setGeneratedTitleSets(result.titleSets)
+        // Notificar al modal padre para persistencia
+        onTitlesGenerated(result.titleSets, styleKey, selectedModel)
+      } else {
+        // Fallback: formato anterior
+        setGeneratedTitles(result.titles)
+        setGeneratedSubtitles(result.subtitles || [])
+        // Convertir a titleSets para compatibilidad
+        const legacyTitleSets: TitleSet[] = result.titles.map((title, index) => ({
+          metaTitle: title.substring(0, 65), // Truncar para meta title
+          realTitle: title,
+          realSubtitle: result.subtitles?.[index] || ''
+        }))
+        onTitlesGenerated(legacyTitleSets, styleKey, selectedModel)
       }
       
-      const titles = mockTitles[styleKey as keyof typeof mockTitles] || []
-      setGeneratedTitles(titles)
+    } catch (error) {
+      console.error('❌ ERROR EN GENERACIÓN DE TÍTULOS CON AI:', error)
+
+      // No usar fallback, manejar error directamente
+      alert('Error al generar los títulos. Por favor, intenta nuevamente.')
     } finally {
       setIsGeneratingTitles(false)
     }
   }
 
-  const handleTitleSelect = (title: string) => {
+  const handleTitleSelect = async (titleSetIndex: number) => {
     if (selectedStyle) {
-      onTitleSelected(title, selectedStyle)
+      // Priorizar titleSets si están disponibles
+      if (generatedTitleSets.length > 0) {
+        const selectedTitleSet = generatedTitleSets[titleSetIndex]
+        onTitleSelected(
+          selectedTitleSet.metaTitle,
+          selectedTitleSet.realTitle,
+          selectedTitleSet.realSubtitle || '',
+          selectedStyle
+        )
+
+        // Guardar la selección en el backend
+        try {
+          const { aiService } = await import('../../services/aiService')
+          await aiService.selectTitle({
+            documentId: document.id,
+            selectedTitle: selectedTitleSet.realTitle,
+            style: selectedStyle as 'serious' | 'catchy' | 'educational'
+          })
+          console.log('✅ TitleSet seleccionado:', selectedTitleSet)
+        } catch (error) {
+          console.error('❌ Error guardando título seleccionado:', error)
+        }
+      } else {
+        // Fallback: formato anterior
+        const title = generatedTitles[titleSetIndex] || ''
+        const subtitle = generatedSubtitles[titleSetIndex] || ''
+        onTitleSelected(
+          title.substring(0, 65), // Meta title truncado
+          title,
+          subtitle,
+          selectedStyle
+        )
+      }
     }
   }
 
@@ -276,14 +378,150 @@ La reciente decisión judicial ${document.numeroSentencia || document.identifier
     )
   }
 
+  // Si hay artículo generado, título seleccionado Y el usuario quiere ver la previsualización
+  if (articleText && selectedTitle && showPreview) {
+    return (
+      <div className="h-full flex">
+        {/* Panel izquierdo: Documento original (50%) */}
+        <div className="w-1/2 border-r border-gray-200 dark:border-gray-700 flex flex-col">
+          <div className="p-4 bg-gray-50 dark:bg-gray-750 border-b border-gray-200 dark:border-gray-700">
+            <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
+              Documento Original
+            </h3>
+            <p className="text-xs text-gray-600 dark:text-gray-400">
+              {document.identifier || 'Documento fuente'}
+            </p>
+          </div>
+          <div className="flex-1 overflow-hidden">
+            {document.url ? (
+              <DocumentViewer
+                url={document.url}
+                title={document.title}
+                documentType={document.type}
+              />
+            ) : (
+              <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
+                <div className="text-center">
+                  <FileText className="w-12 h-12 mx-auto mb-3" />
+                  <p className="text-sm">Documento no disponible</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Panel derecho: Artículo generado (50%) */}
+        <div className="w-1/2 flex flex-col">
+          <div className="p-4 bg-gray-50 dark:bg-gray-750 border-b border-gray-200 dark:border-gray-700">
+            <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
+              Artículo Generado
+            </h3>
+            <div className="flex items-center justify-between mt-2">
+              <p className="text-xs text-gray-600 dark:text-gray-400">
+                {articleText.split(' ').length} palabras
+              </p>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setShowPreview(false)}
+                  className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                >
+                  Volver a Edición
+                </button>
+                <button
+                  onClick={() => {
+                    setArticleText('')
+                    onArticleGenerated('', '')
+                    onTitleSelected('', '', '', '')
+                    setShowPreview(false)
+                  }}
+                  className="text-xs px-2 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors"
+                >
+                  Regenerar
+                </button>
+              </div>
+            </div>
+          </div>
+          <div className="flex-1 overflow-auto p-4">
+            <div className="space-y-4">
+              {/* Contenido del artículo editable */}
+              <div className="space-y-3">
+                {/* Campo de título H1 editable */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Título H1
+                  </label>
+                  <input
+                    type="text"
+                    value={selectedTitle}
+                    onChange={(e) => onTitleSelected(selectedMetaTitle, e.target.value, selectedSubtitle, selectedStyle || '')}
+                    className="w-full px-3 py-2 text-lg font-bold bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 text-gray-900 dark:text-gray-100"
+                    placeholder="Título del artículo..."
+                  />
+                </div>
+
+                {/* Campo de subtítulo H2 editable */}
+                {selectedSubtitle && (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Subtítulo H2
+                    </label>
+                    <input
+                      type="text"
+                      value={selectedSubtitle}
+                      onChange={(e) => onTitleSelected(selectedMetaTitle, selectedTitle, e.target.value, selectedStyle || '')}
+                      className="w-full px-3 py-2 text-base font-semibold bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 text-gray-900 dark:text-gray-100"
+                      placeholder="Subtítulo del artículo..."
+                    />
+                  </div>
+                )}
+
+                {/* Campo de contenido editable */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Contenido del Artículo
+                  </label>
+                  <textarea
+                    value={articleText}
+                    onChange={(e) => {
+                      setArticleText(e.target.value)
+                      onArticleGenerated(e.target.value, selectedStyle || '')
+                    }}
+                    className="w-full min-h-64 px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 text-gray-900 dark:text-gray-100 text-sm leading-relaxed resize-y"
+                    placeholder="Contenido del artículo..."
+                    style={{ minHeight: '16rem' }}
+                  />
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="h-full flex flex-col space-y-6 w-full">
-      <div className="text-center">
+    <div className="flex flex-col space-y-6 w-full">
+      {/* Selector de Modelo y Botón de Generación - Layout Horizontal Minimalista */}
+      <div className="flex items-center justify-center space-x-4">
+        <ModelSelector
+          selectedModel={selectedModel}
+          onModelSelect={setSelectedModel}
+          purpose="article"
+          compact={true}
+          className=""
+        />
         <button
           onClick={() => generateArticle(selectedStyle || 'serious')}
-          className="inline-flex items-center space-x-2 px-6 py-3 bg-[#04315a] text-white rounded-lg hover:bg-[#3ff3f2] hover:text-[#04315a] transition-colors text-sm font-medium"
+          disabled={!selectedModel}
+          className={clsx(
+            "inline-flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors text-sm font-medium",
+            selectedModel
+              ? "bg-[#04315a] text-white hover:bg-[#3ff3f2] hover:text-[#04315a]"
+              : "bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+          )}
         >
-          <Sparkles className="w-5 h-5" />
+          <Sparkles className="w-4 h-4" />
           <span>Generar Artículo</span>
         </button>
       </div>
@@ -300,13 +538,10 @@ La reciente decisión judicial ${document.numeroSentencia || document.identifier
               <textarea
                 value={articleText}
                 onChange={(e) => handleArticleChange(e.target.value)}
-                className="w-full min-w-full h-96 p-4 border border-gray-300 dark:border-gray-600 rounded-lg resize-none focus:ring-2 focus:ring-[#04315a] focus:border-[#04315a] bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                className="w-full min-h-64 p-4 border border-gray-300 dark:border-gray-600 rounded-lg resize-y focus:ring-2 focus:ring-[#04315a] focus:border-[#04315a] bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                 placeholder="El artículo generado aparecerá aquí..."
-                style={{ width: '100%', minWidth: '100%' }}
+                style={{ width: '100%', minWidth: '100%', minHeight: '16rem' }}
               />
-              <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
-                Puedes editar el contenido directamente en este campo
-              </p>
             </div>
           ) : (
             <div className="h-96 flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg">
@@ -336,7 +571,7 @@ La reciente decisión judicial ${document.numeroSentencia || document.identifier
             )}
 
             {!isGeneratingTitles && (
-              <div className="flex flex-col space-y-4 w-full">
+              <div className="grid grid-cols-3 gap-3 w-full">
                 {Object.entries(ARTICLE_STYLES).map(([styleKey, style]) => {
                   const isSelected = selectedStyle === styleKey
                   
@@ -345,31 +580,30 @@ La reciente decisión judicial ${document.numeroSentencia || document.identifier
                       key={styleKey}
                       onClick={() => generateTitlesForStyle(styleKey)}
                       className={clsx(
-                        'relative w-full min-w-full p-6 rounded-lg border-2 cursor-pointer transition-all duration-200 hover:shadow-lg',
-                        isSelected 
-                          ? `${style.borderColor} ${style.bgColor} shadow-md` 
+                        'relative p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 hover:shadow-lg',
+                        isSelected
+                          ? `${style.borderColor} ${style.bgColor} shadow-md`
                           : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 bg-white dark:bg-gray-800'
                       )}
-                      style={{ width: '100%', minWidth: '100%' }}
                     >
-                      <div className="flex items-start space-x-3">
+                      <div className="flex items-start space-x-2">
                         <div className={clsx(
-                          'p-2 rounded-lg',
+                          'p-1.5 rounded-lg',
                           isSelected ? style.bgColor : 'bg-gray-100 dark:bg-gray-700'
                         )}>
                           <style.icon className={clsx(
-                            'w-5 h-5',
+                            'w-4 h-4',
                             isSelected ? style.color : 'text-gray-600 dark:text-gray-400'
                           )} />
                         </div>
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0">
                           <h4 className={clsx(
-                            'font-medium mb-1',
+                            'font-medium mb-1 text-sm',
                             isSelected ? style.color : 'text-gray-900 dark:text-gray-100'
                           )}>
                             {style.name}
                           </h4>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                          <p className="text-xs text-gray-500 dark:text-gray-400 leading-tight">
                             {style.description}
                           </p>
                         </div>
@@ -387,54 +621,115 @@ La reciente decisión judicial ${document.numeroSentencia || document.identifier
               </div>
             )}
 
-            {/* Títulos generados */}
-            {generatedTitles.length > 0 && (
+            {/* Títulos y Subtítulos generados */}
+            {(generatedTitleSets.length > 0 || generatedTitles.length > 0) && (
               <div className="space-y-4 w-full">
-                <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100 text-center">
-                  Títulos generados para estilo {selectedStyle && ARTICLE_STYLES[selectedStyle as keyof typeof ARTICLE_STYLES].name}
-                </h4>
-                
-                <div className="space-y-3">
-                  {generatedTitles.map((title, index) => (
-                    <div
-                      key={index}
-                      onClick={() => handleTitleSelect(title)}
-                      className={clsx(
-                        'w-full min-w-full p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 hover:shadow-md',
-                        selectedTitle === title
-                          ? 'border-[#04315a] bg-[#3ff3f2] bg-opacity-10 shadow-md'
-                          : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 bg-white dark:bg-gray-800'
-                      )}
-                      style={{ width: '100%', minWidth: '100%' }}
-                    >
-                      <div className="flex items-start justify-between">
-                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100 leading-relaxed flex-1 pr-4">
-                          {title}
-                        </p>
-                        {selectedTitle === title && (
-                          <div className="flex-shrink-0">
-                            <div className="w-6 h-6 bg-[#04315a] rounded-full flex items-center justify-center">
-                              <Check className="w-4 h-4 text-[#3ff3f2]" />
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                <div className="bg-[#04315a] bg-opacity-5 border border-[#04315a] border-opacity-20 rounded-lg p-4 text-center">
+                  <h4 className="text-lg font-medium text-[#04315a] dark:text-[#3ff3f2] mb-1">
+                    3 Conjuntos SEO Completos - Estilo: {selectedStyle && ARTICLE_STYLES[selectedStyle as keyof typeof ARTICLE_STYLES].name}
+                  </h4>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                    Meta Title + Título Real (H1) + Subtítulo (H2) - Diferenciación SEO correcta
+                  </p>
                 </div>
-                
-                <div className="text-center">
-                  <button
-                    onClick={() => {
-                      if (selectedStyle) {
-                        generateTitlesForStyle(selectedStyle)
-                      }
-                    }}
-                    className="inline-flex items-center space-x-2 px-4 py-2 text-sm text-[#04315a] hover:text-[#3ff3f2] hover:bg-[#04315a] rounded-lg transition-colors dark:text-[#3ff3f2] dark:hover:text-[#04315a] dark:hover:bg-[#3ff3f2]"
-                  >
-                    <RefreshCw className="w-4 h-4" />
-                    <span>Regenerar títulos</span>
-                  </button>
+
+                <div className="grid grid-cols-3 gap-3">
+                  {(generatedTitleSets.length > 0 ? generatedTitleSets :
+                    // Fallback: crear titleSets desde formato legacy
+                    generatedTitles.map((title, index) => ({
+                      metaTitle: title.substring(0, 65),
+                      realTitle: title,
+                      realSubtitle: generatedSubtitles[index] || ''
+                    }))
+                  ).map((titleSet, index) => {
+                    const isSelected = selectedTitle === titleSet.realTitle
+
+                    return (
+                      <div
+                        key={index}
+                        onClick={() => handleTitleSelect(index)}
+                        className={clsx(
+                          'p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 hover:shadow-md',
+                          isSelected
+                            ? 'border-[#04315a] bg-[#3ff3f2] bg-opacity-10 shadow-md'
+                            : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 bg-white dark:bg-gray-800'
+                        )}
+                      >
+                        <div className="flex flex-col space-y-3">
+                          {/* Meta Title */}
+                          <div>
+                            <div className="flex items-center space-x-2 mb-1">
+                              <span className="text-xs px-2 py-1 rounded bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300 font-mono">
+                                &lt;title&gt;
+                              </span>
+                              <span className="text-xs text-gray-500 dark:text-gray-400">
+                                {titleSet.metaTitle.length}/65
+                              </span>
+                            </div>
+                            <p className="text-xs font-medium text-gray-600 dark:text-gray-400 leading-relaxed">
+                              {titleSet.metaTitle}
+                            </p>
+                          </div>
+
+                          {/* Título Real H1 */}
+                          <div>
+                            <div className="flex items-center space-x-2 mb-1">
+                              <span className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 font-mono">
+                                H1
+                              </span>
+                              <span className="text-xs text-gray-500 dark:text-gray-400">
+                                {titleSet.realTitle.length} chars
+                              </span>
+                            </div>
+                            <p className="text-sm font-bold text-gray-900 dark:text-gray-100 leading-relaxed">
+                              {titleSet.realTitle}
+                            </p>
+                          </div>
+
+                          {/* Subtítulo H2 */}
+                          {titleSet.realSubtitle && (
+                            <div>
+                              <div className="flex items-center space-x-2 mb-1">
+                                <span className="text-xs px-2 py-1 rounded bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 font-mono">
+                                  H2
+                                </span>
+                                <span className="text-xs text-gray-500 dark:text-gray-400">
+                                  {titleSet.realSubtitle.length} chars
+                                </span>
+                              </div>
+                              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 leading-relaxed">
+                                {titleSet.realSubtitle}
+                              </p>
+                            </div>
+                          )}
+
+                          {/* Indicador de selección */}
+                          {isSelected && (
+                            <div className="flex justify-end">
+                              <div className="w-5 h-5 bg-[#04315a] rounded-full flex items-center justify-center">
+                                <Check className="w-3 h-3 text-[#3ff3f2]" />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                <div className="text-center space-y-3">
+                  {/* Botón de Previsualización - Solo aparece si hay título seleccionado */}
+                  {selectedTitle && (
+                    <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                      <button
+                        onClick={() => setShowPreview(true)}
+                        className="inline-flex items-center space-x-2 px-6 py-3 bg-[#04315a] text-[#3ff3f2] rounded-lg hover:bg-[#3ff3f2] hover:text-[#04315a] transition-colors font-medium"
+                      >
+                        <Eye className="w-5 h-5" />
+                        <span>Ver Previsualización</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

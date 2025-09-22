@@ -953,11 +953,15 @@ export default function CurationPage() {
                                     <div>
                                       <span><strong>Web oficial:</strong> {
                                         doc.webOfficialDate
-                                          ? new Date(doc.webOfficialDate).toISOString().split('T')[0] // Formato YYYY-MM-DD
-                                          : new Date(doc.publicationDate).toLocaleDateString('es-ES', {
-                                              year: '2-digit',
+                                          ? new Date(doc.webOfficialDate).toLocaleDateString('es-ES', {
+                                              day: '2-digit',
                                               month: '2-digit',
-                                              day: '2-digit'
+                                              year: 'numeric'
+                                            })
+                                          : new Date(doc.publicationDate).toLocaleDateString('es-ES', {
+                                              day: '2-digit',
+                                              month: '2-digit',
+                                              year: 'numeric'
                                             })
                                       }</span>
                                     </div>
@@ -1267,11 +1271,15 @@ export default function CurationPage() {
                         <div>
                           <span><strong>Web oficial:</strong> {
                             doc.webOfficialDate
-                              ? new Date(doc.webOfficialDate).toISOString().split('T')[0] // Formato YYYY-MM-DD
-                              : new Date(doc.publicationDate).toLocaleDateString('es-ES', {
-                                  year: '2-digit',
+                              ? new Date(doc.webOfficialDate).toLocaleDateString('es-ES', {
+                                  day: '2-digit',
                                   month: '2-digit',
-                                  day: '2-digit'
+                                  year: 'numeric'
+                                })
+                              : new Date(doc.publicationDate).toLocaleDateString('es-ES', {
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                  year: 'numeric'
                                 })
                           }</span>
                         </div>

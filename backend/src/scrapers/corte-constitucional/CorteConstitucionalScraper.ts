@@ -84,8 +84,8 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
       // Seguir el flujo correcto del usuario
       logger.info(`🌐 PASO 1: Navegando a página principal`);
       await page.goto('https://www.corteconstitucional.gov.co/', {
-        waitUntil: 'networkidle2',
-        timeout: 30000
+        waitUntil: 'domcontentloaded',
+        timeout: 60000
       });
       await new Promise(resolve => setTimeout(resolve, 3000));
       
@@ -93,8 +93,8 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
       const buscadorUrl = 'https://www.corteconstitucional.gov.co/relatoria/buscador-jurisprudencia';
       
       await page.goto(buscadorUrl, {
-        waitUntil: 'networkidle2',
-        timeout: 30000
+        waitUntil: 'domcontentloaded',
+        timeout: 60000
       });
       
       await new Promise(resolve => setTimeout(resolve, 5000)); // Esperar carga completa
@@ -652,18 +652,35 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
       
       // Esperar a que las sentencias se carguen
       await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      const sentences = await page.evaluate((maxResults: number, targetDatesData: any[]) => {
+
+      logger.info('🔍 DEBUG: ANTES de page.evaluate() - punto crítico');
+
+      let sentences: any[] = [];
+      try {
+        logger.info('🔍 DEBUG: Iniciando page.evaluate() para búsqueda de tabla estructurada');
+        const evaluationResult = await page.evaluate((maxResults: number, targetDatesData: any[]) => {
         const foundSentences = [];
-        console.log('🔍 Buscando tabla con estructura de 7 columnas...');
-        
-        // Buscar todas las tablas
-        const tables = document.querySelectorAll('table, .table, [role="table"]');
-        console.log(`📊 Total tablas encontradas: ${tables.length}`);
+        const debugInfo = [];
+
+        debugInfo.push('🔍 INICIO: Buscando tabla con estructura de 7 columnas...');
+
+        // Buscar todas las tablas - MÁS SELECTORES
+        const tables = document.querySelectorAll('table, .table, [role="table"], .mat-table, .data-table, .results-table');
+        debugInfo.push(`📊 TOTAL TABLAS ENCONTRADAS EN LA PÁGINA: ${tables.length}`);
+
+        // Debug adicional: mostrar información de cada tabla encontrada
+        for (let i = 0; i < tables.length; i++) {
+          const table = tables[i];
+          const rows = table.querySelectorAll('tr');
+          const className = table.className || 'sin-clase';
+          const tagName = table.tagName.toLowerCase();
+          debugInfo.push(`🔍 TABLA ${i + 1}: Elemento <${tagName}> class="${className}" - ${rows.length} filas`);
+        }
         
         let structuredTableFound = false;
         
-        for (const table of tables) {
+        for (let tableIndex = 0; tableIndex < tables.length; tableIndex++) {
+          const table = tables[tableIndex];
           const rows = table.querySelectorAll('tr');
           if (rows.length < 2) continue; // Necesita al menos header + 1 fila de datos
           
@@ -673,63 +690,124 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
             th.textContent?.toLowerCase().trim() || ''
           );
           
-          // Verificar si tiene las columnas que esperamos
-          const hasNo = headers.some(h => h.includes('no'));
-          const hasFechaPublicacion = headers.some(h => h.includes('fecha') && h.includes('publicación'));
-          const hasNumero = headers.some(h => h.includes('número') || h.includes('numero'));
-          const hasExpediente = headers.some(h => h.includes('expediente'));
-          const hasFechaSentencia = headers.some(h => h.includes('fecha') && h.includes('sentencia'));
-          const hasTipo = headers.some(h => h.includes('tipo'));
-          const hasTema = headers.some(h => h.includes('tema'));
-          
-          if (hasNo && hasFechaPublicacion && hasNumero && hasExpediente && hasFechaSentencia && hasTipo && hasTema) {
-            console.log('✅ Tabla estructurada encontrada con 7 columnas');
-            console.log(`📋 Headers: ${headers.join(' | ')}`);
+          // DEBUG: Mostrar headers reales encontrados
+          debugInfo.push(`🔍 TABLA ${tableIndex + 1} - Headers encontrados: [${headers.join(', ')}]`);
+
+          // Verificar si tiene las columnas que esperamos (VERSIÓN MÁS FLEXIBLE)
+          const hasNo = headers.some(h => h.includes('no') || h.includes('#') || h.includes('núm'));
+          const hasFechaPublicacion = headers.some(h =>
+            (h.includes('fecha') && (h.includes('publicación') || h.includes('publicacion'))) ||
+            h.includes('fecha pub') ||
+            h.includes('pub') ||
+            h.includes('publicado')
+          );
+          const hasNumero = headers.some(h =>
+            h.includes('número') || h.includes('numero') || h.includes('num') ||
+            h.includes('sentencia') || h.includes('referencia')
+          );
+          const hasExpediente = headers.some(h => h.includes('expediente') || h.includes('exp'));
+          const hasFechaSentencia = headers.some(h =>
+            (h.includes('fecha') && h.includes('sentencia')) ||
+            h.includes('fecha sent') ||
+            h.includes('pronunciamiento')
+          );
+          const hasTipo = headers.some(h => h.includes('tipo') || h.includes('class'));
+          const hasTema = headers.some(h => h.includes('tema') || h.includes('asunto') || h.includes('materia'));
+
+          // Debug detallado de detección de columnas
+          debugInfo.push(`📊 DETECCIÓN DE COLUMNAS - Tabla ${tableIndex + 1}:`);
+          debugInfo.push(`   hasNo: ${hasNo}, hasFechaPublicacion: ${hasFechaPublicacion}, hasNumero: ${hasNumero}`);
+          debugInfo.push(`   hasExpediente: ${hasExpediente}, hasFechaSentencia: ${hasFechaSentencia}, hasTipo: ${hasTipo}, hasTema: ${hasTema}`);
+          debugInfo.push(`🔍 Total: ${[hasNo, hasFechaPublicacion, hasNumero, hasExpediente, hasFechaSentencia, hasTipo, hasTema].filter(Boolean).length}/7 columnas`);
+
+          // Verificación estricta (7 columnas)
+          const isFullyStructured = hasNo && hasFechaPublicacion && hasNumero && hasExpediente && hasFechaSentencia && hasTipo && hasTema;
+
+          // Verificación mínima (columnas esenciales)
+          const hasEssentialColumns = hasFechaPublicacion && hasNumero && (hasTipo || hasTema);
+          const columnsFound = [hasNo, hasFechaPublicacion, hasNumero, hasExpediente, hasFechaSentencia, hasTipo, hasTema].filter(Boolean).length;
+
+          if (isFullyStructured) {
+            debugInfo.push('✅ Tabla COMPLETAMENTE estructurada encontrada (7/7 columnas)');
+            debugInfo.push(`📋 Headers: ${headers.join(' | ')}`);
             structuredTableFound = true;
-            
+          } else if (hasEssentialColumns && columnsFound >= 4) {
+            debugInfo.push(`✅ Tabla PARCIALMENTE estructurada encontrada (${columnsFound}/7 columnas - incluye columnas esenciales)`);
+            debugInfo.push(`📋 Headers: ${headers.join(' | ')}`);
+            structuredTableFound = true;
+          }
+
+          if (structuredTableFound) {
             // DEBUG: Mostrar fechas objetivo
             console.log('🎯 Fechas objetivo que estamos buscando:');
             targetDatesData.forEach(targetDate => {
               console.log(`   ${targetDate.label}: "${targetDate.dateShort}" OR "${targetDate.dateAlt}" OR "${targetDate.dateStr}" OR "${targetDate.dateISO}"`);
             });
             
+            // Mapear índices de columnas basado en los headers detectados
+            const columnIndices = {
+              no: headers.findIndex(h => h.includes('no') || h.includes('#') || h.includes('núm')),
+              fechaPublicacion: headers.findIndex(h =>
+                (h.includes('fecha') && (h.includes('publicación') || h.includes('publicacion'))) ||
+                h.includes('fecha pub') || h.includes('pub') || h.includes('publicado')
+              ),
+              numero: headers.findIndex(h =>
+                h.includes('número') || h.includes('numero') || h.includes('num') ||
+                h.includes('sentencia') || h.includes('referencia')
+              ),
+              expediente: headers.findIndex(h => h.includes('expediente') || h.includes('exp')),
+              fechaSentencia: headers.findIndex(h =>
+                (h.includes('fecha') && h.includes('sentencia')) ||
+                h.includes('fecha sent') || h.includes('pronunciamiento')
+              ),
+              tipo: headers.findIndex(h => h.includes('tipo') || h.includes('class')),
+              tema: headers.findIndex(h => h.includes('tema') || h.includes('asunto') || h.includes('materia'))
+            };
+
+            console.log('📊 Mapeo de columnas detectado:', columnIndices);
+
             // Procesar TODAS las filas con filtro de fechas
             console.log('📊 Analizando filas de la tabla con filtro de fechas:');
             for (let i = 1; i < rows.length; i++) {
               const row = rows[i];
               const cells = Array.from(row.querySelectorAll('td, th'));
-              
-              if (cells.length >= 7) {
+
+              if (cells.length >= 3) { // Requerimiento mínimo más flexible
                 const cellData = cells.map(cell => cell.textContent?.trim() || '');
+
+                // Extraer datos usando el mapeo dinámico
+                const no = columnIndices.no >= 0 ? cellData[columnIndices.no] : '';
+                const fechaPublicacion = columnIndices.fechaPublicacion >= 0 ? cellData[columnIndices.fechaPublicacion] : '';
+                const numero = columnIndices.numero >= 0 ? cellData[columnIndices.numero] : '';
+                const expediente = columnIndices.expediente >= 0 ? cellData[columnIndices.expediente] : '';
+                const fechaSentencia = columnIndices.fechaSentencia >= 0 ? cellData[columnIndices.fechaSentencia] : '';
+                const tipo = columnIndices.tipo >= 0 ? cellData[columnIndices.tipo] : '';
+                const tema = columnIndices.tema >= 0 ? cellData[columnIndices.tema] : '';
+
+                // Si no hay fecha de publicación pero sí número, intentar extraer de otras columnas
+                let fechaToUse = fechaPublicacion;
+                if (!fechaToUse && cellData.length >= 2) {
+                  // Buscar cualquier celda que parezca una fecha
+                  for (const cell of cellData) {
+                    if (/\d{1,2}\/\d{1,2}\/\d{4}/.test(cell) || /\d{4}-\d{2}-\d{2}/.test(cell)) {
+                      fechaToUse = cell;
+                      break;
+                    }
+                  }
+                }
                 
-                const no = cellData[0];
-                const fechaPublicacion = cellData[1];
-                const numero = cellData[2];
-                const expediente = cellData[3];
-                const fechaSentencia = cellData[4];
-                const tipo = cellData[5];
-                const tema = cellData[6];
-                
-                console.log(`📄 Fila ${i}: ${cellData.join(' | ')}`);
-                console.log(`   📅 Fecha publicación encontrada: "${fechaPublicacion}"`);
-                
+                debugInfo.push(`📄 Fila ${i}: ${numero} - ${fechaToUse} (cols: ${cells.length})`);
+
                 // FILTRO CRÍTICO: Solo procesar si la fecha de publicación es de HOY o AYER
                 const isTargetDate = targetDatesData.some(targetDate => {
-                  // Verificar múltiples formatos de fecha incluyendo ISO (YYYY-MM-DD)
-                  const match1 = fechaPublicacion.includes(targetDate.dateShort);
-                  const match2 = fechaPublicacion.includes(targetDate.dateAlt);
-                  const match3 = fechaPublicacion.includes(targetDate.dateStr);
-                  const match4 = fechaPublicacion.includes(targetDate.dateISO); // ¡NUEVO! Formato ISO
-                  
-                  console.log(`     Comparando con ${targetDate.label}:`);
-                  console.log(`       "${fechaPublicacion}".includes("${targetDate.dateShort}") = ${match1}`);
-                  console.log(`       "${fechaPublicacion}".includes("${targetDate.dateAlt}") = ${match2}`);
-                  console.log(`       "${fechaPublicacion}".includes("${targetDate.dateStr}") = ${match3}`);
-                  console.log(`       "${fechaPublicacion}".includes("${targetDate.dateISO}") = ${match4} ← FORMATO ISO`);
-                  
-                  return match1 || match2 || match3 || match4;
+                  return fechaToUse.includes(targetDate.dateShort) ||
+                         fechaToUse.includes(targetDate.dateAlt) ||
+                         fechaToUse.includes(targetDate.dateStr) ||
+                         fechaToUse.includes(targetDate.dateISO);
                 });
                 
+                debugInfo.push(`     🗓️ Fecha objetivo? ${isTargetDate} - Número válido? ${!!numero} - Límite? ${foundSentences.length < maxResults}`);
+
                 if (isTargetDate && numero && foundSentences.length < maxResults) {
                   // Generar ID de documento
                   const sentenceId = numero.toUpperCase().replace(/[\s\/]+/g, '-');
@@ -754,7 +832,7 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
                     extractionSource: 'structured-table-filtered',
                     structuredData: {
                       no: no,
-                      fechaPublicacion: fechaPublicacion,
+                      fechaPublicacion: fechaToUse, // ✅ Usar la fecha detectada dinámicamente
                       numero: numero,
                       expediente: expediente,
                       fechaSentencia: fechaSentencia,
@@ -762,10 +840,10 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
                       tema: tema
                     }
                   });
-                  
-                  console.log(`✅ Documento de fecha objetivo AGREGADO: ${sentenceId} - ${fechaPublicacion}`);
+
+                  debugInfo.push(`✅ Documento de fecha objetivo AGREGADO: ${sentenceId} - ${fechaToUse}`);
                 } else if (!isTargetDate) {
-                  console.log(`     ⏩ Omitiendo documento de fecha diferente: ${fechaPublicacion} (no está en fechas objetivo)`);
+                  debugInfo.push(`     ⏩ Omitiendo documento de fecha diferente: ${fechaToUse} (no está en fechas objetivo)`);
                 } else if (!numero) {
                   console.log(`     ⚠️ Número de sentencia vacío`);
                 } else {
@@ -782,84 +860,112 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
         }
         
         if (!structuredTableFound) {
-          console.log('❌ No se encontró tabla estructurada con 7 columnas, usando método fallback...');
-          console.log('🔍 DEBUG: Analizando todas las tablas disponibles...');
-          
-          // DEBUG: Mostrar información de todas las tablas
+          console.log('❌ RESULTADO: No se encontró tabla estructurada con columnas requeridas, usando método fallback...');
+
+          // Debug adicional del DOM para entender la estructura
           const allTables = document.querySelectorAll('table, .table, [role="table"]');
-          console.log(`📊 Total tablas encontradas: ${allTables.length}`);
-          
+          console.log(`📊 Fallback: ${allTables.length} tablas encontradas para procesamiento de enlaces`);
+
+          // Ver si hay algún contenido que pueda ser una tabla virtual o div-table
+          const divTables = document.querySelectorAll('div[class*="table"], div[class*="grid"], div[class*="row"]');
+          console.log(`📊 Elementos div tipo tabla encontrados: ${divTables.length}`);
+
+          // Fallback MEJORADO: buscar enlaces y extraer fechas de publicación de la tabla
+          const allLinks = document.querySelectorAll('a[href]');
+          console.log(`🔗 ${allLinks.length} enlaces encontrados`);
+
+          // Primero, crear un mapa de sentencias -> fechas desde cualquier tabla disponible
+          const sentenceDateMap = new Map();
+
           for (let t = 0; t < allTables.length; t++) {
             const table = allTables[t];
             const rows = table.querySelectorAll('tr');
-            const headerRow = rows[0];
-            const headers = headerRow ? Array.from(headerRow.querySelectorAll('th, td')).map(th => th.textContent?.trim() || '') : [];
-            
-            console.log(`📋 Tabla ${t + 1}:`);
-            console.log(`   Headers (${headers.length}): ${headers.join(' | ')}`);
-            console.log(`   Filas totales: ${rows.length}`);
-            
-            // Mostrar algunas filas de muestra
-            for (let r = 1; r < Math.min(rows.length, 4); r++) {
-              const row = rows[r];
-              const cells = Array.from(row.querySelectorAll('td, th'));
-              const cellData = cells.map(cell => cell.textContent?.trim() || '');
-              console.log(`   Fila ${r}: ${cellData.join(' | ')}`);
-              
-              // Si la fila tiene fecha, verificar si es de nuestras fechas objetivo
-              if (cellData.length > 1 && cellData[1]) {
-                const fechaCell = cellData[1];
-                const isTargetDate = targetDatesData.some(targetDate => {
-                  const match1 = fechaCell.includes(targetDate.dateShort);
-                  const match2 = fechaCell.includes(targetDate.dateAlt);
-                  const match3 = fechaCell.includes(targetDate.dateStr);
-                  
-                  if (match1 || match2 || match3) {
-                    console.log(`     ✅ FECHA OBJETIVO ENCONTRADA: "${fechaCell}" coincide con ${targetDate.dateShort}`);
-                    return true;
+
+            if (rows.length > 1) {
+              for (let r = 1; r < rows.length; r++) {
+                const row = rows[r];
+                const cells = Array.from(row.querySelectorAll('td, th'));
+                const cellData = cells.map(cell => cell.textContent?.trim() || '');
+
+                // Buscar patrones de sentencia en cualquier celda
+                for (let c = 0; c < cellData.length; c++) {
+                  const cellText = cellData[c];
+                  const sentenceMatch = cellText.match(/([TCS]U?-?\d{1,4}-\d{2,4})/i);
+
+                  if (sentenceMatch) {
+                    const sentenceId = sentenceMatch[1].toUpperCase().replace(/([TCS]U?)(\d)/g, '$1-$2');
+
+                    // Buscar fecha en las celdas adyacentes (típicamente la siguiente o anterior)
+                    let fechaPublicacion = null;
+
+                    // Revisar celda actual y adyacentes para encontrar fecha
+                    for (let dc = Math.max(0, c - 2); dc < Math.min(cellData.length, c + 3); dc++) {
+                      const dateCandidate = cellData[dc];
+                      if (dateCandidate && dateCandidate !== cellText) {
+                        // Verificar si parece una fecha
+                        if (dateCandidate.match(/\d{4}-\d{2}-\d{2}/) ||
+                            dateCandidate.match(/\d{1,2}\/\d{1,2}\/\d{4}/) ||
+                            dateCandidate.match(/\d{1,2}-\d{1,2}-\d{4}/) ||
+                            dateCandidate.match(/\d{1,2}\s+de\s+\w+\s+de\s+\d{4}/)) {
+                          fechaPublicacion = dateCandidate;
+                          break;
+                        }
+                      }
+                    }
+
+                    if (fechaPublicacion) {
+                      sentenceDateMap.set(sentenceId, fechaPublicacion);
+                      console.log(`📅 FALLBACK: Fecha extraída para ${sentenceId}: ${fechaPublicacion}`);
+                    }
                   }
-                  return false;
-                });
-                
-                if (isTargetDate) {
-                  console.log(`     🎯 Esta fila tiene fecha objetivo, debería ser extraída`);
                 }
               }
             }
           }
-          
-          // Fallback: buscar enlaces como antes SIN filtro de fecha para ver qué hay disponible
-          const allLinks = document.querySelectorAll('a[href]');
-          console.log(`🔗 Total enlaces encontrados: ${allLinks.length}`);
-          
+
+          console.log(`📊 Mapa de fechas extraído: ${sentenceDateMap.size} sentencias con fecha`);
+
           console.log('🔍 DEBUG: Mostrando primeros 10 enlaces de sentencias disponibles...');
           let debugCount = 0;
-          
+
           for (let i = 0; i < allLinks.length && debugCount < 10; i++) {
             const link = allLinks[i];
             const href = link.getAttribute('href') || '';
             const text = link.textContent?.trim() || '';
-            
+
             // Buscar patrón específico: /relatoria/2025/t-373-25.htm
             const sentencePattern = /\/relatoria\/(\d{4})\/([tcs]u?-?\d{1,4}-\d{2,4})\.htm/i;
             const match = href.match(sentencePattern);
-            
+
             if (match) {
               const year = match[1];
               const sentenceId = match[2].toUpperCase().replace(/([TCS]U?)(\d)/g, '$1-$2');
               debugCount++;
-              
+
               console.log(`📄 DEBUG ${debugCount}. ${sentenceId} (${year}) - ${text}`);
               console.log(`   URL: ${href}`);
-              
-              // Solo extraer si es 2025 (pero sin filtro de fecha específica para ver disponibilidad)
+
+              // Buscar fecha de publicación para esta sentencia
+              const fechaPublicacion = sentenceDateMap.get(sentenceId);
+              if (fechaPublicacion) {
+                console.log(`   📅 Fecha encontrada: ${fechaPublicacion}`);
+              }
+
+              // ✅ TEMPORAL: Extraer cualquier documento 2025 sin filtro de fecha para probar funcionalidad
               if (year === '2025' && foundSentences.length < maxResults) {
                 // Generar URL completa
                 const fullUrl = href.startsWith('http') ? href : `https://www.corteconstitucional.gov.co${href}`;
-                
+
                 // Generar URL de descarga RTF
                 const rtfUrl = fullUrl.replace('.htm', '.rtf');
-                
+
+                // ✅ CREAR structuredData cuando tenemos fechaPublicacion
+                const structuredData = fechaPublicacion ? {
+                  numero: sentenceId,
+                  fechaPublicacion: fechaPublicacion,
+                  extractionMethod: 'fallback-table-date-extraction'
+                } : null;
+
                 foundSentences.push({
                   documentId: sentenceId,
                   title: text || `Sentencia ${sentenceId} de ${year}`,
@@ -868,10 +974,12 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
                   year: year,
                   rawText: text,
                   rawTitle: text,
-                  extractionSource: 'ultimas-sentencias-fallback-no-date-filter'
+                  fechaPublicacion: fechaPublicacion, // ✅ NUEVA: Fecha extraída de la tabla
+                  structuredData: structuredData, // ✅ NUEVA: Datos estructurados para el ScrapingOrchestrator
+                  extractionSource: 'ultimas-sentencias-fallback-with-dates'
                 });
-                
-                console.log(`✅ Sentencia extraída (sin filtro de fecha): ${sentenceId} - ${year}`);
+
+                console.log(`✅ Sentencia extraída con fecha: ${sentenceId} - ${fechaPublicacion || 'Sin fecha'}`);
               }
             }
           }
@@ -879,9 +987,30 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
           console.log(`📊 DEBUG: Total sentencias encontradas con fallback: ${foundSentences.length}`);
         }
         
-        return foundSentences;
+        return {
+          sentences: foundSentences,
+          debugInfo: debugInfo
+        };
       }, limit, targetDates);
-      
+
+      logger.info('🔍 DEBUG: page.evaluate() completado exitosamente');
+
+      // Procesar resultado con información de debug
+      sentences = evaluationResult.sentences || [];
+
+      // Mostrar información de debug capturada desde el navegador
+      logger.info('🔍 DEBUG INFO FROM BROWSER:');
+      for (const debugLine of evaluationResult.debugInfo || []) {
+        logger.info(`   ${debugLine}`);
+      }
+
+      } catch (evaluateError) {
+        logger.error('❌ ERROR CRÍTICO en page.evaluate() - La búsqueda de tabla estructurada falló:', evaluateError);
+        logger.error('❌ Stack trace:', (evaluateError as Error).stack);
+        logger.info('🔄 Continuando con método fallback directo...');
+        sentences = []; // Array vacío para activar fallback
+      }
+
       logger.info(`📋 Encontrados ${sentences.length} documentos de las fechas objetivo`);
       
       if (sentences.length === 0) {
@@ -968,7 +1097,8 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
       }
       
     } catch (error) {
-      logger.error('❌ Error extrayendo sentencias de "Ver últimas sentencias":', (error as Error).message);
+      logger.error('❌ Error extrayendo sentencias de "Ver últimas sentencias":', error);
+      logger.error('❌ Stack trace completo:', (error as Error).stack);
     }
     
     return results;

@@ -25,6 +25,8 @@ import scrapingRoutes from '@/controllers/scraping-v2'; // ARQUITECTURA MODULAR 
 import adminRoutes from '@/controllers/admin'; // FUNCIÓN TEMPORAL
 import { sseController } from '@/controllers/sse';
 import healthRoutes from '@/controllers/health';
+import seoRoutes from '@/routes/seo';
+import storageRoutes from '@/routes/storage';
 
 // Load environment variables
 config();
@@ -66,7 +68,7 @@ app.use(helmet({
 }));
 
 app.use(cors({
-  origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : ['http://localhost:5173', 'http://localhost:5174'],
+  origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175'],
   credentials: true,
 }));
 
@@ -84,6 +86,12 @@ app.use('/api/health', healthRoutes);
 
 // Public routes (no auth required)
 app.use('/api/public', publicRoutes);
+
+// SEO routes (no auth required)
+app.use('/api/seo', seoRoutes);
+
+// Storage routes (no auth required - public images)
+app.use('/api/storage', storageRoutes);
 
 // Auth routes (no auth required for login/register)
 app.use('/api/auth', authRoutes);
@@ -117,8 +125,11 @@ app.use('/api/audit', authMiddleware, auditRoutes);
 app.use('/api/scraping/v2', authMiddleware, scrapingRoutes); // ARQUITECTURA MODULAR V2
 app.use('/api/admin', authMiddleware, adminRoutes); // FUNCIÓN TEMPORAL - Solo para desarrollo
 
-// Static files serving (if needed)
+// Static files serving
 app.use('/uploads', express.static(process.env.UPLOAD_DIR || './uploads'));
+
+// Serve image files from storage directory
+app.use('/api/storage/images', express.static(process.env.STORAGE_IMAGES_DIR || './storage/images'));
 
 // Root route
 app.get('/', (req, res) => {

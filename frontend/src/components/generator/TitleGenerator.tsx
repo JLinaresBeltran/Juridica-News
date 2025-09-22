@@ -21,8 +21,13 @@ interface TitleOption {
 
 interface TitleGeneratorProps {
   document: any
+  articleContent: string
   onTitleSelected: (title: string, style: string) => void
+  onTitlesGenerated: (titles: string[], style: string, model: string) => void
   selectedTitle?: string
+  generatedTitles?: string[]
+  titlesStyle?: string
+  titlesModel?: string
 }
 
 const TITLE_STYLES = {
@@ -52,16 +57,21 @@ const TITLE_STYLES = {
   }
 }
 
-export default function TitleGenerator({ 
-  document, 
-  onTitleSelected, 
-  selectedTitle 
+export default function TitleGenerator({
+  document,
+  articleContent,
+  onTitleSelected,
+  onTitlesGenerated,
+  selectedTitle,
+  generatedTitles: savedGeneratedTitles = [],
+  titlesStyle: savedTitlesStyle,
+  titlesModel: savedTitlesModel
 }: TitleGeneratorProps) {
   const [titleOptions, setTitleOptions] = useState<TitleOption[]>([])
   const [isGenerating, setIsGenerating] = useState(false)
-  const [selectedStyle, setSelectedStyle] = useState<string | null>(null)
-  const [generatedTitles, setGeneratedTitles] = useState<string[]>([])
-  const [selectedModel, setSelectedModel] = useState<AIModel>('gpt4o-mini')
+  const [selectedStyle, setSelectedStyle] = useState<string | null>(savedTitlesStyle || null)
+  const [generatedTitles, setGeneratedTitles] = useState<string[]>(savedGeneratedTitles)
+  const [selectedModel, setSelectedModel] = useState<AIModel>(savedTitlesModel as AIModel || 'gpt4o-mini')
   const [generationError, setGenerationError] = useState<string | null>(null)
   const [showModelSelector, setShowModelSelector] = useState(false)
 
@@ -80,25 +90,34 @@ export default function TitleGenerator({
     }
   }
 
-  // Cargar estado guardado al montar el componente
+  // Cargar estado desde props del modal (prioridad) o localStorage local (fallback)
   useEffect(() => {
     if (document?.id) {
-      const storageKey = `title-generator-${document.id}`
-      const savedState = localStorage.getItem(storageKey)
-      
-      if (savedState) {
-        try {
-          const parsedState = JSON.parse(savedState)
-          setSelectedStyle(parsedState.selectedStyle)
-          setGeneratedTitles(parsedState.generatedTitles || [])
-          setSelectedModel(parsedState.selectedModel || 'gpt4o-mini')
-          console.log('Estado del generador de títulos cargado:', parsedState)
-        } catch (error) {
-          console.error('Error cargando estado del generador de títulos:', error)
+      // Priorizar props del modal (estado persistente compartido)
+      if (savedGeneratedTitles && savedGeneratedTitles.length > 0) {
+        console.log('📱 Cargando títulos desde props del modal:', savedGeneratedTitles)
+        setGeneratedTitles(savedGeneratedTitles)
+        setSelectedStyle(savedTitlesStyle || null)
+        setSelectedModel(savedTitlesModel as AIModel || 'gpt4o-mini')
+      } else {
+        // Fallback: cargar desde localStorage local del TitleGenerator
+        const storageKey = `title-generator-${document.id}`
+        const savedState = localStorage.getItem(storageKey)
+
+        if (savedState) {
+          try {
+            const parsedState = JSON.parse(savedState)
+            setSelectedStyle(parsedState.selectedStyle)
+            setGeneratedTitles(parsedState.generatedTitles || [])
+            setSelectedModel(parsedState.selectedModel || 'gpt4o-mini')
+            console.log('💾 Estado del generador de títulos cargado desde localStorage local:', parsedState)
+          } catch (error) {
+            console.error('Error cargando estado del generador de títulos:', error)
+          }
         }
       }
     }
-  }, [document?.id])
+  }, [document?.id, savedGeneratedTitles, savedTitlesStyle, savedTitlesModel])
 
   const generateTitlesForStyle = async (styleKey: string) => {
     if (!selectedModel) {
@@ -127,8 +146,11 @@ export default function TitleGenerator({
       })
       
       setGeneratedTitles(result.titles)
-      
-      // Guardar estado después de generar títulos
+
+      // Notificar al modal padre para persistencia (PRIORIDAD)
+      onTitlesGenerated(result.titles, styleKey, selectedModel)
+
+      // Guardar estado local como backup
       saveTitleState(styleKey, result.titles, selectedModel)
 
       console.log(`✅ Títulos generados exitosamente: ${result.titles.length} títulos con ${result.modelUsed}`)
@@ -188,7 +210,7 @@ export default function TitleGenerator({
       )}
 
       {/* Tarjetas de estilo */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
+      <div className="grid grid-cols-3 gap-3 w-full">
         {Object.entries(TITLE_STYLES).map(([styleKey, style]) => {
           const isSelected = selectedStyle === styleKey
           
@@ -197,30 +219,30 @@ export default function TitleGenerator({
               key={styleKey}
               onClick={() => generateTitlesForStyle(styleKey)}
               className={clsx(
-                'relative p-6 rounded-lg border-2 cursor-pointer transition-all duration-200 hover:shadow-lg',
-                isSelected 
-                  ? `${style.borderColor} ${style.bgColor} shadow-md` 
+                'relative p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 hover:shadow-lg',
+                isSelected
+                  ? `${style.borderColor} ${style.bgColor} shadow-md`
                   : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 bg-white dark:bg-gray-800'
               )}
             >
-              <div className="flex items-start space-x-3">
+              <div className="flex items-start space-x-2">
                 <div className={clsx(
-                  'p-2 rounded-lg',
+                  'p-1.5 rounded-lg',
                   isSelected ? style.bgColor : 'bg-gray-100 dark:bg-gray-700'
                 )}>
                   <style.icon className={clsx(
-                    'w-5 h-5',
+                    'w-4 h-4',
                     isSelected ? style.color : 'text-gray-600 dark:text-gray-400'
                   )} />
                 </div>
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <h4 className={clsx(
-                    'font-medium mb-1',
+                    'font-medium mb-1 text-sm',
                     isSelected ? style.color : 'text-gray-900 dark:text-gray-100'
                   )}>
                     {style.name}
                   </h4>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 leading-tight">
                     {style.description}
                   </p>
                 </div>
@@ -237,54 +259,32 @@ export default function TitleGenerator({
             Opciones generadas para estilo {selectedStyle && TITLE_STYLES[selectedStyle as keyof typeof TITLE_STYLES].name}
           </h4>
           
-          <div className="grid grid-cols-1 gap-4">
+          <div className="grid grid-cols-3 gap-3">
             {generatedTitles.map((title, index) => (
               <div
                 key={index}
                 onClick={() => handleTitleSelect(title)}
                 className={clsx(
-                  'p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 hover:shadow-md',
+                  'p-3 rounded-lg border-2 cursor-pointer transition-all duration-200 hover:shadow-md',
                   selectedTitle === title
                     ? 'border-[#04315a] bg-[#3ff3f2] bg-opacity-10 shadow-md'
                     : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 bg-white dark:bg-gray-800'
                 )}
               >
-                <div className="flex items-start justify-between">
-                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100 leading-relaxed flex-1 pr-4">
+                <div className="flex flex-col">
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100 leading-relaxed">
                     {title}
                   </p>
                   {selectedTitle === title && (
-                    <div className="flex-shrink-0">
-                      <div className="w-6 h-6 bg-[#04315a] rounded-full flex items-center justify-center">
-                        <Check className="w-4 h-4 text-[#3ff3f2]" />
+                    <div className="flex justify-end mt-2">
+                      <div className="w-5 h-5 bg-[#04315a] rounded-full flex items-center justify-center">
+                        <Check className="w-3 h-3 text-[#3ff3f2]" />
                       </div>
                     </div>
                   )}
                 </div>
               </div>
             ))}
-          </div>
-          
-          <div className="text-center">
-            <button
-              onClick={() => {
-                if (selectedStyle) {
-                  // Force regeneration by clearing existing titles
-                  setGeneratedTitles([])
-                  generateTitlesForStyle(selectedStyle)
-                }
-              }}
-              disabled={isGenerating || !selectedModel}
-              className={clsx(
-                'inline-flex items-center space-x-2 px-4 py-2 text-sm rounded-lg transition-colors',
-                isGenerating || !selectedModel
-                  ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
-                  : 'text-[#04315a] hover:text-[#3ff3f2] hover:bg-[#04315a] dark:text-[#3ff3f2] dark:hover:text-[#04315a] dark:hover:bg-[#3ff3f2]'
-              )}
-            >
-              <RefreshCw className={clsx('w-4 h-4', isGenerating && 'animate-spin')} />
-              <span>{isGenerating ? 'Regenerando...' : 'Regenerar títulos'}</span>
-            </button>
           </div>
         </div>
       )}

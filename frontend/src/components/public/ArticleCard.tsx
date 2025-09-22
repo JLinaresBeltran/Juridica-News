@@ -1,6 +1,7 @@
 import React from 'react'
 import { Clock } from 'lucide-react'
 import { MockArticle } from '@/data/mockArticles'
+import { getResponsiveImageStyles, useOptimizedImage } from '@/utils/imageProcessor'
 
 interface ArticleCardProps {
   article: MockArticle
@@ -26,18 +27,19 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
   className = '' 
 }) => {
 
-  const handleClick = () => {
-    // Navegación a la página del artículo individual
-    window.location.href = `/portal/articles/${article.slug}`
-  }
+  // Generate SEO-optimized article URL
+  const articleUrl = `/portal/articles/${article.slug}`
 
   // Layout horizontal (imagen izquierda, contenido derecha)
   if (layout === 'horizontal') {
     return (
-      <article 
-        className={`bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer border border-gray-100 ${className}`}
-        onClick={handleClick}
+      <a
+        href={articleUrl}
+        className={`block bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow border border-gray-100 ${className}`}
+        title={`Leer artículo completo: ${article.title}`}
+        aria-label={`Artículo sobre ${article.category}: ${article.title}`}
       >
+        <article>
         <div className="flex">
           <div className="flex-shrink-0 w-36 bg-gray-50 rounded-l-lg overflow-hidden">
             <img
@@ -62,17 +64,21 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
             </div>
           </div>
         </div>
-      </article>
+        </article>
+      </a>
     )
   }
 
   // Layout destacado (más grande, con más información)
   if (layout === 'featured') {
     return (
-      <article 
-        className={`bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow cursor-pointer border border-gray-200 ${className}`}
-        onClick={handleClick}
+      <a
+        href={articleUrl}
+        className={`block bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow border border-gray-200 ${className}`}
+        title={`Leer artículo destacado: ${article.title}`}
+        aria-label={`Artículo destacado sobre ${article.category}: ${article.title}`}
       >
+        <article>
         <div className="relative bg-gray-50 rounded-t-lg overflow-hidden">
           <img
             src={article.imageUrl}
@@ -95,17 +101,21 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
             </span>
           </div>
         </div>
-      </article>
+        </article>
+      </a>
     )
   }
 
   // Layout minimal (solo título, fecha y tiempo de lectura)
   if (layout === 'minimal') {
     return (
-      <article 
-        className={`bg-white rounded-lg border border-gray-200 hover:border-gray-300 transition-all cursor-pointer px-5 py-4 hover:shadow-sm ${className}`}
-        onClick={handleClick}
+      <a
+        href={articleUrl}
+        className={`block bg-white rounded-lg border border-gray-200 hover:border-gray-300 transition-all px-5 py-4 hover:shadow-sm ${className}`}
+        title={`Leer artículo: ${article.title}`}
+        aria-label={`Artículo sobre ${article.category}: ${article.title}`}
       >
+        <article>
         <h3 className="text-sm font-semibold text-gray-900 line-clamp-2 mb-2 hover:text-blue-600 transition-colors">
           {article.title}
         </h3>
@@ -118,16 +128,20 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
             {formatDate(article.publishedAt)}
           </span>
         </div>
-      </article>
+        </article>
+      </a>
     )
   }
 
   // Layout vertical por defecto
   return (
-    <article 
-      className={`bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer border border-gray-100 ${className}`}
-      onClick={handleClick}
+    <a
+      href={articleUrl}
+      className={`block bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow border border-gray-100 ${className}`}
+      title={`Leer artículo completo: ${article.title}`}
+      aria-label={`Artículo sobre ${article.category}: ${article.title}`}
     >
+      <article>
       <div className="relative bg-gray-50 rounded-t-lg overflow-hidden">
         <img
           src={article.imageUrl}
@@ -155,6 +169,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
           </span>
         </div>
       </div>
-    </article>
+      </article>
+    </a>
   )
 }

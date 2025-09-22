@@ -28,14 +28,15 @@ export const PublicHeader: React.FC<PublicHeaderProps> = ({ onSearch, className 
   const [isMenuOpen, setIsMenuOpen] = useState(false)
 
   const navigationItems = [
-    { label: 'Digital', href: '/portal/digital' },
-    { label: 'Civil', href: '/portal/civil' },
-    { label: 'Penal', href: '/portal/penal' },
-    { label: 'Familia', href: '/portal/familia' },
-    { label: 'Laboral', href: '/portal/laboral' },
-    { label: 'Tributario', href: '/portal/tributario' },
-    { label: 'Comercial', href: '/portal/comercial' },
+    { label: 'Constitucional', href: '/portal/constitucional' },
     { label: 'Administrativo', href: '/portal/administrativo' },
+    { label: 'Fiscal/Aduanero', href: '/portal/fiscal' },
+    { label: 'Societario', href: '/portal/societario' },
+    { label: 'Penal', href: '/portal/penal' },
+    { label: 'Civil/Familia', href: '/portal/civil' },
+    { label: 'Digital', href: '/portal/digital' },
+    { label: 'Laboral', href: '/portal/laboral' },
+    { label: 'Regulatorio', href: '/portal/regulatorio' },
     { label: 'Opinión', href: '/portal/opinion' },
   ]
 
@@ -67,14 +68,17 @@ export const PublicHeader: React.FC<PublicHeaderProps> = ({ onSearch, className 
             </div>
             
             {/* Logo y título centrados */}
-            <div className="flex items-center gap-4">
-              <img 
-                src="/images/logo.png" 
-                alt="Logo Jurídico" 
+            <a
+              href="/portal"
+              className="flex items-center gap-4 hover:opacity-80 transition-opacity"
+            >
+              <img
+                src="/images/logo.png"
+                alt="Logo Jurídico"
                 className="h-12 w-auto"
               />
               <h1 className="text-lg font-bold text-gray-800 tracking-wide">Línea Judicial</h1>
-            </div>
+            </a>
             
             {/* Búsqueda en la esquina superior derecha */}
             <div className="flex items-center">

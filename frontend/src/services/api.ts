@@ -201,4 +201,35 @@ export const apiHelpers = {
   },
 }
 
+// Utility function to convert relative URLs to absolute URLs
+export const getImageUrl = (relativeUrl: string): string => {
+  if (!relativeUrl) return ''
+
+  // If already absolute URL, return as is
+  if (relativeUrl.startsWith('http://') || relativeUrl.startsWith('https://')) {
+    return relativeUrl
+  }
+
+  // Get base URL without /api suffix for serving static files
+  const baseUrl = API_BASE_URL.replace('/api', '')
+
+  // If URL already includes /api/, use it directly with base URL
+  if (relativeUrl.startsWith('/api/')) {
+    return `${baseUrl}${relativeUrl}`
+  }
+
+  // If URL starts with /storage/images/, it's a direct static file path
+  if (relativeUrl.startsWith('/storage/images/')) {
+    return `${baseUrl}/api${relativeUrl}`
+  }
+
+  // For relative filenames only (e.g., "image.jpg"), construct full path
+  if (!relativeUrl.startsWith('/')) {
+    return `${baseUrl}/api/storage/images/${relativeUrl}`
+  }
+
+  // Default: treat as relative URL and append to base
+  return `${baseUrl}${relativeUrl}`
+}
+
 export default api

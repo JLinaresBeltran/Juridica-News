@@ -287,16 +287,30 @@ export class ScrapingOrchestrator extends EventEmitter {
           logger.warn(`⚠️ NO se encontraron extractedMetadata para ${doc.documentId}`);
         }
 
-        // Extraer fecha oficial de la web (structuredData.fechaPublicacion)
+        // ✅ SOLUCIÓN ROBUSTA: Extraer fecha oficial de múltiples fuentes
+        // 1. Primero intentar desde structuredData.fechaPublicacion
         if (structuredData?.fechaPublicacion) {
           try {
             webOfficialDate = this.parseWebOfficialDate(structuredData.fechaPublicacion);
-            logger.info(`📅 Fecha web oficial extraída para ${doc.documentId}: ${structuredData.fechaPublicacion} -> ${webOfficialDate?.toISOString().split('T')[0] || 'N/A'}`);
+            logger.info(`📅 Fecha web oficial extraída (structuredData) para ${doc.documentId}: ${structuredData.fechaPublicacion} -> ${webOfficialDate?.toISOString().split('T')[0] || 'N/A'}`);
           } catch (error) {
             logger.warn(`⚠️ Error parseando fecha web oficial "${structuredData.fechaPublicacion}" para ${doc.documentId}:`, error);
           }
-        } else {
-          logger.debug(`📅 No se encontró fechaPublicacion en structuredData para ${doc.documentId}`);
+        }
+
+        // 2. Si no hay fecha en structuredData, intentar desde fechaPublicacion directa del documento
+        if (!webOfficialDate && (doc as any).fechaPublicacion) {
+          try {
+            webOfficialDate = this.parseWebOfficialDate((doc as any).fechaPublicacion);
+            logger.info(`📅 Fecha web oficial extraída (fallback) para ${doc.documentId}: ${(doc as any).fechaPublicacion} -> ${webOfficialDate?.toISOString().split('T')[0] || 'N/A'}`);
+          } catch (error) {
+            logger.warn(`⚠️ Error parseando fecha web oficial fallback "${(doc as any).fechaPublicacion}" para ${doc.documentId}:`, error);
+          }
+        }
+
+        // 3. Log final para debugging
+        if (!webOfficialDate) {
+          logger.debug(`📅 No se pudo extraer fecha web oficial para ${doc.documentId} - structuredData: ${structuredData ? 'EXISTS' : 'NULL'}, fechaPublicacion directa: ${(doc as any).fechaPublicacion || 'N/A'}`);
         }
         
         // ✅ IMPLEMENTACIÓN HÍBRIDA - Procesar contenido
@@ -306,7 +320,7 @@ export class ScrapingOrchestrator extends EventEmitter {
 
         // Si el documento tiene texto completo, generar resumen inteligente
         if (doc.fullTextContent && doc.fullTextContent.length > 1000) {
-          logger.info(`🧠 Generando resumen inteligente para ${doc.documentId} (${doc.fullTextContent.length} caracteres)`);
+          // Generando resumen inteligente (log removido)
           intelligentSummary = await this.generateIntelligentSummary(doc.fullTextContent);
           fullTextContent = doc.fullTextContent;
           
