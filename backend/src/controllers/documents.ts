@@ -334,16 +334,25 @@ router.post('/:id/curate', validateRequest(curationActionSchema), async (req: Re
       });
     }
 
-    if (existingDocument.status !== 'PENDING') {
+    // ✅ FIX: Permitir re-procesamiento de documentos APPROVED para marcarlos como READY
+    if (existingDocument.status !== 'PENDING' && existingDocument.status !== 'APPROVED') {
       return res.status(409).json({
-        error: 'Document has already been curated',
+        error: 'Document cannot be curated in current status',
         currentStatus: existingDocument.status
       });
     }
 
+    // ✅ FIX: Determinar el estado correcto basado en el estado actual y datos de artículo
+    let newStatus = action === 'approve' ? 'APPROVED' : 'REJECTED';
+
+    // Si el documento ya está APPROVED y se está procesando con datos de artículo, marcarlo como READY
+    if (existingDocument.status === 'APPROVED' && action === 'approve' && articleData && articleData.content) {
+      newStatus = 'READY';
+    }
+
     // Update document with curation decision
     const updateData: any = {
-      status: action === 'approve' ? 'APPROVED' : 'REJECTED',
+      status: newStatus,
       priority: priority || existingDocument.priority,
       curatorId: req.user.id,
     }

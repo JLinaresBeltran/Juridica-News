@@ -3,13 +3,15 @@ import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { logger } from '@/utils/logger';
 import { validateRequest } from '@/middleware/validation';
-import { 
-  ArticleFilters, 
-  ArticleCreateRequest, 
-  ArticleUpdateRequest 
+import {
+  ArticleFilters,
+  ArticleCreateRequest,
+  ArticleUpdateRequest,
+  ArticlePublicationSettings
 } from '../../../shared/types/article.types';
 import { generateSlug } from '@/utils/slug';
 import { calculateReadingTime, countWords } from '@/utils/text';
+import { PublicationPositionService } from '@/services/PublicationPositionService';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -29,6 +31,8 @@ const articleFiltersSchema = z.object({
 const createArticleSchema = z.object({
   sourceDocumentId: z.string().cuid(),
   title: z.string().min(10).max(200),
+  content: z.string().optional().default(''),
+  summary: z.string().optional().default(''),
   targetLength: z.number().min(100).max(5000).default(1500),
   tone: z.enum(['PROFESSIONAL', 'ACADEMIC', 'ACCESSIBLE']).default('PROFESSIONAL'),
   focusAreas: z.array(z.string()).default([]),
@@ -44,6 +48,22 @@ const updateArticleSchema = z.object({
   legalArea: z.enum(['CIVIL', 'PENAL', 'MERCANTIL', 'LABORAL', 'ADMINISTRATIVO', 'FISCAL', 'CONSTITUCIONAL']).optional(),
   publicationSection: z.enum(['ACTUALIZACIONES_NORMATIVAS', 'JURISPRUDENCIA', 'ANALISIS_PRACTICO', 'DOCTRINA', 'MAS_RECIENTES']).optional(),
   tags: z.array(z.string()).optional(),
+});
+
+const publicationSettingsSchema = z.object({
+  isGeneral: z.boolean().optional(),
+  isUltimasNoticias: z.boolean().optional(),
+  entidadSeleccionada: z.enum([
+    'CORTE_CONSTITUCIONAL',
+    'CORTE_SUPREMA',
+    'CONSEJO_ESTADO',
+    'TRIBUNAL_SUPERIOR',
+    'FISCALIA_GENERAL',
+    'PROCURADURIA_GENERAL',
+    'CONTRALORIA_GENERAL',
+    'MINISTERIO_JUSTICIA'
+  ]).nullable().optional(),
+  isDestacadoSemana: z.boolean().optional(),
 });
 
 /**
@@ -157,22 +177,46 @@ router.get('/', validateRequest(articleFiltersSchema, 'query'), async (req: Requ
  */
 router.post('/', validateRequest(createArticleSchema), async (req: Request, res: Response) => {
   try {
+    // Verificar que el usuario esté autenticado
+    if (!req.user || !req.user.id) {
+      logger.warn('Attempt to create article without authenticated user', {
+        headers: req.headers.authorization ? 'Bearer token present' : 'No authorization header',
+        ip: req.ip,
+        userAgent: req.get('User-Agent')
+      });
+      return res.status(401).json({
+        error: 'Authentication required',
+        code: 'AUTH_REQUIRED'
+      });
+    }
+
     const data = req.body as ArticleCreateRequest;
-    
+
+    console.log('🔥 DEBUGGING ARTICLE CREATION');
+    console.log('🔥 Raw req.body:', JSON.stringify(req.body, null, 2));
+    console.log('🔥 Data after casting:', JSON.stringify(data, null, 2));
+    console.log('🔥 All keys in data:', Object.keys(data));
+
     // Verify source document exists and is approved
+    console.log('🔍 Looking for source document:', data.sourceDocumentId);
     const sourceDocument = await prisma.document.findUnique({
       where: { id: data.sourceDocumentId }
     });
 
+    console.log('📄 Source document found:', sourceDocument ? { id: sourceDocument.id, status: sourceDocument.status, legalArea: sourceDocument.legalArea } : 'NOT FOUND');
+
     if (!sourceDocument) {
+      console.log('❌ Source document not found:', data.sourceDocumentId);
       return res.status(404).json({
         error: 'Source document not found'
       });
     }
 
-    if (sourceDocument.status !== 'APPROVED') {
+    // Documents can be APPROVED (old system) or READY (new system)
+    if (sourceDocument.status !== 'APPROVED' && sourceDocument.status !== 'READY') {
+      console.log('❌ Source document not ready for article creation:', sourceDocument.status);
       return res.status(400).json({
-        error: 'Source document must be approved before creating article',
+        error: 'Source document must be approved or ready before creating article',
         currentStatus: sourceDocument.status
       });
     }
@@ -187,25 +231,26 @@ router.post('/', validateRequest(createArticleSchema), async (req: Request, res:
       counter++;
     }
 
-    // Create article
+    // Create article - ONLY with valid schema fields (no extra parameters)
+    const articleData = {
+      sourceDocumentId: data.sourceDocumentId,
+      title: data.title,
+      slug,
+      content: data.content || '',
+      summary: data.summary || '',
+      legalArea: sourceDocument.legalArea as any, // Cast to match enum
+      publicationSection: 'MAS_RECIENTES' as any, // Cast to match enum
+      authorId: req.user.id,
+      wordCount: data.content ? countWords(data.content) : 0,
+      readingTime: data.content ? calculateReadingTime(data.content) : 0,
+    };
+
+    console.log('🔨 Creating article with data:', JSON.stringify(articleData, null, 2));
+    console.log('🔨 Keys in articleData:', Object.keys(articleData));
+    console.log('🔨 articleData has generationParameters?', 'generationParameters' in articleData);
+
     const article = await prisma.article.create({
-      data: {
-        sourceDocumentId: data.sourceDocumentId,
-        title: data.title,
-        slug,
-        content: '', // Will be populated by AI generation
-        summary: '',
-        legalArea: sourceDocument.legalArea,
-        publicationSection: 'MAS_RECIENTES', // Default section
-        authorId: req.user.id,
-        wordCount: 0,
-        readingTime: 0,
-        generationParameters: {
-          targetLength: data.targetLength,
-          tone: data.tone,
-          focusAreas: data.focusAreas,
-        },
-      },
+      data: articleData,
       include: {
         author: {
           select: {
@@ -224,17 +269,43 @@ router.post('/', validateRequest(createArticleSchema), async (req: Request, res:
       }
     });
 
+    // ✅ TRANSFERIR IMÁGENES GENERADAS del documento al artículo
+    console.log('🖼️ Transfiriendo imágenes generadas del documento al artículo...');
+
+    // Buscar todas las imágenes asociadas al documento fuente
+    const documentImages = await prisma.generatedImage.findMany({
+      where: {
+        documentId: data.sourceDocumentId
+      }
+    });
+
+    console.log(`📸 Encontradas ${documentImages.length} imágenes en el documento ${data.sourceDocumentId}`);
+
+    if (documentImages.length > 0) {
+      // Asociar las imágenes al artículo recién creado
+      await prisma.generatedImage.updateMany({
+        where: {
+          documentId: data.sourceDocumentId
+        },
+        data: {
+          articleId: article.id
+        }
+      });
+
+      console.log(`✅ ${documentImages.length} imágenes transferidas al artículo ${article.id}`);
+    } else {
+      console.log('⚠️ No se encontraron imágenes en el documento para transferir');
+    }
+
     // Create initial version
     await prisma.articleVersion.create({
       data: {
         articleId: article.id,
-        versionNumber: 1,
-        label: 'Initial version',
         title: article.title,
         content: article.content,
         summary: article.summary,
-        createdById: req.user.id,
-        autoGenerated: true,
+        versionNumber: 1,
+        changeDescription: 'Initial version created',
       }
     });
 
@@ -242,14 +313,8 @@ router.post('/', validateRequest(createArticleSchema), async (req: Request, res:
     await prisma.auditLog.create({
       data: {
         userId: req.user.id,
-        actionType: 'ARTICLE_CREATED',
-        resourceType: 'article',
-        resourceId: article.id,
-        details: {
-          sourceDocumentId: data.sourceDocumentId,
-          generationParameters: data,
-        },
-        result: { success: true },
+        action: 'ARTICLE_CREATED',
+        description: `Article created: ${article.title} (ID: ${article.id})`,
         ipAddress: req.ip,
         userAgent: req.get('User-Agent') || '',
       }
@@ -267,10 +332,30 @@ router.post('/', validateRequest(createArticleSchema), async (req: Request, res:
     });
 
   } catch (error) {
-    logger.error('Error creating article', { error, userId: req.user.id });
+    const errorDetails = {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      userId: req.user?.id || 'No user ID',
+      sourceDocumentId: req.body?.sourceDocumentId,
+      requestBody: req.body,
+      ip: req.ip,
+      fullError: error
+    };
+
+    logger.error('Error creating article - DETAILED DEBUG', errorDetails);
+
+    // También log a console para debugging inmediato
+    console.error('🚨 ARTICLE CREATION ERROR:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      sourceDocumentId: req.body?.sourceDocumentId,
+      userId: req.user?.id,
+      stack: error instanceof Error ? error.stack?.split('\n').slice(0, 5) : undefined
+    });
+
     res.status(500).json({
       error: 'Failed to create article',
-      message: error instanceof Error ? error.message : 'Unknown error'
+      message: error instanceof Error ? error.message : 'Unknown error',
+      code: 'ARTICLE_CREATION_ERROR'
     });
   }
 });
@@ -539,6 +624,14 @@ router.post('/:id/publish', async (req: Request, res: Response) => {
 
     // Check if article is ready for publication
     if (!article.content.trim() || !article.summary.trim()) {
+      logger.warn('Article cannot be published - missing content or summary', {
+        articleId,
+        hasContent: !!article.content.trim(),
+        hasSummary: !!article.summary.trim(),
+        contentLength: article.content.length,
+        summaryLength: article.summary.length
+      });
+
       return res.status(400).json({
         error: 'Article must have content and summary before publishing'
       });
@@ -549,7 +642,6 @@ router.post('/:id/publish', async (req: Request, res: Response) => {
       data: {
         status: 'PUBLISHED',
         publishedAt: new Date(),
-        editorId: req.user.id,
       }
     });
 
@@ -557,13 +649,8 @@ router.post('/:id/publish', async (req: Request, res: Response) => {
     await prisma.auditLog.create({
       data: {
         userId: req.user.id,
-        actionType: 'ARTICLE_PUBLISHED',
-        resourceType: 'article',
-        resourceId: articleId,
-        details: {
-          publishedAt: updatedArticle.publishedAt,
-        },
-        result: { success: true },
+        action: 'ARTICLE_PUBLISHED',
+        description: `Article "${updatedArticle.title}" published`,
         ipAddress: req.ip,
         userAgent: req.get('User-Agent') || '',
       }
@@ -587,6 +674,116 @@ router.post('/:id/publish', async (req: Request, res: Response) => {
     });
     res.status(500).json({
       error: 'Failed to publish article',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/articles/{id}/publication-settings:
+ *   put:
+ *     summary: Update article publication settings
+ *     tags: [Articles]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.put('/:id/publication-settings', validateRequest(publicationSettingsSchema), async (req: Request, res: Response) => {
+  try {
+    const articleId = req.params.id;
+    const settings = req.body as ArticlePublicationSettings;
+
+    // Check if article exists and is published
+    const article = await prisma.article.findUnique({
+      where: { id: articleId }
+    });
+
+    if (!article) {
+      return res.status(404).json({
+        error: 'Article not found'
+      });
+    }
+
+    if (article.status !== 'PUBLISHED') {
+      return res.status(400).json({
+        error: 'Only published articles can have publication settings updated'
+      });
+    }
+
+    // Update publication settings using the service
+    await PublicationPositionService.updatePublicationSettings(articleId, settings);
+
+    // Get updated article
+    const updatedArticle = await prisma.article.findUnique({
+      where: { id: articleId },
+      include: {
+        author: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          }
+        }
+      }
+    });
+
+    // Log audit trail
+    await prisma.auditLog.create({
+      data: {
+        userId: req.user.id,
+        action: 'PUBLICATION_SETTINGS_UPDATED',
+        description: `Publication settings updated for article "${updatedArticle?.title}"`,
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent') || '',
+      }
+    });
+
+    res.json({
+      data: updatedArticle,
+      message: 'Publication settings updated successfully'
+    });
+
+    logger.info('Publication settings updated', {
+      articleId,
+      settings,
+      userId: req.user.id
+    });
+
+  } catch (error) {
+    logger.error('Error updating publication settings', {
+      error,
+      articleId: req.params.id,
+      userId: req.user.id
+    });
+    res.status(500).json({
+      error: 'Failed to update publication settings',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/articles/publication-stats:
+ *   get:
+ *     summary: Get publication statistics
+ *     tags: [Articles]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.get('/publication-stats', async (req: Request, res: Response) => {
+  try {
+    const stats = await PublicationPositionService.getPublicationStats();
+
+    res.json({
+      data: stats,
+      message: 'Publication statistics retrieved successfully'
+    });
+
+  } catch (error) {
+    logger.error('Error getting publication stats', { error, userId: req.user.id });
+    res.status(500).json({
+      error: 'Failed to retrieve publication statistics',
       message: error instanceof Error ? error.message : 'Unknown error'
     });
   }

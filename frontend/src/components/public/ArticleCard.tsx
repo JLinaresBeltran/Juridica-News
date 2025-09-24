@@ -1,40 +1,46 @@
 import React from 'react'
-import { Clock } from 'lucide-react'
-import { MockArticle } from '@/data/mockArticles'
-import { getResponsiveImageStyles, useOptimizedImage } from '@/utils/imageProcessor'
+import { Link } from 'react-router-dom'
+import { Clock, User } from 'lucide-react'
+import { PublicArticle, getDefaultArticleImage } from '@/types/publicArticle.types'
 
 interface ArticleCardProps {
-  article: MockArticle
+  article: PublicArticle
   layout?: 'horizontal' | 'vertical' | 'featured' | 'minimal'
   size?: 'small' | 'medium' | 'large'
   className?: string
 }
 
-
 const formatDate = (dateString: string): string => {
   const date = new Date(dateString)
-  return date.toLocaleDateString('es-CO', { 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric' 
+  return date.toLocaleDateString('es-CO', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
   })
 }
 
-export const ArticleCard: React.FC<ArticleCardProps> = ({ 
-  article, 
-  layout = 'vertical', 
+const formatReadingTime = (readingTime: number): string => {
+  return `${readingTime} min`
+}
+
+export const ArticleCard: React.FC<ArticleCardProps> = ({
+  article,
+  layout = 'vertical',
   size = 'medium',
-  className = '' 
+  className = ''
 }) => {
 
   // Generate SEO-optimized article URL
   const articleUrl = `/portal/articles/${article.slug}`
 
+  // Get image URL or default
+  const imageUrl = article.imageUrl || getDefaultArticleImage(article.category)
+
   // Layout horizontal (imagen izquierda, contenido derecha)
   if (layout === 'horizontal') {
     return (
-      <a
-        href={articleUrl}
+      <Link
+        to={articleUrl}
         className={`block bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow border border-gray-100 ${className}`}
         title={`Leer artículo completo: ${article.title}`}
         aria-label={`Artículo sobre ${article.category}: ${article.title}`}
@@ -43,9 +49,9 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
         <div className="flex">
           <div className="flex-shrink-0 w-36 bg-gray-50 rounded-l-lg overflow-hidden">
             <img
-              src={article.imageUrl}
+              src={imageUrl}
               alt={article.title}
-              className="w-full h-auto object-contain"
+              className="w-full h-auto object-cover"
               style={{ aspectRatio: '3/2' }}
             />
           </div>
@@ -56,7 +62,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
             <div className="flex items-center text-xs text-gray-500 gap-3">
               <span className="flex items-center gap-1">
                 <Clock size={12} />
-                {article.readTime}
+                {formatReadingTime(article.readingTime)}
               </span>
               <span>
                 {formatDate(article.publishedAt)}
@@ -65,15 +71,15 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
           </div>
         </div>
         </article>
-      </a>
+      </Link>
     )
   }
 
   // Layout destacado (más grande, con más información)
   if (layout === 'featured') {
     return (
-      <a
-        href={articleUrl}
+      <Link
+        to={articleUrl}
         className={`block bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow border border-gray-200 ${className}`}
         title={`Leer artículo destacado: ${article.title}`}
         aria-label={`Artículo destacado sobre ${article.category}: ${article.title}`}
@@ -81,9 +87,9 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
         <article>
         <div className="relative bg-gray-50 rounded-t-lg overflow-hidden">
           <img
-            src={article.imageUrl}
+            src={imageUrl}
             alt={article.title}
-            className="w-full h-auto object-contain"
+            className="w-full h-auto object-cover"
             style={{ aspectRatio: '16/9' }}
           />
         </div>
@@ -94,23 +100,32 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
           <div className="flex items-center text-sm text-gray-500 gap-4">
             <span className="flex items-center gap-1">
               <Clock size={14} />
-              {article.readTime}
+              {formatReadingTime(article.readingTime)}
             </span>
             <span>
               {formatDate(article.publishedAt)}
             </span>
+            {article.author && (
+              <>
+                <span>•</span>
+                <span className="flex items-center gap-1">
+                  <User size={12} />
+                  {article.author.firstName} {article.author.lastName}
+                </span>
+              </>
+            )}
           </div>
         </div>
         </article>
-      </a>
+      </Link>
     )
   }
 
   // Layout minimal (solo título, fecha y tiempo de lectura)
   if (layout === 'minimal') {
     return (
-      <a
-        href={articleUrl}
+      <Link
+        to={articleUrl}
         className={`block bg-white rounded-lg border border-gray-200 hover:border-gray-300 transition-all px-5 py-4 hover:shadow-sm ${className}`}
         title={`Leer artículo: ${article.title}`}
         aria-label={`Artículo sobre ${article.category}: ${article.title}`}
@@ -122,21 +137,21 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
         <div className="flex items-center text-xs text-gray-500 gap-3">
           <span className="flex items-center gap-1">
             <Clock size={12} />
-            {article.readTime}
+            {formatReadingTime(article.readingTime)}
           </span>
           <span>
             {formatDate(article.publishedAt)}
           </span>
         </div>
         </article>
-      </a>
+      </Link>
     )
   }
 
   // Layout vertical por defecto
   return (
-    <a
-      href={articleUrl}
+    <Link
+      to={articleUrl}
       className={`block bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow border border-gray-100 ${className}`}
       title={`Leer artículo completo: ${article.title}`}
       aria-label={`Artículo sobre ${article.category}: ${article.title}`}
@@ -144,10 +159,10 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
       <article>
       <div className="relative bg-gray-50 rounded-t-lg overflow-hidden">
         <img
-          src={article.imageUrl}
+          src={imageUrl}
           alt={article.title}
-          className="w-full h-auto object-contain"
-          style={{ 
+          className="w-full h-auto object-cover"
+          style={{
             aspectRatio: '16/9',
             minHeight: size === 'small' ? '8rem' : size === 'large' ? '12rem' : '10rem'
           }}
@@ -162,7 +177,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
         <div className="flex items-center text-xs text-gray-500 gap-3">
           <span className="flex items-center gap-1">
             <Clock size={12} />
-            {article.readTime}
+            {formatReadingTime(article.readingTime)}
           </span>
           <span>
             {formatDate(article.publishedAt)}
@@ -170,6 +185,6 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
         </div>
       </div>
       </article>
-    </a>
+    </Link>
   )
 }

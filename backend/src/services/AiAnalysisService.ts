@@ -512,7 +512,7 @@ El objetivo es identificar los componentes clave de una sentencia judicial de la
     try {
       const { GoogleGenerativeAI } = await import('@google/generative-ai');
       const genAI = new GoogleGenerativeAI(this.geminiApiKey!);
-      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
       const prompt = this.buildAnalysisPrompt(fragments, documentTitle);
 
@@ -557,7 +557,7 @@ El objetivo es identificar los componentes clave de una sentencia judicial de la
           fragments.considerandos.substring(0, 300),
           fragments.resuelve.substring(0, 200)
         ],
-        modeloUsado: 'gemini-1.5-flash',
+        modeloUsado: 'gemini-2.5-flash',
         confidencia: 0.9 // Alta confianza para análisis conceptual enfocado
       };
 

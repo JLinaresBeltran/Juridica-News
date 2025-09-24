@@ -953,6 +953,101 @@ router.delete('/images/:id', async (req: Request, res: Response) => {
 
 /**
  * @swagger
+ * /api/storage/images/associate-document:
+ *   post:
+ *     summary: Asocia una imagen de biblioteca con un documento
+ *     tags: [Storage]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - imageId
+ *               - documentId
+ *             properties:
+ *               imageId:
+ *                 type: string
+ *                 description: ID de la imagen en la base de datos
+ *               documentId:
+ *                 type: string
+ *                 description: ID del documento a asociar
+ *     responses:
+ *       200:
+ *         description: Imagen asociada exitosamente con el documento
+ *       404:
+ *         description: Imagen o documento no encontrado
+ *       500:
+ *         description: Error interno del servidor
+ */
+router.post('/images/associate-document', async (req: Request, res: Response) => {
+  try {
+    const { imageId, documentId } = req.body;
+
+    // Validar que se proporcionen ambos IDs
+    if (!imageId || !documentId) {
+      return res.status(400).json({
+        error: 'Se requieren imageId y documentId'
+      });
+    }
+
+    // Verificar que la imagen existe
+    const image = await prisma.generatedImage.findUnique({
+      where: { id: imageId }
+    });
+
+    if (!image) {
+      return res.status(404).json({
+        error: 'Imagen no encontrada'
+      });
+    }
+
+    // Verificar que el documento existe
+    const document = await prisma.document.findUnique({
+      where: { id: documentId }
+    });
+
+    if (!document) {
+      return res.status(404).json({
+        error: 'Documento no encontrado'
+      });
+    }
+
+    // Asociar imagen con documento
+    const updatedImage = await prisma.generatedImage.update({
+      where: { id: imageId },
+      data: {
+        documentId: documentId
+      }
+    });
+
+    logger.info('🔗 Imagen asociada con documento', {
+      imageId: updatedImage.imageId,
+      documentId,
+      documentTitle: document.title
+    });
+
+    res.json({
+      success: true,
+      message: 'Imagen asociada exitosamente con el documento',
+      data: {
+        imageId: updatedImage.imageId,
+        documentId,
+        documentTitle: document.title
+      }
+    });
+
+  } catch (error) {
+    logger.error('❌ Error asociando imagen con documento:', error);
+    res.status(500).json({
+      error: 'Error interno del servidor'
+    });
+  }
+});
+
+/**
+ * @swagger
  * /api/storage/images/cleanup:
  *   post:
  *     summary: Limpia imágenes huérfanas de la base de datos

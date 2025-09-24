@@ -1,0 +1,17 @@
+export enum JudicialEntity {
+  CORTE_CONSTITUCIONAL = 'CORTE_CONSTITUCIONAL',
+  CORTE_SUPREMA = 'CORTE_SUPREMA',
+  CONSEJO_ESTADO = 'CONSEJO_ESTADO',
+  TRIBUNAL_SUPERIOR = 'TRIBUNAL_SUPERIOR',
+  FISCALIA_GENERAL = 'FISCALIA_GENERAL',
+  PROCURADURIA_GENERAL = 'PROCURADURIA_GENERAL',
+  CONTRALORIA_GENERAL = 'CONTRALORIA_GENERAL',
+  MINISTERIO_JUSTICIA = 'MINISTERIO_JUSTICIA'
+}
+
+export interface ArticlePublicationSettings {
+  isGeneral: boolean
+  isUltimasNoticias: boolean
+  entidadSeleccionada?: JudicialEntity
+  isDestacadoSemana: boolean
+}

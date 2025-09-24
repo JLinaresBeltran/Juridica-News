@@ -1,27 +1,56 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { PublicHeader } from '@/components/public/PublicHeader'
 import { PublicFooter } from '@/components/public/PublicFooter'
 import { ArticleCard } from '@/components/public/ArticleCard'
-import { 
-  getArticleBySlug, 
-  getRelatedArticles,
-  getSectionDisplayName 
-} from '@/data/mockArticles'
-import { 
-  Clock, 
-  Calendar, 
-  Tag, 
-  Copy, 
-  Check
+import { publicPortalService } from '@/services/publicPortalService'
+import { PublicArticle, adaptApiToPublicArticle, getDefaultArticleImage } from '@/types/publicArticle.types'
+import {
+  Clock,
+  Calendar,
+  Tag,
+  Copy,
+  Check,
+  User
 } from 'lucide-react'
 
 export default function PublicArticlePage() {
   const { slug } = useParams<{ slug: string }>()
   const [copied, setCopied] = useState(false)
-  
-  const article = slug ? getArticleBySlug(slug) : undefined
-  const relatedArticles = article ? getRelatedArticles(article, 4) : []
+  const [article, setArticle] = useState<any>(null)
+  const [publicArticle, setPublicArticle] = useState<PublicArticle | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const loadArticle = async () => {
+      if (!slug) {
+        setError('Slug de artículo no encontrado')
+        setLoading(false)
+        return
+      }
+
+      try {
+        setLoading(true)
+        setError(null)
+        const articleData = await publicPortalService.getArticleBySlug(slug)
+
+        if (articleData) {
+          setArticle(articleData)
+          setPublicArticle(adaptApiToPublicArticle(articleData))
+        } else {
+          setError('Artículo no encontrado')
+        }
+      } catch (err) {
+        console.error('Error loading article:', err)
+        setError('Error al cargar el artículo')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadArticle()
+  }, [slug])
 
   const handleSearch = (query: string) => {
     // TODO: Implementar lógica de búsqueda
@@ -57,21 +86,45 @@ export default function PublicArticlePage() {
 
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString)
-    return date.toLocaleDateString('es-CO', { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
+    return date.toLocaleDateString('es-CO', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
     })
   }
 
-  if (!article) {
+  // Estado de carga
+  if (loading) {
     return (
       <>
         <PublicHeader onSearch={handleSearch} />
         <div className="min-h-screen bg-gray-50 flex items-center justify-center">
           <div className="text-center">
-            <h1 className="text-2xl font-bold text-gray-900 mb-4">Artículo no encontrado</h1>
-            <p className="text-gray-600 mb-6">El artículo que buscas no existe o ha sido removido.</p>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Cargando artículo...</p>
+          </div>
+        </div>
+        <PublicFooter />
+      </>
+    )
+  }
+
+  // Estado de error o artículo no encontrado
+  if (error || !article || !publicArticle) {
+    return (
+      <>
+        <PublicHeader onSearch={handleSearch} />
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">
+              {error || 'Artículo no encontrado'}
+            </h1>
+            <p className="text-gray-600 mb-6">
+              {error === 'Error al cargar el artículo'
+                ? 'Hubo un problema al cargar el artículo. Por favor, intenta de nuevo.'
+                : 'El artículo que buscas no existe o ha sido removido.'
+              }
+            </p>
             <a 
               href="/portal" 
               className="inline-flex items-center px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors"
@@ -100,27 +153,33 @@ export default function PublicArticlePage() {
               <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
                 <div className="flex items-center gap-1">
                   <Calendar size={16} />
-                  <span>{formatDate(article.publishedAt)}</span>
+                  <span>{formatDate(publicArticle.publishedAt)}</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <Clock size={16} />
-                  <span>{article.readTime}</span>
+                  <span>{publicArticle.readingTime} min</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <Tag size={16} />
-                  <span 
+                  <span
                     className="px-2 py-1 rounded-full text-xs font-medium text-white"
                     style={{ backgroundColor: '#04315a' }}
                   >
-                    {article.category}
+                    {publicArticle.category}
                   </span>
                 </div>
+                {publicArticle.author && (
+                  <div className="flex items-center gap-1">
+                    <User size={16} />
+                    <span>Por {publicArticle.author.firstName} {publicArticle.author.lastName}</span>
+                  </div>
+                )}
               </div>
             </div>
 
             {/* Título justo encima de la imagen */}
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-8 leading-tight">
-              {article.title}
+              {publicArticle.title}
             </h1>
           </div>
         </div>
@@ -130,8 +189,8 @@ export default function PublicArticlePage() {
           <div className="max-w-4xl mx-auto px-6 sm:px-8">
             <div className="relative">
               <img
-                src={article.imageUrl}
-                alt={article.title}
+                src={publicArticle.imageUrl || getDefaultArticleImage(publicArticle.category)}
+                alt={publicArticle.title}
                 className="w-full h-64 sm:h-80 lg:h-96 object-cover rounded-lg"
               />
             </div>
@@ -142,7 +201,7 @@ export default function PublicArticlePage() {
         <div className="bg-white">
           <div className="max-w-4xl mx-auto px-6 sm:px-8 py-6">
             <h2 className="text-lg sm:text-xl text-gray-600 mb-6 leading-relaxed font-medium">
-              {article.excerpt}
+              {publicArticle.summary}
             </h2>
 
             {/* Botones de compartir minimalistas */}
@@ -231,47 +290,24 @@ export default function PublicArticlePage() {
         <div className="bg-white">
           <div className="max-w-4xl mx-auto px-6 sm:px-8 py-8 sm:py-12">
             <div className="prose prose-lg max-w-none">
-              {/* Contenido típico del artículo - flujo natural sin subtítulos forzados */}
-
-              <p className="text-gray-700 leading-relaxed mb-6">
-                El presente caso surge cuando [partes procesales] presentaron [tipo de acción] ante [tribunal competente],
-                alegando vulneración de [derechos fundamentales específicos]. Los hechos que dieron origen a la controversia se relacionan con
-                [descripción específica del conflicto jurídico].
-              </p>
-
-              <p className="text-gray-700 leading-relaxed mb-6">
-                La Corte Constitucional, en aplicación de la jurisprudencia establecida en sentencias [precedentes citados],
-                determinó que los hechos del caso configuran una vulneración del derecho fundamental [específico].
-                Para llegar a esta conclusión, el tribunal aplicó el test de [criterio jurídico específico],
-                considerando los elementos de [análisis técnico] establecidos en la doctrina constitucional vigente.
-              </p>
-
-              <p className="text-gray-700 leading-relaxed mb-6">
-                En consecuencia, la Corte ordenó a [sujetos obligados] [medidas específicas] dentro del plazo de [tiempo determinado],
-                estableciendo mecanismos de seguimiento y verificación de cumplimiento. Esta decisión sienta un precedente importante
-                para casos similares, estableciendo criterios claros para la protección de [derechos específicos].
-              </p>
-
-              <p className="text-gray-700 leading-relaxed mb-6">
-                El impacto de esta sentencia trasciende el caso particular, fortaleciendo la jurisprudencia constitucional en materia de
-                [área jurídica] y proporcionando herramientas jurídicas concretas para la protección efectiva de los derechos fundamentales
-                en situaciones similares.
-              </p>
+              <div className="text-gray-700 leading-relaxed whitespace-pre-line">
+                {article.content || publicArticle.summary}
+              </div>
 
               {/* Llamada a la acción */}
               <div className="bg-blue-50 border-l-4 border-blue-400 p-4 my-8">
                 <p className="text-blue-800 font-medium">
-                  📄 <strong>Descarga la sentencia completa</strong> - Accede al documento oficial de esta decisión totalmente gratis.
+                  📄 <strong>Descarga el documento completo</strong> - Accede al documento oficial de esta decisión totalmente gratis.
                 </p>
               </div>
             </div>
 
             {/* Tags del artículo */}
-            {article.tags.length > 0 && (
+            {publicArticle.tags && publicArticle.tags.length > 0 && (
               <div className="mt-8 pt-6 border-t border-gray-200">
                 <h3 className="text-sm font-medium text-gray-700 mb-3">Etiquetas:</h3>
                 <div className="flex flex-wrap gap-2">
-                  {article.tags.map((tag, index) => (
+                  {publicArticle.tags.map((tag, index) => (
                     <span
                       key={index}
                       className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 transition-colors cursor-pointer"
@@ -286,43 +322,34 @@ export default function PublicArticlePage() {
         </div>
 
         {/* Artículos relacionados */}
-        {relatedArticles.length > 0 && (
-          <div className="bg-gray-50 border-t border-gray-200">
-            <div className="max-w-7xl mx-auto px-6 sm:px-8 py-12">
-              <div className="text-center mb-8">
-                <h2 
-                  className="text-2xl sm:text-3xl font-bold mb-4"
-                  style={{ color: '#04315a' }}
-                >
-                  Artículos Relacionados
-                </h2>
-                <p className="text-gray-600">
-                  Otros artículos que podrían interesarte sobre el mismo tema
-                </p>
-                
-                {/* Línea decorativa */}
-                <div className="mt-4 flex justify-center">
-                  <div 
-                    className="h-1 w-24 rounded-full"
-                    style={{ background: 'linear-gradient(to right, #04315a, #40f3f2)' }}
-                  ></div>
-                </div>
-              </div>
+        <div className="bg-gray-50 border-t border-gray-200">
+          <div className="max-w-7xl mx-auto px-6 sm:px-8 py-12">
+            <div className="text-center mb-8">
+              <h2
+                className="text-2xl sm:text-3xl font-bold mb-4"
+                style={{ color: '#04315a' }}
+              >
+                Artículos Relacionados
+              </h2>
+              <p className="text-gray-600">
+                Otros artículos que podrían interesarte sobre el mismo tema
+              </p>
 
-              <div className="grid gap-6 sm:gap-8 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
-                {relatedArticles.map((relatedArticle) => (
-                  <ArticleCard 
-                    key={relatedArticle.id}
-                    article={relatedArticle}
-                    layout="vertical"
-                    size="medium"
-                    className="h-full"
-                  />
-                ))}
+              {/* Línea decorativa */}
+              <div className="mt-4 flex justify-center">
+                <div
+                  className="h-1 w-24 rounded-full"
+                  style={{ background: 'linear-gradient(to right, #04315a, #40f3f2)' }}
+                ></div>
               </div>
             </div>
+
+            {/* TODO: Implementar lógica para obtener artículos relacionados del API */}
+            <div className="text-center text-gray-500">
+              <p>Los artículos relacionados se mostrarán aquí próximamente.</p>
+            </div>
           </div>
-        )}
+        </div>
       </article>
       
       <PublicFooter />

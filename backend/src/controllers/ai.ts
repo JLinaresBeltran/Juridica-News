@@ -41,6 +41,19 @@ const generateMetadataSchema = z.object({
   model: z.enum(['gpt4o-mini', 'gemini']).optional(),
 });
 
+const analyzeSEOSchema = z.object({
+  metaTitle: z.string().optional(),
+  metaDescription: z.string().optional(),
+  url: z.string().optional(),
+  h1Title: z.string().min(1),
+  h2Subtitles: z.array(z.string()).optional().default([]),
+  keywords: z.array(z.string()).min(1),
+  articleContent: z.string().min(1),
+  imageDescription: z.string().optional(),
+  section: z.string().min(1),
+  model: z.enum(['gpt4o-mini', 'gemini']).optional(),
+});
+
 const selectTitleSchema = z.object({
   documentId: z.string().cuid(),
   selectedTitle: z.string().min(1),
@@ -283,7 +296,7 @@ router.post('/generate-metadata', validateRequest(generateMetadataSchema), async
       articleTitleLength: articleTitle.length,
       articleContentLength: articleContent.length,
       section,
-      model: model || 'gpt4o-mini',
+      model: model || 'gemini',
       userId: req.user.id
     });
 
@@ -292,7 +305,7 @@ router.post('/generate-metadata', validateRequest(generateMetadataSchema), async
       articleContent,
       articleTitle,
       section,
-      model || 'gpt4o-mini'
+      model || 'gemini'
     );
 
     if (!metadata) {
@@ -318,6 +331,87 @@ router.post('/generate-metadata', validateRequest(generateMetadataSchema), async
     logger.error('❌ Error generando metadata SEO', { error, userId: req.user.id });
     res.status(500).json({
       error: 'Failed to generate metadata',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/ai/analyze-seo:
+ *   post:
+ *     summary: Analyze SEO elements strategically using AI
+ *     tags: [AI Services]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.post('/analyze-seo', validateRequest(analyzeSEOSchema), async (req: Request, res: Response) => {
+  try {
+    const {
+      metaTitle,
+      metaDescription,
+      url,
+      h1Title,
+      h2Subtitles,
+      keywords,
+      articleContent,
+      imageDescription,
+      section,
+      model
+    } = req.body;
+
+    logger.info('🎯 Iniciando análisis SEO estratégico con IA', {
+      h1TitleLength: h1Title.length,
+      articleContentLength: articleContent.length,
+      keywordsCount: keywords.length,
+      hasMetaTitle: !!metaTitle,
+      hasMetaDescription: !!metaDescription,
+      hasUrl: !!url,
+      hasImageDescription: !!imageDescription,
+      section,
+      model: model || 'gpt4o-mini',
+      userId: req.user.id
+    });
+
+    // Analyze SEO strategically using AI
+    const analysis = await analyzeSEOWithAI({
+      metaTitle: metaTitle || '',
+      metaDescription: metaDescription || '',
+      url: url || '',
+      h1Title,
+      h2Subtitles: h2Subtitles || [],
+      keywords,
+      articleContent,
+      imageDescription: imageDescription || '',
+      section,
+      model: model || 'gpt4o-mini'
+    });
+
+    if (!analysis) {
+      return res.status(500).json({
+        error: 'Failed to analyze SEO'
+      });
+    }
+
+    res.json({
+      data: analysis,
+      message: 'SEO analysis completed successfully'
+    });
+
+    logger.info('✅ Análisis SEO completado exitosamente', {
+      userId: req.user.id,
+      model: analysis.modelUsed,
+      score: analysis.score,
+      classification: analysis.classification,
+      strengthsCount: analysis.recommendations.strengths.length,
+      improvementsCount: analysis.recommendations.improvements.length,
+      criticalIssuesCount: analysis.recommendations.criticalIssues.length
+    });
+
+  } catch (error) {
+    logger.error('❌ Error en análisis SEO', { error, userId: req.user.id });
+    res.status(500).json({
+      error: 'Failed to analyze SEO',
       message: error instanceof Error ? error.message : 'Unknown error'
     });
   }
@@ -435,7 +529,7 @@ async function generateArticleWithAI(
 
     // Get full document content - use fullTextContent if available, fallback to content
     let documentContent = document.fullTextContent || document.content;
-    
+
     // If no content stored, try to fetch from URL
     if (!documentContent || documentContent.length < 100) {
       if (document.url) {
@@ -542,7 +636,11 @@ async function generateArticleContentWithAI(
 
   if (model === 'openai') {
     const OpenAI = (await import('openai')).default;
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+      timeout: 60000, // 1 minuto de timeout para generación de artículos
+      maxRetries: 2 // Máximo 2 reintentos
+    });
 
     const prompt = buildArticlePrompt(document, content, maxWords, tone, customInstructions);
     
@@ -593,7 +691,7 @@ async function generateArticleContentWithAI(
     // Gemini implementation
     const { GoogleGenerativeAI } = await import('@google/generative-ai');
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-    const geminiModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const geminiModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
     const prompt = buildArticlePrompt(document, content, maxWords, tone, customInstructions);
     const result = await geminiModel.generateContent([prompt]);
@@ -605,7 +703,7 @@ async function generateArticleContentWithAI(
     return {
       content: articleText,
       wordCount: articleText.split(' ').length,
-      modelUsed: 'gemini-1.5-flash',
+      modelUsed: 'gemini-2.5-flash',
       generationTime: Date.now(),
       metadata: {
         tone,
@@ -734,7 +832,11 @@ async function generateTitlesWithAI(
     
     if (modelToUse === 'openai') {
       const OpenAI = (await import('openai')).default;
-      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      const openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+        timeout: 30000, // 30 segundos para evitar colgados
+        maxRetries: 2
+      });
 
       const prompt = buildTitlePrompt(document, style, count, articleContent, includeSubtitle);
 
@@ -790,7 +892,7 @@ async function generateTitlesWithAI(
       // Gemini implementation for titles
       const { GoogleGenerativeAI } = await import('@google/generative-ai');
       const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-      const geminiModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      const geminiModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
       const prompt = buildTitlePrompt(document, style, count, articleContent, includeSubtitle);
 
@@ -890,7 +992,7 @@ async function generateTitlesWithAI(
           subtitles: includeSubtitle ? titleSets.map((set: any) => set.realSubtitle || '') : [],
           metaTitles: titleSets.map((set: any) => set.metaTitle || ''),
           style,
-          modelUsed: 'gemini-1.5-flash',
+          modelUsed: 'gemini-2.5-flash',
           generationTime: Date.now(),
           includeSubtitle
         };
@@ -901,7 +1003,7 @@ async function generateTitlesWithAI(
         titles: parsedResult.titles || [],
         subtitles: includeSubtitle ? (parsedResult.subtitles || []) : [],
         style,
-        modelUsed: 'gemini-1.5-flash',
+        modelUsed: 'gemini-2.5-flash',
         generationTime: Date.now(),
         includeSubtitle
       };
@@ -1308,7 +1410,11 @@ async function generateImagesWithDALLE(
   }
 
   const OpenAI = (await import('openai')).default;
-  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+    timeout: 90000, // 1.5 minutos para generación de imágenes
+    maxRetries: 2
+  });
 
   logger.info('🎨 DEBUG: Prompt para DALL-E', {
     prompt,
@@ -1432,7 +1538,11 @@ async function generateMetadataWithAI(
     
     if (modelToUse === 'openai') {
       const OpenAI = (await import('openai')).default;
-      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      const openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+        timeout: 30000, // 30 segundos para evitar colgados
+        maxRetries: 2
+      });
 
       const prompt = buildMetadataSEOPrompt(articleContent, articleTitle, section);
       
@@ -1488,7 +1598,7 @@ async function generateMetadataWithAI(
       // Gemini implementation
       const { GoogleGenerativeAI } = await import('@google/generative-ai');
       const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-      const geminiModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      const geminiModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
       const prompt = buildMetadataSEOPrompt(articleContent, articleTitle, section);
       const result = await geminiModel.generateContent([prompt]);
@@ -1532,7 +1642,7 @@ async function generateMetadataWithAI(
         primaryKeyword: parsedResult.primaryKeyword || '',
         keywords: parsedResult.keywords || [],
         schemaDescription: parsedResult.schemaDescription || '',
-        modelUsed: 'gemini-1.5-flash',
+        modelUsed: 'gemini-2.5-flash',
         generationTime: Date.now(),
         metadata: {
           section,
@@ -1563,55 +1673,417 @@ Sección: ${section}
 Contenido: ${articleContent}
 
 **TU MISIÓN:**
-Generar metadata SEO optimizada para posicionar este artículo jurídico en motores de búsqueda, dirigido a abogados y profesionales del derecho colombiano.
+Generar metadata SEO de alta precisión para posicionar este artículo jurídico, capturando tanto las búsquedas de expertos (que conocen el identificador) como las búsquedas temáticas (que buscan resolver un problema jurídico).
 
 **DEBES GENERAR:**
 
 1. **METADESCRIPCIÓN (description)**:
-   - LÍMITE ESTRICTO: 160 caracteres máximo
-   - Incluir keyword principal
-   - Llamada a la acción implícita
-   - Mencionar el beneficio específico para abogados
-   - Ejemplo: "Análisis completo de la Sentencia T-375: nuevos criterios para tutelas en salud. Precedente clave para litigios. Descarga gratis."
+   - LÍMITE ESTRICTO: 160 caracteres máximo.
+   - DEBE comenzar con la keyword principal (ej. "Análisis de la Sentencia...").
+   - DEBE incluir un beneficio tangible para el profesional (ej. "implicaciones procesales", "precedente clave").
+   - DEBE terminar con un llamado a la acción (CTA) claro y directo (ej. "Descargue la sentencia.", "Análisis completo aquí.").
 
 2. **KEYWORD PRINCIPAL (primaryKeyword)**:
-   - Frase de 2-4 palabras que mejor represente el tema
-   - Basada en términos que buscarían los abogados
-   - Ejemplo: "tutela derecho salud", "precedente constitucional", "responsabilidad civil"
+   - Frase de 2-5 palabras que es el identificador único del tema.
+   - PRIORIDAD MÁXIMA: Si el artículo es sobre una sentencia, ley o decreto, la keyword principal DEBE SER su identificador oficial (ej. "Sentencia T-256/25", "Ley 2195 de 2022"). Este es el término de mayor precisión.
+   - Si no hay identificador, usar el concepto jurídico central (ej. "responsabilidad médica del estado").
 
 3. **PALABRAS CLAVE ADICIONALES (keywords)**:
-   - Array de 5-8 keywords relacionadas
-   - Incluir variaciones y términos LSI
-   - Mezclar términos técnicos y coloquiales
-   - Ejemplo: ["jurisprudencia", "corte constitucional", "derechos fundamentales", "precedente judicial"]
+   - Array de 6 a 8 keywords semánticamente relacionadas.
+   // >> AJUSTE CLAVE: Se instruye al modelo a que la primera keyword sea la búsqueda temática principal.
+   - **CRÍTICO: La PRIMERA keyword de esta lista debe ser la frase de búsqueda temática más probable que usaría un abogado que NO conoce el número de la sentencia.**
+   - Ejemplo de primera keyword temática: "sentencia corte constitucional moderación contenido redes sociales".
+   - Las SIGUIENTES keywords (de la 2 a la 8) deben cubrir las entidades y conceptos del caso:
+     1. La corporación que emite la decisión (ej. "Corte Constitucional").
+     2. Los conceptos jurídicos clave (ej. "derecho al debido proceso", "libertad de expresión").
+     3. Las partes involucradas si son relevantes (ej. "Meta Platforms").
+     4. El área del derecho (ej. "jurisprudencia constitucional").
+     5. Sinónimos o términos relacionados (ej. "precedente judicial", "acción de tutela").
 
 4. **DESCRIPCIÓN SCHEMA.ORG (schemaDescription)**:
-   - LÍMITE: 200 caracteres máximo
-   - Descripción técnica para rich snippets
-   - Enfoque en el valor informativo del artículo
-   - Ejemplo: "Análisis jurisprudencial detallado de sentencia colombiana con implicaciones prácticas para el ejercicio profesional del derecho."
+   - LÍMITE ESTRICTO: 200 caracteres máximo.
+   - DEBE ser un sumario denso y fáctico del caso, no una descripción del artículo.
+   - Estructura recomendada: "[Corporación] en [Sentencia/Ley] resuelve [problema jurídico] ordenando a [parte demandada] garantizar [derecho vulnerado]."
+   - Ejemplo: "Análisis jurídico de la Sentencia T-256/25 de la Corte Constitucional, que ordena a Meta Platforms garantizar el debido proceso y la libertad de expresión en la moderación de contenidos."
 
-**CRITERIOS DE OPTIMIZACIÓN:**
-- Priorizar términos que usan abogados colombianos
-- Incluir el área específica del derecho (${section})
-- Considerar la intención de búsqueda informacional
-- Optimizar para featured snippets
-- Usar lenguaje técnico pero accesible
+**CRITERIO CLAVE: ESPECIFICIDAD Y ENTIDADES**
+- La precisión es más importante que la creatividad. Prioriza siempre los nombres propios, números de sentencias/leyes y conceptos jurídicos exactos mencionados en el texto.
 
 **FORMATO DE RESPUESTA:**
 Responde únicamente en formato JSON válido:
 {
   "description": "metadescripción de máximo 160 caracteres",
-  "primaryKeyword": "keyword principal de 2-4 palabras",
-  "keywords": ["keyword1", "keyword2", "keyword3", "keyword4", "keyword5"],
-  "schemaDescription": "descripción para schema.org de máximo 200 caracteres"
+  "primaryKeyword": "keyword principal, priorizando identificador oficial",
+  "keywords": [
+    "frase de búsqueda temática principal",
+    "keyword_entidad_1",
+    "keyword_concepto_2",
+    "keyword_parte_3",
+    "...",
+    "keyword_sinonimo_N"
+  ],
+  "schemaDescription": "sumario fáctico y denso del caso para schema.org, máximo 200 caracteres"
+}
+`;
 }
 
-**CRÍTICO:**
-- Respetar límites de caracteres estrictamente
-- Basar todo en el contenido del artículo proporcionado
-- Mantener precisión jurídica absoluta
-- No inventar información no presente en el artículo
+// Helper function to analyze SEO strategically with AI
+async function analyzeSEOWithAI(request: {
+  metaTitle: string;
+  metaDescription: string;
+  url: string;
+  h1Title: string;
+  h2Subtitles: string[];
+  keywords: string[];
+  articleContent: string;
+  imageDescription: string;
+  section: string;
+  model: 'gpt4o-mini' | 'gemini';
+}) {
+  try {
+    logger.info('🎯 Iniciando análisis SEO estratégico con IA', {
+      model: request.model,
+      h1TitleLength: request.h1Title.length,
+      articleContentLength: request.articleContent.length,
+      keywordsCount: request.keywords.length,
+      section: request.section
+    });
+
+    const modelToUse = request.model === 'gemini' ? 'gemini' : 'openai';
+
+    if (modelToUse === 'openai') {
+      const OpenAI = (await import('openai')).default;
+      const openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+        timeout: 30000, // 30 segundos para evitar colgados
+        maxRetries: 2
+      });
+
+      const prompt = buildSEOAnalysisPrompt(request);
+
+      logger.info('📋 Prompt construido para análisis SEO con OpenAI', {
+        promptLength: prompt.length,
+        promptPreview: prompt.substring(0, 300) + '...'
+      });
+
+      const response = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: `Eres un consultor experto en SEO jurídico especializado en análisis estratégico de elementos de optimización para artículos sobre jurisprudencia colombiana. Tu enfoque es moderno: priorizas el posicionamiento estratégico de keywords sobre la densidad matemática, y evalúas cada elemento SEO según su impacto real en el posicionamiento.`
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        max_tokens: 1500,
+        temperature: 0.3, // Baja temperatura para análisis consistente
+        response_format: { type: "json_object" }
+      });
+
+      const result = response.choices[0]?.message?.content;
+      if (!result) throw new Error('No content generated');
+
+      const parsedResult = JSON.parse(result);
+
+      logger.info('✅ Análisis SEO generado exitosamente con OpenAI', {
+        score: parsedResult.score,
+        classification: parsedResult.classification,
+        strengthsCount: parsedResult.recommendations?.strengths?.length || 0,
+        improvementsCount: parsedResult.recommendations?.improvements?.length || 0,
+        criticalIssuesCount: parsedResult.recommendations?.criticalIssues?.length || 0,
+        usageTokens: response.usage
+      });
+
+      return {
+        score: parsedResult.score || 0,
+        classification: parsedResult.classification || 'Regular',
+        analysis: parsedResult.analysis || {},
+        recommendations: parsedResult.recommendations || {
+          strengths: [],
+          improvements: [],
+          criticalIssues: []
+        },
+        modelUsed: 'gpt-4o-mini',
+        generationTime: Date.now(),
+        metadata: {
+          section: request.section,
+          h1Title: request.h1Title,
+          contentLength: request.articleContent.length,
+          keywordsCount: request.keywords.length
+        }
+      };
+
+    } else {
+      // Gemini implementation
+      const { GoogleGenerativeAI } = await import('@google/generative-ai');
+      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+      const geminiModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+
+      const prompt = buildSEOAnalysisPrompt(request);
+      const result = await geminiModel.generateContent([prompt]);
+      const response = await result.response;
+      const text = response.text();
+
+      if (!text) throw new Error('No content generated');
+
+      // Parse JSON response
+      let parsedResult;
+      try {
+        // Limpiar respuesta antes de parsear
+        let cleanedText = text.trim();
+        if (cleanedText.startsWith('```json')) {
+          cleanedText = cleanedText.replace(/```json\s*/, '').replace(/```\s*$/, '');
+        }
+        if (cleanedText.startsWith('```')) {
+          cleanedText = cleanedText.replace(/```\s*/, '').replace(/```\s*$/, '');
+        }
+
+        // Buscar el JSON válido en el texto
+        const jsonMatch = cleanedText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          cleanedText = jsonMatch[0];
+        }
+
+        parsedResult = JSON.parse(cleanedText);
+      } catch (jsonError) {
+        logger.error('Error parseando JSON de Gemini:', jsonError);
+        throw new Error('Invalid JSON response from Gemini');
+      }
+
+      logger.info('✅ Análisis SEO generado exitosamente con Gemini', {
+        score: parsedResult.score,
+        classification: parsedResult.classification,
+        strengthsCount: parsedResult.recommendations?.strengths?.length || 0,
+        improvementsCount: parsedResult.recommendations?.improvements?.length || 0,
+        criticalIssuesCount: parsedResult.recommendations?.criticalIssues?.length || 0
+      });
+
+      return {
+        score: parsedResult.score || 0,
+        classification: parsedResult.classification || 'Regular',
+        analysis: parsedResult.analysis || {},
+        recommendations: parsedResult.recommendations || {
+          strengths: [],
+          improvements: [],
+          criticalIssues: []
+        },
+        modelUsed: 'gemini-2.5-flash',
+        generationTime: Date.now(),
+        metadata: {
+          section: request.section,
+          h1Title: request.h1Title,
+          contentLength: request.articleContent.length,
+          keywordsCount: request.keywords.length
+        }
+      };
+    }
+
+  } catch (error) {
+    logger.error(`Error analyzing SEO with AI: ${error}`);
+    return null;
+  }
+}
+
+// Build specialized SEO analysis prompt
+function buildSEOAnalysisPrompt(request: {
+  metaTitle: string;
+  metaDescription: string;
+  url: string;
+  h1Title: string;
+  h2Subtitles: string[];
+  keywords: string[];
+  articleContent: string;
+  imageDescription: string;
+  section: string;
+}): string {
+  return `
+Actúa como un consultor experto en SEO jurídico especializado en análisis estratégico de elementos de optimización para artículos sobre jurisprudencia colombiana.
+
+**ELEMENTOS SEO A ANALIZAR:**
+
+**META TITLE:** "${request.metaTitle}"
+**META DESCRIPTION:** "${request.metaDescription}"
+**URL:** "${request.url}"
+**TÍTULO H1:** "${request.h1Title}"
+**SUBTÍTULOS H2/H3:** ${JSON.stringify(request.h2Subtitles)}
+**KEYWORDS:** ${JSON.stringify(request.keywords)}
+**META DESCRIPCIÓN DE IMAGEN:** "${request.imageDescription}"
+**SECCIÓN:** "${request.section}"
+
+**CONTENIDO DEL ARTÍCULO:**
+${request.articleContent}
+
+**TU MISIÓN:**
+Realizar un análisis SEO estratégico moderno, evaluando cada elemento según las mejores prácticas actuales para contenido jurídico especializado.
+
+**CRITERIOS DE EVALUACIÓN:**
+
+1. **META TITLE (Título SEO)**:
+   - Longitud óptima (60-65 caracteres)
+   - Inclusión de keyword principal
+   - Atractivo para generar clics
+   - Diferenciación del H1
+
+2. **META DESCRIPTION**:
+   - Longitud óptima (120-160 caracteres)
+   - Inclusión de keyword principal
+   - Presencia de CTA efectivo
+   - Resumen atractivo y persuasivo
+
+3. **URL**:
+   - Longitud y legibilidad
+   - Inclusión de keyword principal
+   - Uso correcto de guiones
+   - Estructura SEO-friendly
+
+4. **TÍTULO H1**:
+   - Unicidad respecto al Meta Title
+   - Inclusión natural de keyword
+   - Capacidad de resumir el tema
+   - Engagement del lector
+
+5. **SUBTÍTULOS H2/H3**:
+   - Jerarquía lógica y coherente
+   - Inclusión de keywords secundarias
+   - Mejora de legibilidad y escaneabilidad
+   - Distribución temática
+
+6. **ESTRATEGIA DE KEYWORDS MODERNA**:
+   **Keyword Principal (El Ancla)** - Verificar presencia estratégica en:
+   - H1 (título principal)
+   - URL
+   - Meta descripción
+   - Primer párrafo del artículo
+   - Al menos un subtítulo H2/H3
+
+   **Keywords Adicionales (Contexto y Riqueza)** - Evaluar:
+   - Naturalidad como sinónimos
+   - Distribución enriquecedora del contenido
+   - Capacidad de responder búsquedas relacionadas
+   - Relevancia temática
+
+7. **PALABRAS CLAVE SEMÁNTICAS (LSI)**:
+   - Identificación de sinónimos jurídicos
+   - Términos relacionados contextuales
+   - Riqueza semántica del contenido
+
+8. **META DESCRIPCIÓN DE IMAGEN**:
+   - Optimización para SEO visual
+   - Accesibilidad y descripción clara
+   - Relevancia con el contenido jurídico
+
+9. **CALIDAD DEL CONTENIDO**:
+   - Profundidad del análisis jurídico
+   - Originalidad y valor único
+   - Respuesta a intención de búsqueda legal
+   - Estructura y organización clara
+
+**FORMATO DE RESPUESTA:**
+Responde únicamente en formato JSON válido:
+
+{
+  "score": 85,
+  "classification": "Excelente",
+  "analysis": {
+    "metaTitle": {
+      "score": 90,
+      "status": "Excelente",
+      "issues": [],
+      "recommendations": []
+    },
+    "metaDescription": {
+      "score": 80,
+      "status": "Bueno",
+      "issues": ["Podría incluir CTA más directo"],
+      "recommendations": ["Agregar llamada a acción específica"]
+    },
+    "url": {
+      "score": 85,
+      "status": "Excelente",
+      "issues": [],
+      "recommendations": []
+    },
+    "h1Title": {
+      "score": 90,
+      "status": "Excelente",
+      "issues": [],
+      "recommendations": []
+    },
+    "subtitles": {
+      "score": 75,
+      "status": "Bueno",
+      "issues": ["Falta keyword secundaria en H2"],
+      "recommendations": ["Incluir términos jurídicos relacionados"]
+    },
+    "keywordStrategy": {
+      "score": 95,
+      "principalKeyword": "sentencia t-256-25",
+      "strategicPlacements": {
+        "inH1": true,
+        "inUrl": true,
+        "inMetaDescription": true,
+        "inFirstParagraph": true,
+        "inSubtitle": true
+      },
+      "contextualDistribution": "Excelente",
+      "naturalness": "Muy natural",
+      "issues": [],
+      "recommendations": []
+    },
+    "semanticKeywords": {
+      "score": 80,
+      "lsiTermsFound": ["jurisprudencia constitucional", "debido proceso", "libertad expresión"],
+      "semanticRichness": "Buena",
+      "issues": [],
+      "recommendations": ["Ampliar sinónimos jurídicos"]
+    },
+    "imageOptimization": {
+      "score": 70,
+      "accessibility": "Buena",
+      "seoRelevance": "Regular",
+      "issues": ["Descripción genérica"],
+      "recommendations": ["Especificar contenido jurídico"]
+    },
+    "contentQuality": {
+      "score": 90,
+      "depth": "Profundo",
+      "originality": "Alta",
+      "searchIntent": "Satisface completamente",
+      "structure": "Excelente",
+      "issues": [],
+      "recommendations": []
+    }
+  },
+  "recommendations": {
+    "strengths": [
+      "Keyword principal perfectamente posicionada en puntos estratégicos",
+      "Estructura H1-H2-H3 lógica y bien organizada",
+      "Contenido profundo y original sobre jurisprudencia"
+    ],
+    "improvements": [
+      "Agregar CTA más directo en meta descripción",
+      "Ampliar sinónimos jurídicos en el contenido",
+      "Especificar más la descripción de imagen"
+    ],
+    "criticalIssues": []
+  }
+}
+
+**ESCALAS DE PUNTUACIÓN:**
+- 95-100: Perfecto
+- 80-94: Excelente
+- 60-79: Bueno
+- 40-59: Regular
+- 0-39: Necesita mejoras
+
+**IMPORTANTE:**
+- Prioriza el posicionamiento estratégico sobre la densidad matemática
+- Evalúa la naturalidad y fluidez del contenido
+- Considera el contexto jurídico colombiano
+- Enfócate en la intención de búsqueda legal
 `;
 }
 

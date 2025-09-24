@@ -219,15 +219,61 @@ export default function ImageLibraryModal({
     }
   }
 
+  // Función para asociar imagen con documento
+  const associateImageWithDocument = async (imageId: string, documentId: string) => {
+    try {
+      const response = await fetch('/api/storage/images/associate-document', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          imageId: imageId,
+          documentId: documentId
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Error asociando imagen con documento')
+      }
+
+      const result = await response.json()
+      console.log('✅ Imagen asociada con documento:', result)
+      return true
+    } catch (error) {
+      console.error('❌ Error asociando imagen con documento:', error)
+      return false
+    }
+  }
+
   // Función para seleccionar imagen
   const handleSelectImage = async (image: LibraryImage) => {
     await markImageAsUsed(image.id)
+
+    // ✅ ASOCIAR IMAGEN CON DOCUMENTO ACTUAL
+    if (currentDocumentId) {
+      console.log('🔗 Asociando imagen con documento:', {
+        imageId: image.id,
+        documentId: currentDocumentId
+      })
+
+      const associated = await associateImageWithDocument(image.id, currentDocumentId)
+      if (associated) {
+        console.log('✅ Imagen asociada exitosamente con el documento')
+      } else {
+        console.warn('⚠️ No se pudo asociar la imagen con el documento, pero continuando...')
+      }
+    }
+
     console.log('🔍 ImageLibraryModal - Imagen seleccionada:', {
       url: image.url,
       prompt: image.prompt,
       imageId: image.imageId,
-      metaDescription: image.metaDescription
+      metaDescription: image.metaDescription,
+      currentDocumentId
     })
+
     onSelectImage(image.url, image.prompt, image.imageId, image.metaDescription)
     onClose()
   }

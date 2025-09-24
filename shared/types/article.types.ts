@@ -23,6 +23,17 @@ export enum GenerationTone {
   ACCESSIBLE = 'ACCESSIBLE'
 }
 
+export enum JudicialEntity {
+  CORTE_CONSTITUCIONAL = 'CORTE_CONSTITUCIONAL',
+  CORTE_SUPREMA = 'CORTE_SUPREMA',
+  CONSEJO_ESTADO = 'CONSEJO_ESTADO',
+  TRIBUNAL_SUPERIOR = 'TRIBUNAL_SUPERIOR',
+  FISCALIA_GENERAL = 'FISCALIA_GENERAL',
+  PROCURADURIA_GENERAL = 'PROCURADURIA_GENERAL',
+  CONTRALORIA_GENERAL = 'CONTRALORIA_GENERAL',
+  MINISTERIO_JUSTICIA = 'MINISTERIO_JUSTICIA'
+}
+
 export interface AIGenerationConfig {
   targetLength: number;
   tone: GenerationTone;
@@ -43,43 +54,51 @@ export interface AIGenerationMetadata {
 export interface Article {
   id: string;
   sourceDocumentId: string;
-  
+
   // Content
   title: string;
   slug: string;
   content: string;
   summary: string;
-  
+
   // SEO
   seoTitle?: string;
   metaDescription?: string;
   keywords: string[];
   canonicalUrl?: string;
-  
+
   // Categorization
   legalArea: LegalArea;
   publicationSection: PublicationSection;
   tags: string[];
-  
+
   // Editorial Status
   status: ArticleStatus;
   authorId: string;
   editorId?: string;
-  
+
   // Publication
   scheduledPublication?: string;
   publishedAt?: string;
-  
+
+  // Portal Public Controls
+  isGeneral: boolean;
+  isUltimasNoticias: boolean;
+  entidadSeleccionada?: JudicialEntity;
+  isDestacadoSemana: boolean;
+  posicionGeneral?: number;
+  posicionUltimasNoticias?: number;
+
   // Metrics
   wordCount: number;
   readingTime: number;
   viewCount?: number;
   engagementScore?: number;
-  
+
   // AI Metadata
   aiGeneratedSections: AIGenerationMetadata[];
   generationParameters?: AIGenerationConfig;
-  
+
   // Timestamps
   createdAt: string;
   updatedAt: string;
@@ -138,4 +157,19 @@ export interface ArticleUpdateRequest {
   legalArea?: LegalArea;
   publicationSection?: PublicationSection;
   tags?: string[];
+}
+
+export interface ArticlePublicationSettings {
+  isGeneral: boolean;
+  isUltimasNoticias: boolean;
+  entidadSeleccionada?: JudicialEntity;
+  isDestacadoSemana: boolean;
+}
+
+export interface PublicPortalFilters {
+  page?: number;
+  limit?: number;
+  legalArea?: LegalArea;
+  entidad?: JudicialEntity;
+  search?: string;
 }

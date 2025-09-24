@@ -13,6 +13,16 @@ const publicFiltersSchema = z.object({
   limit: z.coerce.number().min(1).max(50).default(20),
   section: z.enum(['ACTUALIZACIONES_NORMATIVAS', 'JURISPRUDENCIA', 'ANALISIS_PRACTICO', 'DOCTRINA', 'MAS_RECIENTES']).optional(),
   legalArea: z.enum(['CIVIL', 'PENAL', 'MERCANTIL', 'LABORAL', 'ADMINISTRATIVO', 'FISCAL', 'CONSTITUCIONAL']).optional(),
+  entidad: z.enum([
+    'CORTE_CONSTITUCIONAL',
+    'CORTE_SUPREMA',
+    'CONSEJO_ESTADO',
+    'TRIBUNAL_SUPERIOR',
+    'FISCALIA_GENERAL',
+    'PROCURADURIA_GENERAL',
+    'CONTRALORIA_GENERAL',
+    'MINISTERIO_JUSTICIA'
+  ]).optional(),
   search: z.string().optional(),
 });
 
@@ -35,6 +45,7 @@ router.get('/articles', validateRequest(publicFiltersSchema, 'query'), async (re
     
     if (filters.section) where.publicationSection = filters.section;
     if (filters.legalArea) where.legalArea = filters.legalArea;
+    if (filters.entidad) where.entidadSeleccionada = filters.entidad;
     
     if (filters.search) {
       where.OR = [
@@ -63,13 +74,25 @@ router.get('/articles', validateRequest(publicFiltersSchema, 'query'), async (re
           tags: true,
           wordCount: true,
           readingTime: true,
-          viewCount: true,
+          views: true,
           publishedAt: true,
           author: {
             select: {
               firstName: true,
               lastName: true,
               department: true,
+            }
+          },
+          generatedImages: {
+            select: {
+              id: true,
+              filename: true,
+              localPath: true,
+              originalUrl: true,
+              width: true,
+              height: true,
+              format: true,
+              metaDescription: true,
             }
           }
         }
@@ -119,7 +142,7 @@ router.get('/articles/:slug', async (req: Request, res: Response) => {
         slug: true,
         content: true,
         summary: true,
-        seoTitle: true,
+        metaTitle: true,
         metaDescription: true,
         keywords: true,
         tags: true,
@@ -127,13 +150,13 @@ router.get('/articles/:slug', async (req: Request, res: Response) => {
         publicationSection: true,
         wordCount: true,
         readingTime: true,
-        viewCount: true,
+        views: true,
         publishedAt: true,
         author: {
           select: {
             firstName: true,
             lastName: true,
-            professionalTitle: true,
+            department: true,
           }
         },
         sourceDocument: {
@@ -142,6 +165,18 @@ router.get('/articles/:slug', async (req: Request, res: Response) => {
             source: true,
             url: true,
             publicationDate: true,
+          }
+        },
+        generatedImages: {
+          select: {
+            id: true,
+            filename: true,
+            localPath: true,
+            originalUrl: true,
+            width: true,
+            height: true,
+            format: true,
+            metaDescription: true,
           }
         }
       }
@@ -157,7 +192,7 @@ router.get('/articles/:slug', async (req: Request, res: Response) => {
     await prisma.article.update({
       where: { id: article.id },
       data: {
-        viewCount: { increment: 1 }
+        views: { increment: 1 }
       }
     });
 
@@ -333,6 +368,257 @@ router.get('/preview', async (req: Request, res: Response) => {
     
     res.status(500).json({
       error: 'Failed to fetch document preview',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/public/portal-sections:
+ *   get:
+ *     summary: Get articles organized by portal sections
+ *     tags: [Public]
+ */
+router.get('/portal-sections', async (req: Request, res: Response) => {
+  try {
+    // Obtener artículos para cada sección del portal
+    const [general, ultimasNoticias, entidades, destacados] = await Promise.all([
+      // Sección General (máximo 2)
+      prisma.article.findMany({
+        where: {
+          status: 'PUBLISHED',
+          isGeneral: true
+        },
+        orderBy: { posicionGeneral: 'asc' },
+        take: 2,
+        select: {
+          id: true,
+          title: true,
+          slug: true,
+          summary: true,
+          publishedAt: true,
+          readingTime: true,
+          views: true,
+          author: {
+            select: {
+              firstName: true,
+              lastName: true,
+            }
+          },
+          generatedImages: {
+            select: {
+              id: true,
+              filename: true,
+              localPath: true,
+              originalUrl: true,
+              width: true,
+              height: true,
+              format: true,
+              metaDescription: true,
+            }
+          }
+        }
+      }),
+
+      // Últimas Noticias (máximo 5)
+      prisma.article.findMany({
+        where: {
+          status: 'PUBLISHED',
+          isUltimasNoticias: true
+        },
+        orderBy: { posicionUltimasNoticias: 'asc' },
+        take: 5,
+        select: {
+          id: true,
+          title: true,
+          slug: true,
+          publishedAt: true,
+          readingTime: true,
+          generatedImages: {
+            select: {
+              id: true,
+              filename: true,
+              localPath: true,
+              originalUrl: true,
+              width: true,
+              height: true,
+              format: true,
+              metaDescription: true,
+            }
+          }
+        }
+      }),
+
+      // Artículos por Entidades
+      prisma.article.findMany({
+        where: {
+          status: 'PUBLISHED',
+          entidadSeleccionada: { not: null }
+        },
+        orderBy: { publishedAt: 'desc' },
+        take: 10,
+        select: {
+          id: true,
+          title: true,
+          slug: true,
+          summary: true,
+          entidadSeleccionada: true,
+          publishedAt: true,
+          readingTime: true,
+          generatedImages: {
+            select: {
+              id: true,
+              filename: true,
+              localPath: true,
+              originalUrl: true,
+              width: true,
+              height: true,
+              format: true,
+              metaDescription: true,
+            }
+          }
+        }
+      }),
+
+      // Destacados de la Semana (máximo 4)
+      prisma.article.findMany({
+        where: {
+          status: 'PUBLISHED',
+          isDestacadoSemana: true
+        },
+        orderBy: { publishedAt: 'desc' },
+        take: 4,
+        select: {
+          id: true,
+          title: true,
+          slug: true,
+          summary: true,
+          publishedAt: true,
+          readingTime: true,
+          author: {
+            select: {
+              firstName: true,
+              lastName: true,
+            }
+          },
+          generatedImages: {
+            select: {
+              id: true,
+              filename: true,
+              localPath: true,
+              originalUrl: true,
+              width: true,
+              height: true,
+              format: true,
+              metaDescription: true,
+            }
+          }
+        }
+      })
+    ]);
+
+    // Agrupar artículos por entidad
+    const entidadesGrouped = entidades.reduce((acc, article) => {
+      const entidad = article.entidadSeleccionada!;
+      if (!acc[entidad]) {
+        acc[entidad] = [];
+      }
+      acc[entidad].push(article);
+      return acc;
+    }, {} as Record<string, typeof entidades>);
+
+    res.json({
+      data: {
+        general,
+        ultimasNoticias,
+        entidades: entidadesGrouped,
+        destacados
+      }
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      error: 'Failed to retrieve portal sections',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/public/articles/by-legal-area/{legalArea}:
+ *   get:
+ *     summary: Get articles by legal area for section pages
+ *     tags: [Public]
+ */
+router.get('/articles/by-legal-area/:legalArea', async (req: Request, res: Response) => {
+  try {
+    const { legalArea } = req.params;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const skip = (page - 1) * limit;
+
+    const where = {
+      status: 'PUBLISHED',
+      legalArea: legalArea.toUpperCase()
+    };
+
+    const [articles, total] = await Promise.all([
+      prisma.article.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { publishedAt: 'desc' },
+        select: {
+          id: true,
+          title: true,
+          slug: true,
+          summary: true,
+          publishedAt: true,
+          readingTime: true,
+          views: true,
+          tags: true,
+          author: {
+            select: {
+              firstName: true,
+              lastName: true,
+            }
+          },
+          generatedImages: {
+            select: {
+              id: true,
+              filename: true,
+              localPath: true,
+              originalUrl: true,
+              width: true,
+              height: true,
+              format: true,
+              metaDescription: true,
+            }
+          }
+        }
+      }),
+      prisma.article.count({ where })
+    ]);
+
+    const totalPages = Math.ceil(total / limit);
+
+    res.json({
+      data: articles,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      }
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      error: 'Failed to retrieve articles by legal area',
       message: error instanceof Error ? error.message : 'Unknown error'
     });
   }

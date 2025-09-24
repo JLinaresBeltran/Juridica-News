@@ -69,6 +69,72 @@ interface GeneratedMetadata {
   }
 }
 
+interface SEOAnalysisResult {
+  score: number
+  classification: string
+  analysis: {
+    metaTitle: FieldAnalysis
+    metaDescription: FieldAnalysis
+    url: FieldAnalysis
+    h1Title: FieldAnalysis
+    subtitles: FieldAnalysis
+    keywordStrategy: KeywordAnalysis
+    semanticKeywords: LSIAnalysis
+    imageOptimization: ImageAnalysis
+    contentQuality: ContentAnalysis
+  }
+  recommendations: {
+    strengths: string[]
+    improvements: string[]
+    criticalIssues: string[]
+  }
+  modelUsed: string
+  generationTime: number
+  metadata: {
+    section: string
+    h1Title: string
+    contentLength: number
+    keywordsCount: number
+  }
+}
+
+interface FieldAnalysis {
+  score: number
+  status: string
+  issues: string[]
+  recommendations: string[]
+}
+
+interface KeywordAnalysis extends FieldAnalysis {
+  principalKeyword: string
+  strategicPlacements: {
+    inH1: boolean
+    inUrl: boolean
+    inMetaDescription: boolean
+    inFirstParagraph: boolean
+    inSubtitle: boolean
+  }
+  contextualDistribution: string
+  naturalness: string
+}
+
+interface LSIAnalysis extends FieldAnalysis {
+  lsiTermsFound: string[]
+  semanticRichness: string
+}
+
+interface ImageAnalysis extends FieldAnalysis {
+  accessibility: string
+  seoRelevance: string
+}
+
+interface ContentAnalysis extends FieldAnalysis {
+  depth: string
+  originality: string
+  searchIntent: string
+  structure: string
+}
+
 // Request types
 interface GenerateArticleRequest {
   documentId: string
@@ -104,6 +170,19 @@ interface SelectTitleRequest {
 interface GenerateMetadataRequest {
   articleContent: string
   articleTitle: string
+  section: string
+  model?: AIModel
+}
+
+interface SEOAnalysisRequest {
+  metaTitle?: string
+  metaDescription?: string
+  url?: string
+  h1Title: string
+  h2Subtitles?: string[]
+  keywords: string[]
+  articleContent: string
+  imageDescription?: string
   section: string
   model?: AIModel
 }
@@ -271,7 +350,7 @@ class AIService {
   async generateMetadata(request: GenerateMetadataRequest): Promise<GeneratedMetadata> {
     console.log('🎯 aiService.generateMetadata() llamado')
     console.log('📋 Request completo:', request)
-    
+
     try {
       const payload = {
         articleContent: request.articleContent,
@@ -292,7 +371,7 @@ class AIService {
       return response.data.data
     } catch (error: any) {
       console.error('Error generating metadata:', error)
-      
+
       // Provide user-friendly error messages
       if (error.response?.status === 400) {
         throw new Error(error.response.data?.message || 'Parámetros de solicitud inválidos')
@@ -300,6 +379,51 @@ class AIService {
         throw new Error('Error interno del servidor. Por favor intenta de nuevo.')
       } else {
         throw new Error('Error al generar metadata SEO. Verifica tu conexión e intenta de nuevo.')
+      }
+    }
+  }
+
+  /**
+   * Analyze SEO elements strategically using AI
+   */
+  async analyzeSEO(request: SEOAnalysisRequest): Promise<SEOAnalysisResult> {
+    console.log('🎯 aiService.analyzeSEO() llamado')
+    console.log('📋 Request completo:', request)
+
+    try {
+      const payload = {
+        metaTitle: request.metaTitle || '',
+        metaDescription: request.metaDescription || '',
+        url: request.url || '',
+        h1Title: request.h1Title,
+        h2Subtitles: request.h2Subtitles || [],
+        keywords: request.keywords,
+        articleContent: request.articleContent,
+        imageDescription: request.imageDescription || '',
+        section: request.section,
+        model: request.model || 'gpt4o-mini'
+      }
+
+      console.log('📤 Payload que se enviará:', payload)
+      console.log('🎯 URL destino:', `${this.baseUrl}/analyze-seo`)
+
+      const response = await apiClient.post<{ data: SEOAnalysisResult; message: string }>(
+        `${this.baseUrl}/analyze-seo`,
+        payload
+      )
+
+      console.log('📥 Respuesta recibida del servidor:', response.data)
+      return response.data.data
+    } catch (error: any) {
+      console.error('Error analyzing SEO:', error)
+
+      // Provide user-friendly error messages
+      if (error.response?.status === 400) {
+        throw new Error(error.response.data?.message || 'Parámetros de solicitud inválidos')
+      } else if (error.response?.status === 500) {
+        throw new Error('Error interno del servidor. Por favor intenta de nuevo.')
+      } else {
+        throw new Error('Error al analizar SEO. Verifica tu conexión e intenta de nuevo.')
       }
     }
   }
@@ -395,10 +519,17 @@ export type {
   GeneratedTitles,
   GeneratedImages,
   GeneratedMetadata,
+  SEOAnalysisResult,
   ModelAvailability,
   GenerateArticleRequest,
   GenerateTitlesRequest,
   GenerateImagesRequest,
   GenerateMetadataRequest,
-  SelectTitleRequest
+  SEOAnalysisRequest,
+  SelectTitleRequest,
+  FieldAnalysis,
+  KeywordAnalysis,
+  LSIAnalysis,
+  ImageAnalysis,
+  ContentAnalysis
 }

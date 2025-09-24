@@ -26,8 +26,8 @@ model User {
   updatedAt              DateTime            @updatedAt @map("updated_at")
   articlesCreated        Article[]           @relation("ArticleAuthor")
   auditLogs              AuditLog[]
-  documentsExtracted     Document[]          @relation("DocumentExtractor")
   documentsCreated       Document[]          @relation("DocumentCreator")
+  documentsExtracted     Document[]          @relation("DocumentExtractor")
   extractionHistory      ExtractionHistory[]
   refreshTokens          RefreshToken[]
 
@@ -46,87 +46,96 @@ model RefreshToken {
 }
 
 model Document {
-  id                 String    @id @default(cuid())
+  id                 String           @id @default(cuid())
   title              String
-  url                String    @unique
+  url                String           @unique
   content            String
-  fullTextContent    String?   @map("full_text_content")
-  documentPath       String?   @map("document_path")
   summary            String?
   source             String
-  legalArea          String    @map("legal_area")
-  documentType       String    @map("document_type")
-  status             String    @default("PENDING")
-  priority           String    @default("NORMAL")
-  publicationDate    DateTime  @map("publication_date")
-  webOfficialDate    DateTime? @map("web_official_date")
-  internalId         String?   @map("internal_id")
-  extractionDate     DateTime  @default(now()) @map("extraction_date")
-  lastReviewDate     DateTime? @map("last_review_date")
-  confidenceScore    Float     @default(0.0) @map("confidence_score")
-  keywords           String    @default("")
-  relevanceTags      String    @default("") @map("relevance_tags")
-  externalId         String?   @unique @map("external_id")
-  metadata           String    @default("{}")
-  extractedAt        DateTime? @map("extracted_at")
-  userId             String?   @map("user_id")
-  numeroSentencia    String?   @map("numero_sentencia")
-  magistradoPonente  String?   @map("magistrado_ponente")
-  salaRevision       String?   @map("sala_revision")
-  expediente         String?   @map("expediente")
-  temaPrincipal      String?   @map("tema_principal")
-  resumenIA          String?   @map("resumen_ia")
-  decision           String?   @map("decision")
-  aiAnalysisStatus   String?   @default("PENDING") @map("ai_analysis_status")
-  aiAnalysisDate     DateTime? @map("ai_analysis_date")
-  aiModel            String?   @map("ai_model")
-  fragmentosAnalisis String?   @default("") @map("fragmentos_analisis")
-  // Campos para artículos y títulos generados
-  generatedArticle   String?   @map("generated_article")
-  generatedTitles    String?   @map("generated_titles") // JSON array de títulos
-  selectedTitle      String?   @map("selected_title")
-  articleStyle       String?   @map("article_style") // serious, catchy, educational
-  titleStyle         String?   @map("title_style")
-  articleModel       String?   @map("article_model") // gpt4o-mini, gemini
-  titleModel         String?   @map("title_model")
-  articleGeneratedAt DateTime? @map("article_generated_at")
-  titlesGeneratedAt  DateTime? @map("titles_generated_at")
-  curatorId          String?   @map("curator_id")
-  createdAt          DateTime  @default(now()) @map("created_at")
-  updatedAt          DateTime  @updatedAt @map("updated_at")
-  user               User?     @relation("DocumentExtractor", fields: [userId], references: [id])
-  curator            User?     @relation("DocumentCreator", fields: [curatorId], references: [id])
+  legalArea          String           @map("legal_area")
+  documentType       String           @map("document_type")
+  status             String           @default("PENDING")
+  priority           String           @default("NORMAL")
+  publicationDate    DateTime         @map("publication_date")
+  internalId         String?          @map("internal_id")
+  extractionDate     DateTime         @default(now()) @map("extraction_date")
+  lastReviewDate     DateTime?        @map("last_review_date")
+  confidenceScore    Float            @default(0.0) @map("confidence_score")
+  keywords           String           @default("")
+  relevanceTags      String           @default("") @map("relevance_tags")
+  externalId         String?          @unique @map("external_id")
+  metadata           String           @default("{}")
+  extractedAt        DateTime?        @map("extracted_at")
+  userId             String?          @map("user_id")
+  numeroSentencia    String?          @map("numero_sentencia")
+  magistradoPonente  String?          @map("magistrado_ponente")
+  salaRevision       String?          @map("sala_revision")
+  expediente         String?          @map("expediente")
+  temaPrincipal      String?          @map("tema_principal")
+  resumenIA          String?          @map("resumen_ia")
+  decision           String?          @map("decision")
+  aiAnalysisStatus   String?          @default("PENDING") @map("ai_analysis_status")
+  aiAnalysisDate     DateTime?        @map("ai_analysis_date")
+  aiModel            String?          @map("ai_model")
+  fragmentosAnalisis String?          @default("") @map("fragmentos_analisis")
+  curatorId          String?          @map("curator_id")
+  createdAt          DateTime         @default(now()) @map("created_at")
+  updatedAt          DateTime         @updatedAt @map("updated_at")
+  documentPath       String?          @map("document_path")
+  fullTextContent    String?          @map("full_text_content")
+  webOfficialDate    DateTime?        @map("web_official_date")
+  articleGeneratedAt DateTime?        @map("article_generated_at")
+  articleModel       String?          @map("article_model")
+  articleStyle       String?          @map("article_style")
+  generatedArticle   String?          @map("generated_article")
+  generatedTitles    String?          @map("generated_titles")
+  selectedTitle      String?          @map("selected_title")
+  titleModel         String?          @map("title_model")
+  titleStyle         String?          @map("title_style")
+  titlesGeneratedAt  DateTime?        @map("titles_generated_at")
+  articles           Article[]        @relation("ArticleSourceDocument")
+  curator            User?            @relation("DocumentCreator", fields: [curatorId], references: [id])
+  user               User?            @relation("DocumentExtractor", fields: [userId], references: [id])
   generatedImages    GeneratedImage[]
 
   @@map("documents")
 }
 
 model Article {
-  id                 String           @id @default(cuid())
-  title              String
-  slug               String           @unique
-  content            String
-  summary            String
-  metaTitle          String?          @map("meta_title")
-  metaDescription    String?          @map("meta_description")
-  keywords           String           @default("")
-  canonicalUrl       String?          @map("canonical_url")
-  status             String           @default("DRAFT")
-  publicationSection String           @map("publication_section")
-  tags               String           @default("")
-  publishedAt        DateTime?        @map("published_at")
-  scheduledAt        DateTime?        @map("scheduled_at")
-  createdAt          DateTime         @default(now()) @map("created_at")
-  updatedAt          DateTime         @updatedAt @map("updated_at")
-  views              Int              @default(0)
-  likes              Int              @default(0)
-  wordCount          Int              @default(0) @map("word_count")
-  readingTime        Int              @default(0) @map("reading_time")
-  authorId           String           @map("author_id")
-  versions           ArticleVersion[]
-  author             User             @relation("ArticleAuthor", fields: [authorId], references: [id])
-  mediaAssets        MediaAsset[]
-  generatedImages    GeneratedImage[]
+  id                      String           @id @default(cuid())
+  title                   String
+  slug                    String           @unique
+  content                 String
+  summary                 String
+  metaTitle               String?          @map("meta_title")
+  metaDescription         String?          @map("meta_description")
+  keywords                String           @default("")
+  canonicalUrl            String?          @map("canonical_url")
+  status                  String           @default("DRAFT")
+  legalArea               String           @default("CONSTITUCIONAL") @map("legal_area")
+  publicationSection      String           @map("publication_section")
+  tags                    String           @default("")
+  publishedAt             DateTime?        @map("published_at")
+  scheduledAt             DateTime?        @map("scheduled_at")
+  isGeneral               Boolean          @default(false) @map("is_general")
+  isUltimasNoticias       Boolean          @default(false) @map("is_ultimas_noticias")
+  entidadSeleccionada     String?          @map("entidad_seleccionada")
+  isDestacadoSemana       Boolean          @default(false) @map("is_destacado_semana")
+  posicionGeneral         Int?             @map("posicion_general")
+  posicionUltimasNoticias Int?             @map("posicion_ultimas_noticias")
+  createdAt               DateTime         @default(now()) @map("created_at")
+  updatedAt               DateTime         @updatedAt @map("updated_at")
+  views                   Int              @default(0)
+  likes                   Int              @default(0)
+  wordCount               Int              @default(0) @map("word_count")
+  readingTime             Int              @default(0) @map("reading_time")
+  authorId                String           @map("author_id")
+  sourceDocumentId        String?          @map("source_document_id")
+  versions                ArticleVersion[]
+  sourceDocument          Document?        @relation("ArticleSourceDocument", fields: [sourceDocumentId], references: [id])
+  author                  User             @relation("ArticleAuthor", fields: [authorId], references: [id])
+  generatedImages         GeneratedImage[]
+  mediaAssets             MediaAsset[]
 
   @@map("articles")
 }
@@ -211,27 +220,26 @@ model GeneratedImage {
   id              String    @id @default(cuid())
   documentId      String?   @map("document_id")
   articleId       String?   @map("article_id")
-  imageId         String    @map("image_id") // ID único de la imagen generada
+  imageId         String    @unique @map("image_id")
   originalUrl     String    @map("original_url")
   localPath       String    @map("local_path")
   filename        String
-  size            Int       // Tamaño del archivo en bytes
+  size            Int
   width           Int
   height          Int
   format          String
-  model           String    // dalle, gemini
-  style           String    // persona, paisaje, elemento
+  model           String
+  style           String
   prompt          String
-  metaDescription String?   @map("meta_description") // Metadescripción ≤125 caracteres para SEO
-  tags            String    @default("[]") // JSON array de etiquetas temáticas
-  savedToLibrary  Boolean   @default(false) @map("saved_to_library") // Guardada en biblioteca
-  isPublic        Boolean   @default(false) @map("is_public") // Compartible entre documentos
-  usageCount      Int       @default(0) @map("usage_count") // Veces que se ha reutilizado
-  lastUsedAt      DateTime? @map("last_used_at") // Última vez que se usó
+  metaDescription String?   @map("meta_description")
+  tags            String    @default("[]")
+  savedToLibrary  Boolean   @default(false) @map("saved_to_library")
+  isPublic        Boolean   @default(false) @map("is_public")
+  usageCount      Int       @default(0) @map("usage_count")
+  lastUsedAt      DateTime? @map("last_used_at")
   createdAt       DateTime  @default(now()) @map("created_at")
+  article         Article?  @relation(fields: [articleId], references: [id])
   document        Document? @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  article         Article?  @relation(fields: [articleId], references: [id], onDelete: SetNull)
 
-  @@unique([imageId])
   @@map("generated_images")
 }

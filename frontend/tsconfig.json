@@ -28,9 +28,8 @@
     "types": ["vite/client", "@testing-library/jest-dom"]
   },
   "include": [
-    "src",
-    "**/*.ts",
-    "**/*.tsx"
+    "src/**/*.ts",
+    "src/**/*.tsx"
   ],
   "exclude": [
     "node_modules",

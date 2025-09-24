@@ -32,8 +32,22 @@ declare global {
 export const authMiddleware = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const authHeader = req.headers.authorization;
-    
+
+    // Debug logging para diagnosticar problemas de autenticación
+    logger.debug('Authentication attempt', {
+      hasAuthHeader: !!authHeader,
+      method: req.method,
+      path: req.path,
+      ip: req.ip,
+      userAgent: req.get('User-Agent')
+    });
+
     if (!authHeader) {
+      logger.warn('Authorization header missing', {
+        method: req.method,
+        path: req.path,
+        ip: req.ip
+      });
       return res.status(401).json({
         error: 'Authorization header missing',
         code: 'AUTH_HEADER_MISSING'
@@ -41,8 +55,14 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
     }
 
     const token = authHeader.split(' ')[1]; // Bearer <token>
-    
+
     if (!token) {
+      logger.warn('Token missing from authorization header', {
+        authHeader: authHeader.substring(0, 20) + '...', // Log partial header
+        method: req.method,
+        path: req.path,
+        ip: req.ip
+      });
       return res.status(401).json({
         error: 'Token missing from authorization header',
         code: 'TOKEN_MISSING'
@@ -109,8 +129,8 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
     // Add user to request object
     req.user = user;
 
-    // Log successful authentication (debug level)
-    logger.debug('User authenticated', {
+    // Log successful authentication (info level para este debugging)
+    logger.info('User successfully authenticated', {
       userId: user.id,
       email: user.email,
       role: user.role,

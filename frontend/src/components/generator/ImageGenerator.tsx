@@ -987,7 +987,7 @@ export default function ImageGenerator({
         isOpen={showLibraryModal}
         onClose={() => setShowLibraryModal(false)}
         onSelectImage={handleSelectFromLibrary}
-        document={document}
+        currentDocumentId={document?.id}
       />
 
       <SaveToLibraryModal

@@ -7,7 +7,9 @@ import {
   Zap,
   GraduationCap,
   FileText,
-  Eye
+  Eye,
+  Clock,
+  Brain
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import ModelSelector from '../common/ModelSelector'
@@ -162,10 +164,22 @@ export default function ArticleGenerator({
   const [showEditMode, setShowEditMode] = useState(false)
   const [showPreview, setShowPreview] = useState(false) // Control de vista previa
 
+  // Estados locales para la vista previa editable
+  const [localTitle, setLocalTitle] = useState(selectedTitle)
+  const [localSubtitle, setLocalSubtitle] = useState(selectedSubtitle)
+  const [localMetaTitle, setLocalMetaTitle] = useState(selectedMetaTitle)
+
   // Actualizar el texto cuando cambie el artículo generado externamente
   useEffect(() => {
     setArticleText(generatedArticle)
   }, [generatedArticle])
+
+  // Sincronizar estados locales con props cuando cambien
+  useEffect(() => {
+    setLocalTitle(selectedTitle)
+    setLocalSubtitle(selectedSubtitle)
+    setLocalMetaTitle(selectedMetaTitle)
+  }, [selectedTitle, selectedSubtitle, selectedMetaTitle])
 
   // Cargar titleSets persistidos cuando se reciban desde el modal padre
   useEffect(() => {
@@ -410,15 +424,15 @@ export default function ArticleGenerator({
           </div>
         </div>
 
-        {/* Panel derecho: Artículo generado (50%) */}
+        {/* Panel derecho: Vista previa final del artículo (50%) */}
         <div className="w-1/2 flex flex-col">
           <div className="p-4 bg-gray-50 dark:bg-gray-750 border-b border-gray-200 dark:border-gray-700">
             <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
-              Artículo Generado
+              Vista Previa del Artículo
             </h3>
             <div className="flex items-center justify-between mt-2">
               <p className="text-xs text-gray-600 dark:text-gray-400">
-                {articleText.split(' ').length} palabras
+                {articleText.split(' ').length} palabras • Estilo: {selectedStyle && ARTICLE_STYLES[selectedStyle as keyof typeof ARTICLE_STYLES].name}
               </p>
               <div className="flex items-center space-x-2">
                 <button
@@ -436,64 +450,149 @@ export default function ArticleGenerator({
                   }}
                   className="text-xs px-2 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors"
                 >
-                  Regenerar
+                  Regenerar Todo
                 </button>
               </div>
             </div>
           </div>
-          <div className="flex-1 overflow-auto p-4">
-            <div className="space-y-4">
-              {/* Contenido del artículo editable */}
-              <div className="space-y-3">
-                {/* Campo de título H1 editable */}
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Título H1
-                  </label>
-                  <input
-                    type="text"
-                    value={selectedTitle}
-                    onChange={(e) => onTitleSelected(selectedMetaTitle, e.target.value, selectedSubtitle, selectedStyle || '')}
-                    className="w-full px-3 py-2 text-lg font-bold bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 text-gray-900 dark:text-gray-100"
-                    placeholder="Título del artículo..."
-                  />
+          <div className="flex-1 overflow-auto p-6 bg-white dark:bg-gray-800">
+            {/* Vista previa como aparecería en el sitio web */}
+            <article className="max-w-none prose prose-lg dark:prose-invert">
+              {/* Metadatos SEO (editables) */}
+              <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <div className="text-xs font-medium text-blue-700 dark:text-blue-300 mb-2">
+                  Meta Title SEO (editable)
                 </div>
-
-                {/* Campo de subtítulo H2 editable */}
-                {selectedSubtitle && (
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Subtítulo H2
-                    </label>
-                    <input
-                      type="text"
-                      value={selectedSubtitle}
-                      onChange={(e) => onTitleSelected(selectedMetaTitle, selectedTitle, e.target.value, selectedStyle || '')}
-                      className="w-full px-3 py-2 text-base font-semibold bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 text-gray-900 dark:text-gray-100"
-                      placeholder="Subtítulo del artículo..."
-                    />
-                  </div>
-                )}
-
-                {/* Campo de contenido editable */}
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Contenido del Artículo
-                  </label>
-                  <textarea
-                    value={articleText}
-                    onChange={(e) => {
-                      setArticleText(e.target.value)
-                      onArticleGenerated(e.target.value, selectedStyle || '')
-                    }}
-                    className="w-full min-h-64 px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 text-gray-900 dark:text-gray-100 text-sm leading-relaxed resize-y"
-                    placeholder="Contenido del artículo..."
-                    style={{ minHeight: '16rem' }}
-                  />
+                <input
+                  type="text"
+                  value={localMetaTitle || ''}
+                  onChange={(e) => {
+                    setLocalMetaTitle(e.target.value)
+                    onTitleSelected(e.target.value, localTitle, localSubtitle, selectedStyle || '')
+                  }}
+                  className="w-full px-2 py-1 text-xs font-mono bg-white dark:bg-gray-700 border border-blue-300 dark:border-blue-600 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  placeholder="Meta title para Google (máx 65 caracteres)"
+                  maxLength={65}
+                />
+                <div className="text-blue-600 dark:text-blue-400 mt-1 text-xs">
+                  {(localMetaTitle || '').length}/65 caracteres
                 </div>
-
               </div>
-            </div>
+
+              {/* Título principal H1 (editable) */}
+              <div className="mb-4">
+                <input
+                  type="text"
+                  value={localTitle}
+                  onChange={(e) => {
+                    setLocalTitle(e.target.value)
+                    onTitleSelected(localMetaTitle, e.target.value, localSubtitle, selectedStyle || '')
+                  }}
+                  className="w-full text-3xl font-bold text-gray-900 dark:text-gray-100 bg-transparent border-b-2 border-transparent hover:border-gray-300 focus:border-blue-500 focus:outline-none transition-colors leading-tight py-2"
+                  placeholder="Título principal del artículo (H1)"
+                />
+              </div>
+
+              {/* Subtítulo H2 (editable) */}
+              <div className="mb-6">
+                <input
+                  type="text"
+                  value={localSubtitle || ''}
+                  onChange={(e) => {
+                    setLocalSubtitle(e.target.value)
+                    onTitleSelected(localMetaTitle, localTitle, e.target.value, selectedStyle || '')
+                  }}
+                  className="w-full text-xl font-semibold text-gray-700 dark:text-gray-300 bg-transparent border-b border-transparent hover:border-gray-300 focus:border-blue-500 focus:outline-none transition-colors leading-snug py-2"
+                  placeholder="Subtítulo del artículo (H2) - opcional"
+                />
+              </div>
+
+              {/* Metadatos del artículo */}
+              <div className="space-y-4 mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
+                <div className="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400">
+                  <span className="flex items-center space-x-1">
+                    <Clock className="w-4 h-4" />
+                    <span>{Math.ceil(articleText.split(' ').length / 200)} min de lectura</span>
+                  </span>
+                  <span className="flex items-center space-x-1">
+                    <FileText className="w-4 h-4" />
+                    <span>{articleText.split(' ').length} palabras</span>
+                  </span>
+                  {selectedStyle && (
+                    <span className="flex items-center space-x-1">
+                      <Brain className="w-4 h-4" />
+                      <span>Estilo {ARTICLE_STYLES[selectedStyle as keyof typeof ARTICLE_STYLES].name}</span>
+                    </span>
+                  )}
+                </div>
+
+                {/* Información adicional del documento */}
+                <div className="grid grid-cols-2 gap-4 text-xs">
+                  {document.area && (
+                    <div className="bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded">
+                      <span className="font-medium text-blue-700 dark:text-blue-300">Área Legal:</span>
+                      <span className="ml-1 text-blue-600 dark:text-blue-400">{document.area}</span>
+                    </div>
+                  )}
+
+                  {document.numeroSentencia && (
+                    <div className="bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded">
+                      <span className="font-medium text-green-700 dark:text-green-300">Sentencia:</span>
+                      <span className="ml-1 text-green-600 dark:text-green-400">{document.numeroSentencia}</span>
+                    </div>
+                  )}
+
+                  {document.expediente && (
+                    <div className="bg-purple-50 dark:bg-purple-900/20 px-2 py-1 rounded">
+                      <span className="font-medium text-purple-700 dark:text-purple-300">Expediente:</span>
+                      <span className="ml-1 text-purple-600 dark:text-purple-400">{document.expediente}</span>
+                    </div>
+                  )}
+
+                  {document.magistradoPonente && (
+                    <div className="bg-orange-50 dark:bg-orange-900/20 px-2 py-1 rounded">
+                      <span className="font-medium text-orange-700 dark:text-orange-300">Magistrado:</span>
+                      <span className="ml-1 text-orange-600 dark:text-orange-400">{document.magistradoPonente}</span>
+                    </div>
+                  )}
+
+                  {document.temaPrincipal && (
+                    <div className="bg-indigo-50 dark:bg-indigo-900/20 px-2 py-1 rounded col-span-2">
+                      <span className="font-medium text-indigo-700 dark:text-indigo-300">Tema:</span>
+                      <span className="ml-1 text-indigo-600 dark:text-indigo-400">{document.temaPrincipal}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Contenido del artículo */}
+              <div
+                className="prose prose-lg dark:prose-invert max-w-none text-gray-800 dark:text-gray-200 leading-relaxed"
+                style={{
+                  whiteSpace: 'pre-wrap',
+                  lineHeight: '1.7'
+                }}
+              >
+                {articleText}
+              </div>
+
+              {/* Información adicional del documento fuente */}
+              <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+                <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
+                  <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">
+                    Documento Fuente
+                  </h3>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                    {document.title || document.identifier}
+                  </p>
+                  {document.entity && (
+                    <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                      {document.entity}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </article>
           </div>
         </div>
       </div>

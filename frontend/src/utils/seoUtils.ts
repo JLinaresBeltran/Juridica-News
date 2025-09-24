@@ -30,6 +30,78 @@ export const generateArticleUrl = (title: string, section: string, id?: string):
   return `/${sectionSlug}/${shortTitleSlug}${id ? `-${id}` : ''}`
 }
 
+// Función avanzada para optimizar URLs automáticamente
+export const optimizeArticleUrl = (
+  title: string,
+  section: string,
+  currentUrl?: string
+): { url: string; optimizations: string[] } => {
+  const optimizations: string[] = []
+
+  // 1. Generar slug base optimizado
+  let titleSlug = generateSlug(title)
+  const sectionSlug = generateSlug(section)
+
+  // 2. Remover palabras irrelevantes para SEO (stop words jurídicas)
+  const stopWords = [
+    'analisis', 'revision', 'estudio', 'comentario', 'sobre', 'acerca',
+    'mediante', 'respecto', 'referente', 'relativo', 'por', 'para',
+    'con', 'sin', 'desde', 'hasta', 'entre', 'ante', 'bajo', 'tras'
+  ]
+
+  const originalSlug = titleSlug
+  stopWords.forEach(word => {
+    const regex = new RegExp(`\\b${word}\\b`, 'gi')
+    if (regex.test(titleSlug)) {
+      titleSlug = titleSlug.replace(regex, '').replace(/-+/g, '-').replace(/^-|-$/g, '')
+      optimizations.push(`Removida palabra irrelevante: "${word}"`)
+    }
+  })
+
+  // 3. Optimizar para keywords jurídicas importantes
+  const legalKeywords = [
+    'sentencia', 'tutela', 'constitucional', 'corte', 'derecho',
+    'precedente', 'jurisprudencia', 'fallo', 'decision'
+  ]
+
+  const hasLegalKeyword = legalKeywords.some(keyword =>
+    titleSlug.includes(keyword.toLowerCase())
+  )
+
+  if (!hasLegalKeyword && title.toLowerCase().includes('sentencia')) {
+    optimizations.push('Mantenida palabra clave jurídica: "sentencia"')
+  }
+
+  // 4. Acortar si es muy largo (máximo 50 caracteres para el slug del título)
+  const maxTitleLength = 50
+  if (titleSlug.length > maxTitleLength) {
+    const originalLength = titleSlug.length
+    // Cortar en la última palabra completa antes del límite
+    titleSlug = titleSlug.substring(0, maxTitleLength).replace(/-[^-]*$/, '')
+    optimizations.push(`Acortada URL de ${originalLength} a ${titleSlug.length} caracteres`)
+  }
+
+  // 5. Optimizar estructura jerárquica
+  const optimizedUrl = `/${sectionSlug}/${titleSlug}`
+
+  // 6. Validar que no haya caracteres problemáticos
+  if (optimizedUrl.includes('--')) {
+    optimizations.push('Corregidos guiones dobles')
+  }
+
+  // 7. Verificar si hay mejoras vs URL actual
+  if (currentUrl && currentUrl !== optimizedUrl) {
+    optimizations.push('URL mejorada para mejor SEO')
+  } else if (currentUrl === optimizedUrl) {
+    optimizations.push('URL ya está optimizada')
+  }
+
+  return {
+    url: optimizedUrl,
+    optimizations
+  }
+}
+
 // Función para generar meta description optimizada
 export const generateMetaDescription = (content: string, maxLength = 160): string => {
   // Remover HTML tags si los hay
@@ -233,6 +305,41 @@ export const validateAltText = (altText: string): { validation: any } => {
   return { validation }
 }
 
+// Función para validar Meta Descripción de Imagen SEO (campo único)
+export const validateImageSEO = (imageDescription?: string): {
+  validation: any;
+  issues: string[];
+  points: number;
+} => {
+  const issues: string[] = []
+  let points = 0
+  const maxPoints = 15
+
+  // Validar Meta Description de Imagen (100% del score - 15 puntos máximo)
+  const imageDescValidation = imageDescription ? getValidationColor(imageDescription.length, 125) : getValidationColor(0, 125)
+
+  if (imageDescription) {
+    if (imageDescValidation.status === 'Perfecto') {
+      points = 15
+    } else if (imageDescValidation.status === 'Óptimo') {
+      points = 12
+    } else if (imageDescValidation.status === 'Regular' || imageDescValidation.status === 'Algo largo') {
+      points = 8
+    } else {
+      points = 3
+      issues.push('Meta descripción de imagen requiere optimización de longitud')
+    }
+  } else {
+    issues.push('Meta descripción de imagen requerida para SEO de imagen')
+  }
+
+  return {
+    validation: imageDescValidation,
+    issues,
+    points
+  }
+}
+
 // Función para validar Schema.org Description con nuevos rangos
 export const validateSchemaDescription = (description: string): { validation: any } => {
   const optimal = 200
@@ -247,7 +354,7 @@ export const calculateSEOScore = (metadata: {
   description?: string
   keywords: string[]
   slug?: string
-  imageAlt?: string
+  imageDescription?: string
   section: string
 }): { score: number; details: { category: string; points: number; maxPoints: number; issues: string[]; validation?: any }[] } => {
   const details = [
@@ -272,7 +379,7 @@ export const calculateSEOScore = (metadata: {
       issues: [] as string[]
     },
     {
-      category: 'Imagen SEO',
+      category: 'Meta Descripción Imagen',
       points: 0,
       maxPoints: 15,
       issues: [] as string[],
@@ -330,24 +437,11 @@ export const calculateSEOScore = (metadata: {
     details[2].issues.push('Keywords requeridas')
   }
 
-  // Evaluar imagen SEO con nuevos rangos
-  if (metadata.imageAlt) {
-    const altValidation = validateAltText(metadata.imageAlt)
-    details[3].validation = altValidation.validation
-
-    if (altValidation.validation.status === 'Perfecto') {
-      details[3].points = 15
-    } else if (altValidation.validation.status === 'Óptimo') {
-      details[3].points = 13
-    } else if (altValidation.validation.status === 'Regular' || altValidation.validation.status === 'Algo largo') {
-      details[3].points = 10
-    } else {
-      details[3].points = 5
-    }
-  } else {
-    details[3].issues.push('Alt text de imagen requerido')
-    details[3].validation = getValidationColor(0, 125)
-  }
+  // Evaluar Meta Descripción de Imagen SEO (campo único)
+  const imageSEOValidation = validateImageSEO(metadata.imageDescription)
+  details[3].validation = imageSEOValidation.validation
+  details[3].points = imageSEOValidation.points
+  details[3].issues = imageSEOValidation.issues
 
   const totalPoints = details.reduce((sum, detail) => sum + detail.points, 0)
   const maxPoints = details.reduce((sum, detail) => sum + detail.maxPoints, 0)
