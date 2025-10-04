@@ -1,0 +1,234 @@
+/* Responsive Image Utilities */
+
+/* Container para aspect ratios con padding-bottom */
+.aspect-ratio-container {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+}
+
+.aspect-ratio-square {
+  padding-bottom: 100%;
+}
+
+.aspect-ratio-4-3 {
+  padding-bottom: 75%;
+}
+
+.aspect-ratio-3-2 {
+  padding-bottom: 66.67%;
+}
+
+.aspect-ratio-16-9 {
+  padding-bottom: 56.25%;
+}
+
+.aspect-ratio-21-9 {
+  padding-bottom: 42.86%;
+}
+
+/* Imagen responsiva que llena el contenedor */
+.responsive-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-position: center;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+/* Efectos de hover para imágenes */
+.image-hover-zoom:hover .responsive-image {
+  transform: scale(1.05);
+}
+
+.image-hover-fade:hover .responsive-image {
+  opacity: 0.9;
+}
+
+/* Loading states */
+.image-loading {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+/* Breakpoint-specific aspect ratios */
+@media (max-width: 640px) {
+  .sm-aspect-ratio-square {
+    padding-bottom: 100%;
+  }
+
+  .sm-aspect-ratio-4-3 {
+    padding-bottom: 75%;
+  }
+
+  .sm-aspect-ratio-16-9 {
+    padding-bottom: 56.25%;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 1024px) {
+  .md-aspect-ratio-square {
+    padding-bottom: 100%;
+  }
+
+  .md-aspect-ratio-4-3 {
+    padding-bottom: 75%;
+  }
+
+  .md-aspect-ratio-16-9 {
+    padding-bottom: 56.25%;
+  }
+}
+
+@media (min-width: 1025px) {
+  .lg-aspect-ratio-square {
+    padding-bottom: 100%;
+  }
+
+  .lg-aspect-ratio-4-3 {
+    padding-bottom: 75%;
+  }
+
+  .lg-aspect-ratio-16-9 {
+    padding-bottom: 56.25%;
+  }
+}
+
+/* Object-fit utilities con fallbacks */
+.object-contain-safe {
+  object-fit: contain;
+  /* Fallback para navegadores antiguos */
+  max-width: 100%;
+  height: auto;
+}
+
+.object-cover-safe {
+  object-fit: cover;
+  /* Fallback para navegadores antiguos */
+  width: 100%;
+  height: 100%;
+}
+
+/* Placeholder para imágenes */
+.image-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f3f4f6;
+  color: #9ca3af;
+  min-height: 100px;
+}
+
+.image-placeholder svg {
+  width: 2rem;
+  height: 2rem;
+}
+
+/* Responsive image grid */
+.image-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}
+
+@media (max-width: 640px) {
+  .image-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 1024px) {
+  .image-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1025px) {
+  .image-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Utilidades de performance */
+.image-optimized {
+  loading: lazy;
+  decoding: async;
+}
+
+.image-critical {
+  loading: eager;
+  decoding: sync;
+}
+
+/* Optimizaciones adicionales para el renderizado */
+.image-smooth {
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+
+.image-fade-in {
+  animation: imageReveal 0.5s ease-out forwards;
+}
+
+@keyframes imageReveal {
+  from {
+    opacity: 0;
+    transform: scale(1.02);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Prevención de layout shift */
+.aspect-ratio-container::before {
+  content: '';
+  display: block;
+  width: 100%;
+}
+
+/* Mejora del contraste en imágenes de baja resolución */
+.image-enhance {
+  filter: contrast(1.05) brightness(1.02);
+}
+
+.image-enhance:hover {
+  filter: contrast(1.1) brightness(1.05);
+  transition: filter 0.3s ease;
+}
+
+/* Containers responsivos */
+.container-responsive {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+@media (min-width: 640px) {
+  .container-responsive {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .container-responsive {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}

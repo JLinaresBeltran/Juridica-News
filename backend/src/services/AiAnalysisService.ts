@@ -45,11 +45,11 @@ export class AiAnalysisService {
       logger.warn('⚠️  No se encontraron API keys para servicios de IA');
     }
 
-    // Determinar modelo por defecto
-    if (this.openAiApiKey) {
-      this.defaultModel = 'openai';
-    } else if (this.geminiApiKey) {
+    // Determinar modelo por defecto - PRIORIZAR GEMINI debido a cuota de OpenAI
+    if (this.geminiApiKey) {
       this.defaultModel = 'gemini';
+    } else if (this.openAiApiKey) {
+      this.defaultModel = 'openai';
     }
 
     logger.info(`🤖 AiAnalysisService iniciado - Modelo por defecto: ${this.defaultModel}`);
@@ -1109,6 +1109,93 @@ ${fragments.resuelve}
     } catch (error) {
       logger.error(`❌ Error analizando archivo ${filePath}:`, error);
       return null;
+    }
+  }
+
+  /**
+   * Genera un resumen conciso del contenido usando IA
+   * @param content Contenido del texto a resumir
+   * @param maxWords Máximo número de palabras (default: 150)
+   * @param style Estilo del resumen ('professional', 'academic', 'casual')
+   * @returns Resumen generado
+   */
+  async generateSummary(
+    content: string,
+    maxWords: number = 150,
+    style: 'professional' | 'academic' | 'casual' = 'professional'
+  ): Promise<{ summary: string; wordCount: number } | null> {
+    try {
+      if (!content || content.trim().length === 0) {
+        return { summary: 'Contenido no disponible para resumir', wordCount: 5 };
+      }
+
+      // Determinar prompt según el estilo
+      const stylePrompts = {
+        professional: 'Genera un resumen profesional y formal',
+        academic: 'Genera un resumen académico y técnico',
+        casual: 'Genera un resumen claro y fácil de entender'
+      };
+
+      const prompt = `${stylePrompts[style]} del siguiente texto jurídico en máximo ${maxWords} palabras.
+Mantén la precisión legal y los términos técnicos importantes:
+
+${content.substring(0, 3000)}`; // Limitar contenido para evitar tokens excesivos
+
+      let summary: string = '';
+
+      // Intentar con OpenAI primero si está disponible
+      if (this.openAiApiKey) {
+        try {
+          const OpenAI = require('openai');
+          if (!this.openAiClient) {
+            this.openAiClient = new OpenAI({ apiKey: this.openAiApiKey });
+          }
+
+          const response = await this.openAiClient.chat.completions.create({
+            model: 'gpt-4o-mini',
+            messages: [{ role: 'user', content: prompt }],
+            max_tokens: Math.min(maxWords * 2, 500), // Buffer para tokens
+            temperature: 0.3
+          });
+
+          summary = response.choices[0]?.message?.content?.trim() || '';
+        } catch (error) {
+          logger.warn('Error con OpenAI para generateSummary, intentando fallback:', error);
+        }
+      }
+
+      // Fallback si OpenAI falla o no está disponible
+      if (!summary && this.geminiApiKey) {
+        try {
+          // Implementar llamada a Gemini aquí si es necesario
+          logger.info('Usando fallback para generateSummary (Gemini no implementado)');
+        } catch (error) {
+          logger.warn('Error con Gemini para generateSummary:', error);
+        }
+      }
+
+      // Fallback final - resumen básico
+      if (!summary) {
+        const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 20);
+        const firstSentences = sentences.slice(0, 3).join('. ').substring(0, maxWords * 7); // Aprox 7 chars por palabra
+        summary = firstSentences + (firstSentences.length < content.length ? '...' : '');
+      }
+
+      const wordCount = summary.split(/\s+/).length;
+
+      logger.info(`📝 Resumen generado: ${wordCount} palabras (max: ${maxWords})`);
+
+      return {
+        summary: summary.trim(),
+        wordCount
+      };
+
+    } catch (error) {
+      logger.error('Error generando resumen:', error);
+      return {
+        summary: 'Error al generar resumen automático',
+        wordCount: 5
+      };
     }
   }
 }

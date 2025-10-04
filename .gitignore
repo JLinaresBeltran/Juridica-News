@@ -71,3 +71,8 @@ test_*.sh
 *.temp
 temp/
 tmp/
+
+# Log directories and files
+logs/
+backend/logs/
+*.log

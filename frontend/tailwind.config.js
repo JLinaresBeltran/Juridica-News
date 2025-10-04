@@ -114,6 +114,28 @@ export default {
       transitionTimingFunction: {
         'bounce': 'cubic-bezier(0.68, -0.55, 0.265, 1.55)',
       },
+      // Aspect ratio utilities
+      aspectRatio: {
+        '4/3': '4 / 3',
+        '3/2': '3 / 2',
+        '21/9': '21 / 9',
+      },
+      // Container queries para responsividad avanzada
+      screens: {
+        'xs': '475px',
+        'container-sm': '640px',
+        'container-md': '768px',
+        'container-lg': '1024px',
+        'container-xl': '1280px',
+      },
+      // Utilidades para imágenes responsivas
+      backgroundSize: {
+        'auto': 'auto',
+        'cover': 'cover',
+        'contain': 'contain',
+        '50%': '50%',
+        '16': '4rem',
+      },
     },
   },
   plugins: [

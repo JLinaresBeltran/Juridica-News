@@ -76,11 +76,11 @@ export default function PublicPortalPage() {
       <PublicHeader onSearch={handleSearch} />
 
       <main className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-8 py-8">
-        {/* DOS ARTÍCULOS SUPERIORES - SECCIÓN GENERAL */}
-        {portalData?.general && portalData.general.length > 0 && (
+        {/* ✅ BLOQUE 1: GENERAL TOP (Posiciones 1-2) - Parte superior del portal */}
+        {portalData?.generalTop && portalData.generalTop.length > 0 && (
           <section className="mb-12 sm:mb-16">
             <div className="grid sm:grid-cols-2 gap-6 sm:gap-8 max-w-6xl mx-auto">
-              {portalData.general.slice(0, 2).map((article) => {
+              {portalData.generalTop.map((article) => {
                 const publicArticle = adaptApiToPublicArticle(article)
                 return (
                   <ArticleCard
@@ -124,6 +124,26 @@ export default function PublicPortalPage() {
                   </div>
                 </div>
               </div>
+            </div>
+          </section>
+        )}
+
+        {/* ✅ BLOQUE 2: GENERAL MIDDLE (Posiciones 3-4) - Debajo de Últimas Noticias */}
+        {portalData?.generalMiddle && portalData.generalMiddle.length > 0 && (
+          <section className="mb-12 sm:mb-16">
+            <div className="grid sm:grid-cols-2 gap-6 sm:gap-8 max-w-6xl mx-auto">
+              {portalData.generalMiddle.map((article) => {
+                const publicArticle = adaptApiToPublicArticle(article)
+                return (
+                  <ArticleCard
+                    key={article.id}
+                    article={publicArticle}
+                    layout="featured"
+                    size="large"
+                    className="h-full"
+                  />
+                )
+              })}
             </div>
           </section>
         )}
@@ -175,6 +195,26 @@ export default function PublicPortalPage() {
           </section>
         )}
 
+
+        {/* ✅ BLOQUE 3: GENERAL BOTTOM (Posiciones 5-6) - Debajo de Instituciones */}
+        {portalData?.generalBottom && portalData.generalBottom.length > 0 && (
+          <section className="mb-12 sm:mb-16">
+            <div className="grid sm:grid-cols-2 gap-6 sm:gap-8 max-w-6xl mx-auto">
+              {portalData.generalBottom.map((article) => {
+                const publicArticle = adaptApiToPublicArticle(article)
+                return (
+                  <ArticleCard
+                    key={article.id}
+                    article={publicArticle}
+                    layout="featured"
+                    size="large"
+                    className="h-full"
+                  />
+                )
+              })}
+            </div>
+          </section>
+        )}
 
         {/* SECCIÓN DESTACADOS DE LA SEMANA */}
         {portalData?.destacados && portalData.destacados.length > 0 && (

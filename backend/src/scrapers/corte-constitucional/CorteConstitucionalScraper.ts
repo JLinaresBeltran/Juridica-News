@@ -326,7 +326,7 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
             content += `\nTema: ${structured.tema || 'N/A'}`;
             content += `\n\nEste documento fue extraído con datos estructurados de la tabla oficial de "Ver últimas sentencias" de la Corte Constitucional de Colombia.`;
           } else {
-            content += `\n\nEste documento fue extraído del sitio web oficial de la Corte Constitucional de Colombia usando el sistema de scraping actualizado con filtrado por los últimos 2 días hábiles.`;
+            content += `\n\nEste documento fue extraído del sitio web oficial de la Corte Constitucional de Colombia usando el sistema de scraping actualizado con filtrado por los últimos 5 días hábiles.`;
           }
 
           // 🔥 EXTRAER METADATOS DEL CONTENIDO RTF ANTES DE CREAR EL DOCUMENTO FINAL
@@ -635,18 +635,18 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
 
   private async extractSentencesFromUltimasSentencias(page: any, limit: number): Promise<any[]> {
     const results: any[] = [];
-    
+
     try {
-      // 1. Obtener fechas de HOY y AYER (días hábiles únicamente)
-      const targetDates = this.getTodayAndYesterdayWorkingDays();
-      
+      // 1. Obtener los últimos 5 días hábiles (para asegurar archivos RTF disponibles)
+      const targetDates = this.getLastTwoWorkingDays();
+
       if (targetDates.length === 0) {
-        logger.warn('⚠️ No hay días hábiles para extraer (HOY y AYER no son días hábiles)');
+        logger.warn('⚠️ No hay días hábiles para extraer (últimos 5 días hábiles no encontrados)');
         return results;
       }
-      
+
       logger.info(`🔍 Extrayendo documentos SOLO de las fechas: ${targetDates.map(d => d.dateShort).join(', ')}`);
-      
+
       // 2. Buscar tabla estructurada con las 7 columnas
       logger.info('📊 Buscando tabla estructurada con datos de sentencias...');
       
@@ -798,7 +798,7 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
                 
                 debugInfo.push(`📄 Fila ${i}: ${numero} - ${fechaToUse} (cols: ${cells.length})`);
 
-                // FILTRO CRÍTICO: Solo procesar si la fecha de publicación es de HOY o AYER
+                // FILTRO CRÍTICO: Solo procesar si la fecha de publicación está en los últimos 5 días hábiles
                 const isTargetDate = targetDatesData.some(targetDate => {
                   return fechaToUse.includes(targetDate.dateShort) ||
                          fechaToUse.includes(targetDate.dateAlt) ||
@@ -1012,9 +1012,9 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
       }
 
       logger.info(`📋 Encontrados ${sentences.length} documentos de las fechas objetivo`);
-      
+
       if (sentences.length === 0) {
-        logger.warn('⚠️ No se encontraron documentos de HOY ni AYER en las fechas objetivo');
+        logger.warn('⚠️ No se encontraron documentos en los últimos 5 días hábiles');
         logger.info('💡 Esto puede suceder si:');
         logger.info('   - No hay sentencias publicadas en los días hábiles objetivo');
         logger.info('   - El formato de fecha en la tabla ha cambiado');
@@ -1142,7 +1142,7 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
     }
   }
 
-  private getTodayAndYesterdayWorkingDays(): Array<{
+  private getLastTwoWorkingDays(): Array<{
     dateStr: string;
     dateShort: string;
     dateAlt: string;
@@ -1156,7 +1156,7 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
       1: "enero", 2: "febrero", 3: "marzo", 4: "abril", 5: "mayo", 6: "junio",
       7: "julio", 8: "agosto", 9: "septiembre", 10: "octubre", 11: "noviembre", 12: "diciembre"
     };
-    
+
     const datesToExtract: Array<{
       dateStr: string;
       dateShort: string;
@@ -1168,35 +1168,35 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
       isToday: boolean;
     }> = [];
     const today = new Date();
-    
-    logger.info(`🔍 Buscando HOY y AYER (solo días hábiles) desde: ${today.toLocaleDateString('es-CO')}`);
-    
+
+    logger.info(`🔍 Buscando ÚLTIMOS 5 DÍAS HÁBILES desde: ${today.toLocaleDateString('es-CO')}`);
+
     // Función para procesar una fecha
     const processDate = (date: Date, label: string) => {
       const dayOfWeek = date.getDay();
-      
+
       // Solo procesar días hábiles (lunes = 1, viernes = 5)
       if (dayOfWeek >= 1 && dayOfWeek <= 5) {
         const day = date.getDate();
         const monthName = monthsSpanish[date.getMonth() + 1] || 'mes';
         const year = date.getFullYear();
-        
+
         const dateStr = `${day} de ${monthName} de ${year}`;
         const dateShort = `${day.toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${year}`;
         const dateAlt = `${day.toString().padStart(2, '0')}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${year}`;
         const dateISO = `${year}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`; // Formato YYYY-MM-DD
-        
-        const dateInfo = { 
-          dateStr, 
-          dateShort, 
-          dateAlt, 
-          dateISO, // ¡NUEVO! Para coincidir con formato de tabla
+
+        const dateInfo = {
+          dateStr,
+          dateShort,
+          dateAlt,
+          dateISO,
           date: new Date(date),
           dayOfWeek: date.toLocaleDateString('es-CO', { weekday: 'long' }),
           label,
-          isToday: label === 'HOY'
+          isToday: label.includes('HOY')
         };
-        
+
         datesToExtract.push(dateInfo);
         logger.info(`📅 ${label}: ${dateStr} (${date.toLocaleDateString('es-CO', { weekday: 'long' })}) ✅ DÍA HÁBIL`);
         return true;
@@ -1205,54 +1205,43 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
         return false;
       }
     };
-    
-    // 1. Procesar HOY (si es día hábil)
-    processDate(today, 'HOY');
-    
-    // 2. Procesar AYER (si es día hábil)
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayWasWorkingDay = processDate(yesterday, 'AYER');
 
-    // 3. Si AYER no es día hábil, buscar el último día hábil anterior
-    if (!yesterdayWasWorkingDay) {
-      logger.info('🔍 AYER no es día hábil, buscando último día hábil anterior...');
+    // Buscar los últimos 5 días hábiles
+    let searchDate = new Date(today);
+    let daysSearched = 0;
+    let workingDaysFound = 0;
+    const maxSearch = 14; // Buscar máximo 2 semanas atrás
+    const targetWorkingDays = 5; // Queremos exactamente 5 días hábiles
 
-      let searchDate = new Date(today);
-      let daysSearched = 0;
-      const maxSearch = 7; // Buscar máximo 7 días atrás
-
-      while (daysSearched < maxSearch) {
+    while (workingDaysFound < targetWorkingDays && daysSearched < maxSearch) {
+      // Retroceder un día
+      if (daysSearched > 0) { // No retroceder el primer día (hoy)
         searchDate.setDate(searchDate.getDate() - 1);
-        daysSearched++;
-
-        if (processDate(searchDate, `ÚLTIMO DÍA HÁBIL (-${daysSearched} días)`)) {
-          logger.info(`✅ Encontrado último día hábil: ${searchDate.toLocaleDateString('es-CO')}`);
-          break;
-        }
       }
+      daysSearched++;
 
-      if (daysSearched >= maxSearch) {
-        logger.warn(`⚠️ No se encontró día hábil anterior en los últimos ${maxSearch} días`);
+      // Verificar si es día hábil
+      const dayOfWeek = searchDate.getDay();
+      if (dayOfWeek >= 1 && dayOfWeek <= 5) { // Lunes a viernes
+        workingDaysFound++;
+
+        let label: string;
+        if (daysSearched === 1) {
+          label = 'HOY';
+        } else if (daysSearched === 2) {
+          label = 'AYER';
+        } else {
+          label = `DÍA HÁBIL -${daysSearched - 1}`;
+        }
+
+        processDate(new Date(searchDate), label);
       }
     }
 
-    // 4. Fallback: Si aún no tenemos días hábiles, buscar más amplio
-    if (datesToExtract.length === 0) {
-      logger.warn('⚠️ Ni HOY ni días anteriores son hábiles, buscando último día hábil...');
-
-      let searchDate = new Date(today);
-      let daysSearched = 0;
-      const maxSearch = 14; // Buscar máximo 2 semanas atrás
-
-      while (datesToExtract.length === 0 && daysSearched < maxSearch) {
-        searchDate.setDate(searchDate.getDate() - 1);
-        daysSearched++;
-
-        if (processDate(searchDate, `FALLBACK DÍA HÁBIL (-${daysSearched} días)`)) {
-          break;
-        }
-      }
+    if (workingDaysFound < targetWorkingDays) {
+      logger.warn(`⚠️ Solo se encontraron ${workingDaysFound}/${targetWorkingDays} días hábiles en los últimos ${maxSearch} días`);
+    } else {
+      logger.info(`✅ Encontrados ${targetWorkingDays} días hábiles para extracción`);
     }
     
     // Ordenar por fecha (más reciente primero)
@@ -1324,66 +1313,73 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
       }
       
       const contentType = response.headers.get('content-type') || '';
-      
+
       logger.debug(`📄 Documento encontrado - Tipo: ${contentType}`);
-      
-      // Verificar que sea un documento válido con validación estricta
-      const isValidDocument = 
-        contentType.includes('application/rtf') ||
-        contentType.includes('application/msword') ||
-        contentType.includes('application/vnd.openxmlformats-officedocument') ||
-        contentType.includes('text/rtf');
-      
-      // Rechazar explícitamente archivos HTML
-      const isHtmlDocument = 
+
+      // Descargar el contenido del documento primero para verificar
+      const buffer = Buffer.from(await response.arrayBuffer());
+
+      // Rechazar explícitamente archivos HTML detectando contenido HTML
+      const isHtmlDocument =
         contentType.includes('text/html') ||
         contentType.includes('application/html');
-      
-      if (isHtmlDocument) {
+
+      // También verificar si el contenido parece HTML examinando los primeros bytes
+      const bufferStart = buffer.slice(0, 1000).toString('utf8').toLowerCase();
+      const looksLikeHtml = bufferStart.includes('<html') ||
+                           bufferStart.includes('<!doctype') ||
+                           bufferStart.includes('<head>') ||
+                           bufferStart.includes('<body>');
+
+      if (isHtmlDocument || looksLikeHtml) {
         return {
           success: false,
-          error: `Archivo HTML no válido como documento RTF/DOCX: ${contentType}`
+          error: `Archivo HTML detectado (no es documento RTF/DOCX): ${contentType}`
         };
       }
-      
-      if (!isValidDocument) {
+
+      // Para Corte Constitucional: Los archivos .rtf son realmente .docx
+      // Solo verificar que no sea HTML, aceptar cualquier otro tipo de contenido
+      logger.debug(`✅ Documento válido detectado (RTF real = DOCX): ${contentType || 'sin content-type'}`);
+
+      // ✅ NUEVO: Verificar que tenga contenido mínimo
+      if (buffer.length < 100) {
         return {
           success: false,
-          error: `Tipo de contenido no válido: ${contentType}. Solo se aceptan RTF/DOCX.`
+          error: `Archivo demasiado pequeño: ${buffer.length} bytes`
         };
       }
-      
-      // Descargar el contenido del documento
-      const buffer = Buffer.from(await response.arrayBuffer());
-      
+
       let extractedText = '';
       
       try {
         // ⚠️ IMPORTANTE: Los archivos de Corte Constitucional con extensión .rtf son realmente DOCX
         // Usar siempre DocumentTextExtractor (mammoth) independientemente del content-type
-        
+        logger.info(`📖 Extrayendo texto de ${documentId} (${buffer.length} bytes, tipo: ${contentType})`);
+
         const { documentTextExtractor } = await import('@/services/DocumentTextExtractor');
         const extraction = await documentTextExtractor.extractFromBuffer(buffer, `${documentId}.docx`);
-        
-        if (extraction) {
+
+        if (extraction && extraction.fullText) {
           extractedText = extraction.fullText;
-          logger.debug(`📖 Texto extraído con mammoth (DOCX real): ${extractedText.length} caracteres`);
+          logger.info(`✅ Texto extraído con mammoth (DOCX real): ${extractedText.length} caracteres`);
         } else {
-          logger.warn(`⚠️ No se pudo extraer texto con mammoth de ${documentId}`);
+          logger.warn(`⚠️ No se pudo extraer texto con mammoth de ${documentId} - Extracción resultó vacía`);
         }
-        
+
       } catch (textError) {
-        logger.warn(`⚠️ Error extrayendo texto de ${documentId}: ${textError}`);
+        logger.error(`❌ Error extrayendo texto de ${documentId}: ${(textError as Error).message}`);
+        logger.error(`❌ Stack trace:`, (textError as Error).stack);
         // Continuar sin texto extraído
       }
       
       // Si llegamos aquí, el documento es válido y accesible
-      logger.debug(`✅ Documento RTF/DOCX verificado y descargado: ${documentId}`);
-      
+      logger.info(`✅ Documento RTF/DOCX verificado y descargado: ${documentId} (${buffer.length} bytes, texto: ${extractedText.length} chars)`);
+
       return {
         success: true,
         isValidOffice: true,
-        contentType,
+        contentType: contentType || 'application/docx',
         localPath: url,
         extractedText,
         documentBuffer: buffer

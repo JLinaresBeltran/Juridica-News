@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import {
   Send,
   CheckCircle,
@@ -22,42 +22,70 @@ import { useCurationStore } from '../../stores/curationStore'
 import PublicationControls from '../../components/articles/PublicationControls'
 import { ArticlePublicationSettings } from '@/types/publication.types'
 import { api } from '@/services/api'
+import { articlesService, Article as APIArticle } from '@/services/articlesService'
 
 export default function ArticlesPage() {
   const [selectedArticle, setSelectedArticle] = useState<string | null>(null)
   const [previewArticle, setPreviewArticle] = useState<any>(null)
   const [isPublishing, setIsPublishing] = useState(false)
   const [publicationSettings, setPublicationSettings] = useState<Record<string, ArticlePublicationSettings>>({})
+  const [apiArticles, setApiArticles] = useState<APIArticle[]>([])
+  const [loading, setLoading] = useState(true)
   const { readyDocuments, undoReady, publishDocument } = useCurationStore()
+
+  // Cargar artículos de la API
+  useEffect(() => {
+    loadArticles()
+  }, [])
+
+  const loadArticles = async () => {
+    try {
+      setLoading(true)
+      const response = await articlesService.getReadyArticles()
+      setApiArticles(response.articles)
+    } catch (error) {
+      console.error('Error cargando artículos:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
   
   // Transformar readyDocuments a formato que espera la vista con campos editados
-  const readyArticles = readyDocuments.map(doc => ({
-    id: doc.id,
-    // ✅ Usar títulos editados: realTitle > title > fallback
-    title: doc.articleData?.metadata?.realTitle || doc.articleData?.title || `Análisis jurídico: ${doc.title}`,
-    subtitle: doc.articleData?.metadata?.realSubtitle || doc.articleData?.subtitle || '',
-    metaTitle: doc.articleData?.metadata?.metaTitle || '',
-    section: doc.articleData?.metadata?.section || doc.area,
-    entity: doc.source,
-    publicationDate: doc.publicationDate,
-    extractionDate: doc.extractionDate,
-    wordCount: doc.articleData?.content ? doc.articleData.content.split(' ').length : 0,
-    readingTime: doc.articleData?.metadata?.readingTime || 3,
-    keywords: doc.articleData?.metadata?.keywords?.length || 0,
-    hasImage: !!doc.articleData?.image,
-    // ✅ Metadescripción separada (NO mostrar en artículo)
-    metaDescription: doc.articleData?.metadata?.description || '',
-    content: doc.articleData?.content || '',
-    tags: doc.articleData?.metadata?.keywords || [],
-    customTags: doc.articleData?.metadata?.customTags || [],
-    publishConfig: {
-      publishDate: new Date().toISOString().split('T')[0],
-      publishTime: '08:00',
-      featured: false,
-      socialSharing: true,
-      newsletter: true
+  // Combinar con datos de la API para obtener imageUrl persistida
+  const readyArticles = readyDocuments.map(doc => {
+    // Buscar artículo correspondiente en la API
+    const apiArticle = apiArticles.find(a => a.slug?.includes(doc.id) || a.id === doc.id)
+
+    return {
+      id: doc.id,
+      // ✅ Usar títulos editados: realTitle > title > fallback
+      title: doc.articleData?.metadata?.realTitle || doc.articleData?.title || `Análisis jurídico: ${doc.title}`,
+      subtitle: doc.articleData?.metadata?.realSubtitle || doc.articleData?.subtitle || '',
+      metaTitle: doc.articleData?.metadata?.metaTitle || '',
+      section: doc.articleData?.metadata?.section || doc.area,
+      entity: doc.source,
+      publicationDate: doc.publicationDate,
+      extractionDate: doc.extractionDate,
+      wordCount: doc.articleData?.content ? doc.articleData.content.split(' ').length : 0,
+      readingTime: doc.articleData?.metadata?.readingTime || 3,
+      keywords: doc.articleData?.metadata?.keywords?.length || 0,
+      // ✅ Priorizar imageUrl de la API (persistida) sobre articleData.image (temporal)
+      hasImage: !!(apiArticle?.imageUrl || doc.articleData?.image),
+      imageUrl: apiArticle?.imageUrl || doc.articleData?.image,
+      // ✅ Metadescripción separada (NO mostrar en artículo)
+      metaDescription: doc.articleData?.metadata?.description || '',
+      content: doc.articleData?.content || '',
+      tags: doc.articleData?.metadata?.keywords || [],
+      customTags: doc.articleData?.metadata?.customTags || [],
+      publishConfig: {
+        publishDate: new Date().toISOString().split('T')[0],
+        publishTime: '08:00',
+        featured: false,
+        socialSharing: true,
+        newsletter: true
+      }
     }
-  }))
+  })
   
   const selectedArticleData = useMemo(() => {
     return readyArticles.find(article => article.id === selectedArticle)
@@ -83,6 +111,8 @@ export default function ArticlesPage() {
            settings.isDestacadoSemana
   }, [selectedArticleData, publicationSettings])
 
+  const [publishingStatus, setPublishingStatus] = React.useState<string>('')
+
   const handlePublishArticle = async () => {
     if (!selectedArticleData || isPublishing || !canPublishArticle) return
 
@@ -92,20 +122,39 @@ export default function ArticlesPage() {
       const settings = publicationSettings[selectedArticleData.id]
       console.log('Publishing article with settings:', settings)
 
-      // Paso 1: Generar contenido del artículo con IA
-      console.log('Generating article content...')
-      const generateResponse = await api.post('/ai/generate-article', {
-        documentId: selectedArticleData.id,
-        model: 'gpt4o-mini',
-        maxWords: 600,
-        tone: 'professional',
-        customInstructions: 'Genera un artículo en estilo formal y profesional'
-      })
+      // ✅ OPTIMIZACIÓN: Verificar si el documento ya tiene artículo generado
+      setPublishingStatus('🔍 Verificando artículo existente...')
+      const documentCheckResponse = await api.get(`/documents/${selectedArticleData.id}`)
+      const documentData = documentCheckResponse.data.data
 
-      const generatedContent = generateResponse.data.data // Extract the actual generated content
-      console.log('Article content generated:', generatedContent)
+      let generatedContent
+
+      if (documentData?.generatedArticle && documentData.generatedArticle.length > 100) {
+        // ✅ OPTIMIZACIÓN: Usar artículo ya generado (ahorra 15-30s)
+        setPublishingStatus('✅ Usando artículo previamente generado')
+        console.log('✅ Using pre-generated article content:', documentData.generatedArticle.length, 'characters')
+        generatedContent = {
+          content: documentData.generatedArticle,
+          summary: documentData.generatedArticle.substring(0, 300)
+        }
+      } else {
+        // Generar contenido del artículo con IA solo si no existe
+        setPublishingStatus('🤖 Generando artículo con IA... (15-30s)')
+        console.log('⚠️ No pre-generated article found, generating with AI...')
+        const generateResponse = await api.post('/ai/generate-article', {
+          documentId: selectedArticleData.id,
+          model: 'gemini', // Usar Gemini por cuota de OpenAI excedida
+          maxWords: 600,
+          tone: 'professional',
+          customInstructions: 'Genera un artículo en estilo formal y profesional'
+        })
+
+        generatedContent = generateResponse.data.data // Extract the actual generated content
+        console.log('Article content generated:', generatedContent)
+      }
 
       // Paso 2: Crear el artículo desde el documento aprobado con el contenido generado
+      setPublishingStatus('📝 Creando artículo...')
       const createArticleResponse = await api.post('/articles', {
         sourceDocumentId: selectedArticleData.id,
         title: selectedArticleData.title,
@@ -118,17 +167,21 @@ export default function ArticlesPage() {
       const newArticle = createArticleResponse.data.data
       console.log('Article created:', newArticle)
 
-      // Paso 3: Publicar el artículo
-      await api.post(`/articles/${newArticle.id}/publish`)
+      // Paso 3: Publicar el artículo CON configuración de publicación para empuje automático
+      setPublishingStatus('🚀 Publicando artículo...')
+      await api.post(`/articles/${newArticle.id}/publish`, settings)
 
-      console.log('Article published successfully')
+      console.log('Article published successfully with automatic positioning')
 
-      // Paso 4: Configurar las opciones de publicación del artículo
+      // Paso 4: Configurar las opciones de publicación del artículo (backup)
+      setPublishingStatus('⚙️ Configurando posiciones en portal...')
       await api.put(`/articles/${newArticle.id}/publication-settings`, settings)
 
       console.log('Publication settings updated')
 
-      // Paso 4: Actualizar el frontend
+      setPublishingStatus('✅ ¡Completado!')
+
+      // Paso 5: Actualizar el frontend
       publishDocument(selectedArticleData.id, false) // No sync to backend, ya lo hicimos
       setSelectedArticle(null)
 
@@ -139,10 +192,13 @@ export default function ArticlesPage() {
         return newSettings
       })
 
+      setTimeout(() => setPublishingStatus(''), 2000)
       alert('¡Artículo publicado exitosamente!')
 
     } catch (error) {
       console.error('Error publishing article:', error)
+      setPublishingStatus('❌ Error en la publicación')
+      setTimeout(() => setPublishingStatus(''), 3000)
       alert(`Error al publicar el artículo: ${error.message}`)
     } finally {
       setIsPublishing(false)
@@ -187,11 +243,19 @@ export default function ArticlesPage() {
                         <div className="w-24 h-24 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600">
                           {article.hasImage ? (
                             <img
-                              src={readyDocuments.find(d => d.id === article.id)?.articleData?.image || '/api/placeholder/64/64'}
+                              src={article.imageUrl || ''}
                               alt={article.title}
                               className="w-full h-full object-cover"
                               onError={(e) => {
-                                e.target.src = '/api/placeholder/64/64'
+                                // Ocultar imagen rota, mostrar placeholder SVG
+                                e.currentTarget.style.display = 'none';
+                                const parent = e.currentTarget.parentElement;
+                                if (parent && !parent.querySelector('.fallback-icon')) {
+                                  const fallback = document.createElement('div');
+                                  fallback.className = 'fallback-icon w-full h-full flex items-center justify-center';
+                                  fallback.innerHTML = '<svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>';
+                                  parent.appendChild(fallback);
+                                }
                               }}
                             />
                           ) : (
@@ -383,6 +447,13 @@ export default function ArticlesPage() {
             </div>
           )}
 
+          {/* Indicador de progreso */}
+          {publishingStatus && (
+            <div className="text-sm text-blue-600 dark:text-blue-400 text-center font-medium animate-pulse">
+              {publishingStatus}
+            </div>
+          )}
+
           <button
             onClick={handlePublishArticle}
             disabled={isPublishing || !canPublishArticle}
@@ -474,9 +545,12 @@ export default function ArticlesPage() {
                     {previewArticle.hasImage && (
                       <div className="relative bg-gray-100 dark:bg-gray-700" style={{ aspectRatio: '16/9', maxHeight: '300px' }}>
                         <img
-                          src={readyDocuments.find(d => d.id === previewArticle.id)?.articleData?.image || '/api/placeholder/800/400'}
+                          src={previewArticle.imageUrl || ''}
                           alt={previewArticle.title}
                           className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                          }}
                         />
                       </div>
                     )}

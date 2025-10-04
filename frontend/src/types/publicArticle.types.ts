@@ -1,3 +1,18 @@
+// Tipo para imágenes generadas
+export interface GeneratedImage {
+  id: string
+  filename: string
+  localPath?: string
+  originalUrl?: string
+  url?: string
+  fallbackUrl?: string
+  width?: number
+  height?: number
+  format?: string
+  metaDescription?: string
+  prompt?: string
+}
+
 // Tipo unificado para artículos en el portal público
 // Funciona tanto con datos del API real como con mock data
 export interface PublicArticle {
@@ -15,16 +30,37 @@ export interface PublicArticle {
   }
   tags?: string[]
   viewCount?: number
+  generatedImages?: GeneratedImage[]
 }
 
 // Función adaptadora para convertir datos del API a PublicArticle
 export const adaptApiToPublicArticle = (apiData: any): PublicArticle => {
   // Buscar imagen generada disponible
   let imageUrl = undefined
-  if (apiData.generatedImages && apiData.generatedImages.length > 0) {
+
+  // Primero revisar si hay imageUrl ya procesado por el backend
+  if (apiData.imageUrl) {
+    imageUrl = apiData.imageUrl
+  } else if (apiData.generatedImages && apiData.generatedImages.length > 0) {
     // Usar la primera imagen generada disponible
     const firstImage = apiData.generatedImages[0]
-    imageUrl = firstImage.originalUrl || `/api/storage/images/${firstImage.filename}`
+
+    // Priorizar la URL procesada por el backend
+    if (firstImage.url) {
+      imageUrl = firstImage.url
+    } else if (firstImage.filename) {
+      // Construir URL para servir desde nuestro endpoint
+      imageUrl = `/api/storage/images/${firstImage.filename}`
+    } else if (firstImage.localPath) {
+      // Si tenemos localPath pero no filename, extraer filename
+      const filename = firstImage.localPath.split('/').pop()
+      if (filename) {
+        imageUrl = `/api/storage/images/${filename}`
+      }
+    } else if (firstImage.originalUrl && !firstImage.originalUrl.startsWith('data:') && firstImage.originalUrl !== 'base64-image') {
+      // Solo usar originalUrl si no es base64 y es una URL válida
+      imageUrl = firstImage.originalUrl
+    }
   }
 
   return {
@@ -41,7 +77,8 @@ export const adaptApiToPublicArticle = (apiData: any): PublicArticle => {
       lastName: apiData.author.lastName
     } : undefined,
     tags: apiData.tags ? apiData.tags.split(',').filter(t => t.trim()) : [],
-    viewCount: apiData.views || 0
+    viewCount: apiData.views || 0,
+    generatedImages: apiData.generatedImages || []
   }
 }
 

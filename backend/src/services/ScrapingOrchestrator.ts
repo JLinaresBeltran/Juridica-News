@@ -34,11 +34,12 @@ export class ScrapingOrchestrator extends EventEmitter {
   private storageBasePath: string;
   private jobQueue: ScrapingJob[] = [];
   private isProcessingQueue = false;
+  private queueProcessorInterval?: NodeJS.Timeout;
   private maxConcurrentJobs = 3;
 
   constructor() {
     super();
-    this.registry = new SourceRegistry();
+    this.registry = SourceRegistry.getInstance();
     this.queueManager = new QueueManager(this);
     this.documentTextExtractor = new DocumentTextExtractor();
     this.storageBasePath = path.join(process.cwd(), 'storage', 'documents');
@@ -439,9 +440,14 @@ export class ScrapingOrchestrator extends EventEmitter {
    * Iniciar procesador de cola
    */
   private startQueueProcessor(): void {
+    if (this.queueProcessorInterval) {
+      logger.warn('⚠️ Queue processor ya está iniciado, ignorando...');
+      return;
+    }
+
     this.isProcessingQueue = true;
-    
-    setInterval(() => {
+
+    this.queueProcessorInterval = setInterval(() => {
       this.processNextInQueue();
     }, 5000); // Revisar cola cada 5 segundos
 
@@ -680,7 +686,13 @@ export class ScrapingOrchestrator extends EventEmitter {
    */
   async cleanup(): Promise<void> {
     this.isProcessingQueue = false;
-    
+
+    // Detener procesador de cola
+    if (this.queueProcessorInterval) {
+      clearInterval(this.queueProcessorInterval);
+      this.queueProcessorInterval = undefined;
+    }
+
     // Cancelar trabajos activos
     for (const [jobId] of this.activeJobs.entries()) {
       await this.cancelJob(jobId);
@@ -688,7 +700,7 @@ export class ScrapingOrchestrator extends EventEmitter {
 
     // Limpiar registro
     await this.registry.cleanup();
-    
+
     this.removeAllListeners();
     logger.info('🧹 ScrapingOrchestrator limpiado');
   }

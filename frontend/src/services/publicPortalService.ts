@@ -2,43 +2,58 @@ import axios from 'axios'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
-export interface PortalSections {
-  general: Array<{
+// Tipo base para artículos con imágenes
+interface BasePortalArticle {
+  id: string
+  title: string
+  slug: string
+  publishedAt: string
+  readingTime: number
+  generatedImages?: Array<{
     id: string
-    title: string
-    slug: string
+    filename: string
+    url?: string
+    fallbackUrl?: string
+    width?: number
+    height?: number
+    metaDescription?: string
+  }>
+  imageUrl?: string // Campo procesado por el backend
+}
+
+export interface PortalSections {
+  // ✅ ACTUALIZADO: General dividido en 3 bloques visuales (mantiene empuje 1-6)
+  generalTop: Array<BasePortalArticle & {
     summary: string
-    publishedAt: string
-    readingTime: number
-    viewCount: number
+    viewCount?: number
     author: {
       firstName: string
       lastName: string
     }
-  }>
-  ultimasNoticias: Array<{
-    id: string
-    title: string
-    slug: string
-    publishedAt: string
-    readingTime: number
-  }>
-  entidades: Record<string, Array<{
-    id: string
-    title: string
-    slug: string
+  }>  // Posiciones 1-2 (superior)
+  generalMiddle: Array<BasePortalArticle & {
+    summary: string
+    viewCount?: number
+    author: {
+      firstName: string
+      lastName: string
+    }
+  }>  // Posiciones 3-4 (medio, después de Últimas Noticias)
+  generalBottom: Array<BasePortalArticle & {
+    summary: string
+    viewCount?: number
+    author: {
+      firstName: string
+      lastName: string
+    }
+  }>  // Posiciones 5-6 (inferior, después de Instituciones)
+  ultimasNoticias: Array<BasePortalArticle>
+  entidades: Record<string, Array<BasePortalArticle & {
     summary: string
     entidadSeleccionada: string
-    publishedAt: string
-    readingTime: number
   }>>
-  destacados: Array<{
-    id: string
-    title: string
-    slug: string
+  destacados: Array<BasePortalArticle & {
     summary: string
-    publishedAt: string
-    readingTime: number
     author: {
       firstName: string
       lastName: string
@@ -47,14 +62,9 @@ export interface PortalSections {
 }
 
 export interface ArticlesByArea {
-  data: Array<{
-    id: string
-    title: string
-    slug: string
+  data: Array<BasePortalArticle & {
     summary: string
-    publishedAt: string
-    readingTime: number
-    viewCount: number
+    viewCount?: number
     tags: string[]
     author: {
       firstName: string

@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { PublicHeader } from '@/components/public/PublicHeader'
 import { PublicFooter } from '@/components/public/PublicFooter'
 import { ArticleCard } from '@/components/public/ArticleCard'
+import { ResponsiveImage } from '@/components/ui/ResponsiveImage'
 import { publicPortalService } from '@/services/publicPortalService'
 import { PublicArticle, adaptApiToPublicArticle, getDefaultArticleImage } from '@/types/publicArticle.types'
 import {
@@ -187,12 +188,17 @@ export default function PublicArticlePage() {
         {/* Imagen del artículo */}
         <div className="bg-white">
           <div className="max-w-4xl mx-auto px-6 sm:px-8">
-            <div className="relative">
-              <img
-                src={publicArticle.imageUrl || getDefaultArticleImage(publicArticle.category)}
-                alt={publicArticle.title}
-                className="w-full h-64 sm:h-80 lg:h-96 object-cover rounded-lg"
-              />
+            <div className="flex justify-center py-4">
+              {/* Caja gris con altura fija consistente igual al home en todos los breakpoints */}
+              <div className="relative w-64 h-48 sm:w-72 sm:h-54 md:w-80 md:h-60 bg-gray-50 rounded-lg overflow-hidden shadow-sm">
+                <img
+                  src={publicArticle.imageUrl || getDefaultArticleImage(publicArticle.category)}
+                  alt={publicArticle.title}
+                  className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300"
+                  loading="eager"
+                  sizes="(max-width: 640px) 256px, (max-width: 768px) 288px, 320px"
+                />
+              </div>
             </div>
           </div>
         </div>

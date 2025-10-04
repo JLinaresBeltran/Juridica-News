@@ -451,6 +451,7 @@ router.post('/:id/curate', validateRequest(curationActionSchema), async (req: Re
             keywords: articleData.keywords || '',
             metaTitle: articleData.metaTitle || articleData.title,
             metaDescription: summary.substring(0, 160),
+            imageUrl: articleData.image || null, // 🔥 GUARDAR imagen
             wordCount,
             readingTime,
             authorId: req.user.id
@@ -465,11 +466,12 @@ router.post('/:id/curate', validateRequest(curationActionSchema), async (req: Re
           wordCount: createdArticle.wordCount
         });
 
-        // 5. Actualizar documento para cambiar estado a READY
+        // 5. Actualizar documento para cambiar estado a READY y guardar el contenido editado
         await prisma.document.update({
           where: { id: documentId },
-          data: { 
-            status: 'READY' // Cambiar estado a READY en lugar de APPROVED
+          data: {
+            status: 'READY', // Cambiar estado a READY en lugar de APPROVED
+            generated_article: articleData.content // 🔥 GUARDAR contenido editado
           }
         });
 

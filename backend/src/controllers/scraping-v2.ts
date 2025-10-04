@@ -516,4 +516,11 @@ router.get('/health',
   }
 );
 
+// Exportar cleanup para llamar en shutdown
+export const cleanupOrchestrator = async () => {
+  if (orchestrator) {
+    await orchestrator.cleanup();
+  }
+};
+
 export default router;

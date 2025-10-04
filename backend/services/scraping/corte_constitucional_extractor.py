@@ -278,8 +278,8 @@ class CorteConstitucionalExtractor(BaseExtractor):
     
     def _get_extraction_dates(self, extended_search: bool = False) -> List[tuple]:
         """
-        Obtiene las fechas de extracción.
-        
+        Obtiene las fechas de extracción (solo días hábiles).
+
         Args:
             extended_search: Si es True, busca en más días (para base de datos limpia)
         """
@@ -287,34 +287,34 @@ class CorteConstitucionalExtractor(BaseExtractor):
             1: "enero", 2: "febrero", 3: "marzo", 4: "abril", 5: "mayo", 6: "junio",
             7: "julio", 8: "agosto", 9: "septiembre", 10: "octubre", 11: "noviembre", 12: "diciembre"
         }
-        
+
         dates_to_extract = []
         today = datetime.now()
-        
-        # Determinar número de días a buscar - Aumentamos para modo normal
-        days_to_search = 15 if extended_search else 7
-        self.logger.info(f"🗓️ Modo de búsqueda: {'extendida' if extended_search else 'normal'} ({days_to_search} días)")
-        
+
+        # Determinar número de días HÁBILES a buscar
+        target_business_days = 15 if extended_search else 5
+        self.logger.info(f"🗓️ Modo de búsqueda: {'extendida' if extended_search else 'normal'} ({target_business_days} días hábiles)")
+
         current_date = today
         days_added = 0
-        
-        while days_added < days_to_search:
+
+        while days_added < target_business_days:
             # Solo incluir días hábiles (lunes-viernes)
             if current_date.weekday() < 5:
                 day = current_date.day
                 month_name = months_spanish[current_date.month]
                 year = current_date.year
-                
+
                 target_date_str = f"{day} de {month_name} de {year}"
                 target_date_short = current_date.strftime("%d/%m/%Y")
                 target_date_alt = f"{day:02d}-{current_date.month:02d}-{year}"
-                
+
                 dates_to_extract.append((current_date, target_date_str, target_date_short, target_date_alt))
                 days_added += 1
                 self.logger.debug(f"📅 Agregada fecha: {target_date_str}")
-            
+
             current_date -= timedelta(days=1)
-        
+
         self.logger.info(f"✅ Total de fechas para extracción: {len(dates_to_extract)}")
         return dates_to_extract
     

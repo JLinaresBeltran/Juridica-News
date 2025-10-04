@@ -9,14 +9,26 @@ import { BaseScrapingService } from './BaseScrapingService';
 import { SourceMetadata, SourceHealth, ScrapingStats } from './types';
 
 export class SourceRegistry extends EventEmitter {
+  private static instance: SourceRegistry;
   private sources: Map<string, BaseScrapingService> = new Map();
   private metadata: Map<string, SourceMetadata> = new Map();
   private stats: Map<string, ScrapingStats> = new Map();
   private healthCheckInterval?: NodeJS.Timeout;
+  private isMonitoringStarted = false;
 
-  constructor() {
+  private constructor() {
     super();
-    this.startHealthMonitoring();
+  }
+
+  /**
+   * Obtener instancia singleton del registry
+   */
+  static getInstance(): SourceRegistry {
+    if (!SourceRegistry.instance) {
+      SourceRegistry.instance = new SourceRegistry();
+      SourceRegistry.instance.startHealthMonitoring();
+    }
+    return SourceRegistry.instance;
   }
 
   /**
@@ -226,25 +238,31 @@ export class SourceRegistry extends EventEmitter {
    * Iniciar monitoreo automático de salud
    */
   private startHealthMonitoring(): void {
+    if (this.isMonitoringStarted) {
+      logger.warn('⚠️ Health monitoring ya está iniciado, ignorando...');
+      return;
+    }
+
     this.healthCheckInterval = setInterval(async () => {
       for (const [sourceId, scraper] of this.sources.entries()) {
         try {
           const health = await scraper.checkHealth();
           const stats = this.stats.get(sourceId);
-          
+
           if (stats) {
             stats.health = health;
             this.stats.set(sourceId, stats);
           }
 
           this.emit('health_check', { sourceId, health });
-          
+
         } catch (error) {
           logger.error(`Error en health check para ${sourceId}:`, error);
         }
       }
     }, 300000); // Cada 5 minutos
 
+    this.isMonitoringStarted = true;
     logger.info('🏥 Monitoreo de salud iniciado (cada 5 minutos)');
   }
 
@@ -254,6 +272,8 @@ export class SourceRegistry extends EventEmitter {
   async cleanup(): Promise<void> {
     if (this.healthCheckInterval) {
       clearInterval(this.healthCheckInterval);
+      this.healthCheckInterval = undefined;
+      this.isMonitoringStarted = false;
     }
 
     // Limpiar todos los scrapers

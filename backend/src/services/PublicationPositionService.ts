@@ -7,7 +7,7 @@ export class PublicationPositionService {
 
   /**
    * Maneja el desplazamiento automático para la sección General
-   * Máximo 2 artículos visibles, FIFO (First In, First Out)
+   * Máximo 6 artículos visibles, FIFO (First In, First Out)
    */
   static async handleGeneralPositioning(articleId: string, isGeneral: boolean): Promise<void> {
     try {
@@ -45,8 +45,8 @@ export class PublicationPositionService {
       });
 
       // Desplazar otros artículos
-      if (currentGeneralArticles.length >= 2) {
-        // Si ya hay 2 o más, el último se desmarca de General
+      if (currentGeneralArticles.length >= 6) {
+        // Si ya hay 6 o más, el último se desmarca de General
         const lastArticle = currentGeneralArticles[currentGeneralArticles.length - 1];
         if (lastArticle) {
           await prisma.article.update({
@@ -57,24 +57,15 @@ export class PublicationPositionService {
             }
           });
         }
+      }
 
-        // Reordenar solo el primero para la posición 2
-        if (currentGeneralArticles.length > 0) {
-          const firstArticle = currentGeneralArticles[0];
-          if (firstArticle) {
-            await prisma.article.update({
-              where: { id: firstArticle.id },
-              data: { posicionGeneral: 2 }
-            });
-          }
-        }
-      } else if (currentGeneralArticles.length === 1) {
-        // Si hay solo 1, se mueve a posición 2
-        const firstArticle = currentGeneralArticles[0];
-        if (firstArticle) {
+      // Reordenar todos los artículos existentes empujándolos una posición hacia abajo
+      for (let i = currentGeneralArticles.length - 1; i >= 0; i--) {
+        const article = currentGeneralArticles[i];
+        if (article && article.posicionGeneral && article.posicionGeneral < 6) {
           await prisma.article.update({
-            where: { id: firstArticle.id },
-            data: { posicionGeneral: 2 }
+            where: { id: article.id },
+            data: { posicionGeneral: article.posicionGeneral + 1 }
           });
         }
       }

@@ -76,6 +76,7 @@ router.get('/articles', validateRequest(publicFiltersSchema, 'query'), async (re
           readingTime: true,
           views: true,
           publishedAt: true,
+          imageUrl: true, // ✅ Agregar campo imageUrl
           author: {
             select: {
               firstName: true,
@@ -177,6 +178,7 @@ router.get('/articles/:slug', async (req: Request, res: Response) => {
             height: true,
             format: true,
             metaDescription: true,
+            prompt: true,
           }
         }
       }
@@ -196,7 +198,18 @@ router.get('/articles/:slug', async (req: Request, res: Response) => {
       }
     });
 
-    res.json({ data: article });
+    // Post-process images to ensure correct URLs
+    const processedArticle = {
+      ...article,
+      generatedImages: article.generatedImages.map(img => ({
+        ...img,
+        url: `/api/storage/images/${img.filename}`,
+        // Provide fallback URL if filename is not available
+        fallbackUrl: img.originalUrl || '/images/placeholder-article.jpg'
+      }))
+    };
+
+    res.json({ data: processedArticle });
 
   } catch (error) {
     res.status(500).json({
@@ -383,15 +396,15 @@ router.get('/preview', async (req: Request, res: Response) => {
 router.get('/portal-sections', async (req: Request, res: Response) => {
   try {
     // Obtener artículos para cada sección del portal
-    const [general, ultimasNoticias, entidades, destacados] = await Promise.all([
-      // Sección General (máximo 2)
+    const [generalAll, ultimasNoticias, entidades, destacados] = await Promise.all([
+      // Sección General - 6 artículos distribuidos (posiciones 1-6)
       prisma.article.findMany({
         where: {
           status: 'PUBLISHED',
           isGeneral: true
         },
         orderBy: { posicionGeneral: 'asc' },
-        take: 2,
+        take: 6,
         select: {
           id: true,
           title: true,
@@ -400,6 +413,8 @@ router.get('/portal-sections', async (req: Request, res: Response) => {
           publishedAt: true,
           readingTime: true,
           views: true,
+          posicionGeneral: true,
+          imageUrl: true, // ✅ Agregar campo imageUrl
           author: {
             select: {
               firstName: true,
@@ -435,6 +450,7 @@ router.get('/portal-sections', async (req: Request, res: Response) => {
           slug: true,
           publishedAt: true,
           readingTime: true,
+          imageUrl: true, // ✅ Agregar campo imageUrl
           generatedImages: {
             select: {
               id: true,
@@ -466,6 +482,7 @@ router.get('/portal-sections', async (req: Request, res: Response) => {
           entidadSeleccionada: true,
           publishedAt: true,
           readingTime: true,
+          imageUrl: true, // ✅ Agregar campo imageUrl
           generatedImages: {
             select: {
               id: true,
@@ -496,6 +513,7 @@ router.get('/portal-sections', async (req: Request, res: Response) => {
           summary: true,
           publishedAt: true,
           readingTime: true,
+          imageUrl: true, // ✅ Agregar campo imageUrl
           author: {
             select: {
               firstName: true,
@@ -528,12 +546,38 @@ router.get('/portal-sections', async (req: Request, res: Response) => {
       return acc;
     }, {} as Record<string, typeof entidades>);
 
+    // Post-process function to add correct image URLs
+    const processImages = (articles: any[]) => {
+      return articles.map(article => ({
+        ...article,
+        generatedImages: article.generatedImages?.map((img: any) => ({
+          ...img,
+          url: `/api/storage/images/${img.filename}`,
+          fallbackUrl: img.originalUrl || '/images/placeholder-article.jpg'
+        })) || [],
+        // ✅ Priorizar imageUrl del modelo sobre generatedImages[0]
+        imageUrl: article.imageUrl ||
+          (article.generatedImages?.[0]
+            ? `/api/storage/images/${article.generatedImages[0].filename}`
+            : '/images/placeholder-article.jpg')
+      }));
+    };
+
+    // ✅ ACTUALIZADO: Dividir General en 3 bloques visuales (mantiene sistema de empuje 1-6)
+    // Bloque 1 (pos 1-2): Superior del portal
+    // Bloque 2 (pos 3-4): Debajo de Últimas Noticias
+    // Bloque 3 (pos 5-6): Debajo de Instituciones
+
     res.json({
       data: {
-        general,
-        ultimasNoticias,
-        entidades: entidadesGrouped,
-        destacados
+        generalTop: processImages(generalAll.slice(0, 2)),      // Posiciones 1-2
+        generalMiddle: processImages(generalAll.slice(2, 4)),   // Posiciones 3-4
+        generalBottom: processImages(generalAll.slice(4, 6)),   // Posiciones 5-6
+        ultimasNoticias: processImages(ultimasNoticias),
+        entidades: Object.fromEntries(
+          Object.entries(entidadesGrouped).map(([key, articles]) => [key, processImages(articles)])
+        ),
+        destacados: processImages(destacados)
       }
     });
 
@@ -579,6 +623,7 @@ router.get('/articles/by-legal-area/:legalArea', async (req: Request, res: Respo
           readingTime: true,
           views: true,
           tags: true,
+          imageUrl: true, // ✅ Agregar campo imageUrl
           author: {
             select: {
               firstName: true,
@@ -604,8 +649,23 @@ router.get('/articles/by-legal-area/:legalArea', async (req: Request, res: Respo
 
     const totalPages = Math.ceil(total / limit);
 
+    // Post-process images for consistency
+    const processedArticles = articles.map(article => ({
+      ...article,
+      generatedImages: article.generatedImages?.map((img: any) => ({
+        ...img,
+        url: `/api/storage/images/${img.filename}`,
+        fallbackUrl: img.originalUrl || '/images/placeholder-article.jpg'
+      })) || [],
+      // ✅ Priorizar imageUrl del modelo sobre generatedImages[0]
+      imageUrl: article.imageUrl ||
+        (article.generatedImages?.[0]
+          ? `/api/storage/images/${article.generatedImages[0].filename}`
+          : '/images/placeholder-article.jpg')
+    }));
+
     res.json({
-      data: articles,
+      data: processedArticles,
       pagination: {
         page,
         limit,

@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Search, Twitter, Instagram, Facebook } from 'lucide-react'
 
 // CSS personalizado para animaciones
@@ -28,16 +29,16 @@ export const PublicHeader: React.FC<PublicHeaderProps> = ({ onSearch, className 
   const [isMenuOpen, setIsMenuOpen] = useState(false)
 
   const navigationItems = [
-    { label: 'Constitucional', href: '/portal/constitucional' },
-    { label: 'Administrativo', href: '/portal/administrativo' },
-    { label: 'Fiscal/Aduanero', href: '/portal/fiscal' },
-    { label: 'Societario', href: '/portal/societario' },
-    { label: 'Penal', href: '/portal/penal' },
-    { label: 'Civil/Familia', href: '/portal/civil' },
-    { label: 'Digital', href: '/portal/digital' },
-    { label: 'Laboral', href: '/portal/laboral' },
-    { label: 'Regulatorio', href: '/portal/regulatorio' },
-    { label: 'Opinión', href: '/portal/opinion' },
+    { label: 'Constitucional', to: '/portal/constitucional' },
+    { label: 'Administrativo', to: '/portal/administrativo' },
+    { label: 'Fiscal/Aduanero', to: '/portal/fiscal' },
+    { label: 'Societario', to: '/portal/societario' },
+    { label: 'Penal', to: '/portal/penal' },
+    { label: 'Civil/Familia', to: '/portal/civil' },
+    { label: 'Digital', to: '/portal/digital' },
+    { label: 'Laboral', to: '/portal/laboral' },
+    { label: 'Regulatorio', to: '/portal/regulatorio' },
+    { label: 'Opinión', to: '/portal/opinion' },
   ]
 
   const toggleMenu = () => {
@@ -68,8 +69,8 @@ export const PublicHeader: React.FC<PublicHeaderProps> = ({ onSearch, className 
             </div>
             
             {/* Logo y título centrados */}
-            <a
-              href="/portal"
+            <Link
+              to="/portal"
               className="flex items-center gap-4 hover:opacity-80 transition-opacity"
             >
               <img
@@ -78,7 +79,7 @@ export const PublicHeader: React.FC<PublicHeaderProps> = ({ onSearch, className 
                 className="h-12 w-auto"
               />
               <h1 className="text-lg font-bold text-gray-800 tracking-wide">Línea Judicial</h1>
-            </a>
+            </Link>
             
             {/* Búsqueda en la esquina superior derecha */}
             <div className="flex items-center">
@@ -95,17 +96,17 @@ export const PublicHeader: React.FC<PublicHeaderProps> = ({ onSearch, className 
           {/* Header móvil - mantiene el diseño original */}
           <div className="md:hidden flex items-center justify-between h-16">
             {/* Logo */}
-            <a 
-              href="/portal" 
+            <Link
+              to="/portal"
               className="flex items-center gap-3 hover:opacity-80 transition-opacity"
             >
-              <img 
-                src="/images/logo.png" 
-                alt="Logo Jurídico" 
+              <img
+                src="/images/logo.png"
+                alt="Logo Jurídico"
                 className="h-10 w-auto"
               />
               <p className="text-xs text-gray-600 font-medium tracking-widest">Línea Judicial</p>
-            </a>
+            </Link>
             
             {/* Botones mobile */}
             <div className="flex items-center space-x-2">
@@ -156,13 +157,13 @@ export const PublicHeader: React.FC<PublicHeaderProps> = ({ onSearch, className 
               {/* Navegación por secciones centrada */}
               <nav className="flex items-center space-x-6">
                 {navigationItems.map((item) => (
-                  <a
+                  <Link
                     key={item.label}
-                    href={item.href}
+                    to={item.to}
                     className="text-sm font-medium text-gray-600 hover:text-primary-600 transition-colors"
                   >
                     {item.label}
-                  </a>
+                  </Link>
                 ))}
               </nav>
             </div>
@@ -178,9 +179,9 @@ export const PublicHeader: React.FC<PublicHeaderProps> = ({ onSearch, className 
           <div className="mx-4 mt-4 mb-6 bg-white rounded-2xl shadow-xl border border-gray-100 transform transition-transform duration-300 ease-in-out" style={{ boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
             <div className="px-4 py-4 space-y-2">
               {navigationItems.map((item, index) => (
-                <a
+                <Link
                   key={item.label}
-                  href={item.href}
+                  to={item.to}
                   onClick={() => setIsMenuOpen(false)}
                   className={`block px-4 py-3 text-base font-medium rounded-xl transition-all duration-200 text-gray-600 hover:text-primary-600 hover:bg-primary-50 transform hover:scale-[0.98] ${
                     isMenuOpen ? 'slide-in-animation' : ''
@@ -190,7 +191,7 @@ export const PublicHeader: React.FC<PublicHeaderProps> = ({ onSearch, className 
                   }}
                 >
                   {item.label}
-                </a>
+                </Link>
               ))}
             </div>
           </div>

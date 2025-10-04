@@ -122,13 +122,19 @@ export const useCurationStore = create<CurationState>()(
           if (syncToBackend) {
             try {
               set({ isLoading: true, syncError: null })
-              
-              
-              // ✅ FIX: Incluir datos de IA en la aprobación
+
+              // Helper function to filter out null/undefined values
+              const filterNullValues = (obj: Record<string, any>) => {
+                return Object.fromEntries(
+                  Object.entries(obj).filter(([_, value]) => value != null && value !== '')
+                )
+              }
+
+              // ✅ FIX: Incluir datos de IA en la aprobación (filtrar nulls)
               const requestData = {
                 action: 'approve',
                 // Incluir datos de análisis IA
-                aiData: {
+                aiData: filterNullValues({
                   numeroSentencia: document.numeroSentencia,
                   magistradoPonente: document.magistradoPonente,
                   salaRevision: document.salaRevision,
@@ -140,17 +146,17 @@ export const useCurationStore = create<CurationState>()(
                   aiAnalysisDate: document.aiAnalysisDate,
                   aiModel: document.aiModel,
                   fragmentosAnalisis: document.fragmentosAnalisis
-                },
-                // ✅ NEW: Incluir datos del artículo generado si existen
+                }),
+                // ✅ NEW: Incluir datos del artículo generado si existen (filtrar nulls)
                 ...(articleData && {
-                  articleData: {
+                  articleData: filterNullValues({
                     title: articleData.title,
                     content: articleData.content,
                     image: articleData.image,
                     keywords: articleData.keywords,
                     metaTitle: articleData.metaTitle,
                     publicationSection: articleData.publicationSection
-                  }
+                  })
                 })
               }
               
@@ -265,11 +271,19 @@ export const useCurationStore = create<CurationState>()(
           if (syncToBackend) {
             try {
               set({ isLoading: true, syncError: null })
+
+              // Helper function to filter out null/undefined values
+              const filterNullValues = (obj: Record<string, any>) => {
+                return Object.fromEntries(
+                  Object.entries(obj).filter(([_, value]) => value != null && value !== '')
+                )
+              }
+
               await api.post(`/documents/${document.id}/curate`, {
                 action: 'reject',
                 notes: reason,
-                // ✅ FIX: Incluir datos de IA también en el rechazo
-                aiData: {
+                // ✅ FIX: Incluir datos de IA también en el rechazo (filtrar nulls)
+                aiData: filterNullValues({
                   numeroSentencia: document.numeroSentencia,
                   magistradoPonente: document.magistradoPonente,
                   salaRevision: document.salaRevision,
@@ -281,7 +295,7 @@ export const useCurationStore = create<CurationState>()(
                   aiAnalysisDate: document.aiAnalysisDate,
                   aiModel: document.aiModel,
                   fragmentosAnalisis: document.fragmentosAnalisis
-                }
+                })
               })
               set({ 
                 isLoading: false, 
@@ -362,10 +376,18 @@ export const useCurationStore = create<CurationState>()(
               
               
               // ✅ FIX: Usar el endpoint de curación con datos de artículo para crear artículo completo
+
+              // Helper function to filter out null/undefined values
+              const filterNullValues = (obj: Record<string, any>) => {
+                return Object.fromEntries(
+                  Object.entries(obj).filter(([_, value]) => value != null && value !== '')
+                )
+              }
+
               await api.post(`/documents/${document.id}/curate`, {
                 action: 'approve',
-                // Incluir datos de análisis IA del documento
-                aiData: {
+                // Incluir datos de análisis IA del documento (filtrar nulls)
+                aiData: filterNullValues({
                   numeroSentencia: document.numeroSentencia,
                   magistradoPonente: document.magistradoPonente,
                   salaRevision: document.salaRevision,
@@ -377,16 +399,16 @@ export const useCurationStore = create<CurationState>()(
                   aiAnalysisDate: document.aiAnalysisDate,
                   aiModel: document.aiModel,
                   fragmentosAnalisis: document.fragmentosAnalisis
-                },
-                // ✅ NEW: Incluir datos del artículo generado para que se cree automáticamente
-                articleData: {
+                }),
+                // ✅ NEW: Incluir datos del artículo generado para que se cree automáticamente (filtrar nulls)
+                articleData: filterNullValues({
                   title: articleData?.title || document.title,
                   content: articleData?.content || '',
                   image: articleData?.image,
                   keywords: articleData?.metadata?.keywords?.join(', ') || '',
                   metaTitle: articleData?.metadata?.seoTitle || articleData?.title || document.title,
                   publicationSection: articleData?.metadata?.section?.toLowerCase() || 'constitucional'
-                }
+                })
               })
               
               set({ 

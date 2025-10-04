@@ -102,40 +102,45 @@ model Document {
 }
 
 model Article {
-  id                      String           @id @default(cuid())
-  title                   String
-  slug                    String           @unique
-  content                 String
-  summary                 String
-  metaTitle               String?          @map("meta_title")
-  metaDescription         String?          @map("meta_description")
-  keywords                String           @default("")
-  canonicalUrl            String?          @map("canonical_url")
-  status                  String           @default("DRAFT")
-  legalArea               String           @default("CONSTITUCIONAL") @map("legal_area")
-  publicationSection      String           @map("publication_section")
-  tags                    String           @default("")
-  publishedAt             DateTime?        @map("published_at")
-  scheduledAt             DateTime?        @map("scheduled_at")
-  isGeneral               Boolean          @default(false) @map("is_general")
-  isUltimasNoticias       Boolean          @default(false) @map("is_ultimas_noticias")
-  entidadSeleccionada     String?          @map("entidad_seleccionada")
-  isDestacadoSemana       Boolean          @default(false) @map("is_destacado_semana")
-  posicionGeneral         Int?             @map("posicion_general")
-  posicionUltimasNoticias Int?             @map("posicion_ultimas_noticias")
-  createdAt               DateTime         @default(now()) @map("created_at")
-  updatedAt               DateTime         @updatedAt @map("updated_at")
-  views                   Int              @default(0)
-  likes                   Int              @default(0)
-  wordCount               Int              @default(0) @map("word_count")
-  readingTime             Int              @default(0) @map("reading_time")
-  authorId                String           @map("author_id")
-  sourceDocumentId        String?          @map("source_document_id")
-  versions                ArticleVersion[]
-  sourceDocument          Document?        @relation("ArticleSourceDocument", fields: [sourceDocumentId], references: [id])
-  author                  User             @relation("ArticleAuthor", fields: [authorId], references: [id])
-  generatedImages         GeneratedImage[]
-  mediaAssets             MediaAsset[]
+  id                        String           @id @default(cuid())
+  title                     String
+  slug                      String           @unique
+  content                   String
+  summary                   String
+  metaTitle                 String?          @map("meta_title")
+  metaDescription           String?          @map("meta_description")
+  keywords                  String           @default("")
+  canonicalUrl              String?          @map("canonical_url")
+  status                    String           @default("DRAFT")
+  legalArea                 String           @default("CONSTITUCIONAL") @map("legal_area")
+  publicationSection        String           @map("publication_section")
+  tags                      String           @default("")
+  publishedAt               DateTime?        @map("published_at")
+  scheduledAt               DateTime?        @map("scheduled_at")
+  isGeneral                 Boolean          @default(false) @map("is_general")
+  isUltimasNoticias         Boolean          @default(false) @map("is_ultimas_noticias")
+  entidadSeleccionada       String?          @map("entidad_seleccionada")
+  isDestacadoSemana         Boolean          @default(false) @map("is_destacado_semana")
+  isSeccionIntermedia       Boolean          @default(false) @map("is_seccion_intermedia")
+  isSeccionInferior         Boolean          @default(false) @map("is_seccion_inferior")
+  posicionGeneral           Int?             @map("posicion_general")
+  posicionUltimasNoticias   Int?             @map("posicion_ultimas_noticias")
+  posicionSeccionIntermedia Int?             @map("posicion_seccion_intermedia")
+  posicionSeccionInferior   Int?             @map("posicion_seccion_inferior")
+  createdAt                 DateTime         @default(now()) @map("created_at")
+  updatedAt                 DateTime         @updatedAt @map("updated_at")
+  views                     Int              @default(0)
+  likes                     Int              @default(0)
+  wordCount                 Int              @default(0) @map("word_count")
+  readingTime               Int              @default(0) @map("reading_time")
+  imageUrl                  String?          @map("image_url")
+  authorId                  String           @map("author_id")
+  sourceDocumentId          String?          @map("source_document_id")
+  versions                  ArticleVersion[]
+  author                    User             @relation("ArticleAuthor", fields: [authorId], references: [id])
+  sourceDocument            Document?        @relation("ArticleSourceDocument", fields: [sourceDocumentId], references: [id])
+  generatedImages           GeneratedImage[]
+  mediaAssets               MediaAsset[]
 
   @@map("articles")
 }

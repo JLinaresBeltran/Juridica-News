@@ -12,6 +12,7 @@ import {
 import { generateSlug } from '@/utils/slug';
 import { calculateReadingTime, countWords } from '@/utils/text';
 import { PublicationPositionService } from '@/services/PublicationPositionService';
+import { ArticlePositioningService } from '@/services/ArticlePositioningService';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -656,10 +657,45 @@ router.post('/:id/publish', async (req: Request, res: Response) => {
       }
     });
 
-    res.json({
-      data: updatedArticle,
-      message: 'Article published successfully'
-    });
+    // NUEVO: Detectar automáticamente si debe ejecutarse el empuje
+    // Verificar si el artículo se está publicando en la sección General
+    const publicationSettings = req.body as { isGeneral?: boolean } | undefined;
+    const shouldExecutePush = publicationSettings?.isGeneral === true;
+
+    // SOLUCIÓN: Ejecutar empuje automático SIEMPRE que se detecte publicación en General
+    if (shouldExecutePush) {
+      try {
+        logger.info(`🚀 EMPUJE AUTOMÁTICO DETECTADO - Iniciando para artículo: ${articleId}`);
+
+        // Ejecutar el empuje automático a través de todas las secciones
+        await ArticlePositioningService.pushArticlesThroughPortal(articleId);
+
+        logger.info(`✅ Empuje automático completado exitosamente para artículo: ${articleId}`);
+
+        res.json({
+          data: updatedArticle,
+          message: 'Article published successfully and positioned in General section with automatic push completed',
+          pushExecuted: true
+        });
+      } catch (pushError) {
+        logger.error(`❌ Error en empuje automático para artículo ${articleId}:`, pushError);
+
+        // Artículo se publicó exitosamente, pero hubo error en el empuje
+        res.json({
+          data: updatedArticle,
+          message: 'Article published successfully, but there was an issue with automatic positioning',
+          warning: pushError instanceof Error ? pushError.message : 'Unknown positioning error',
+          pushExecuted: false
+        });
+      }
+    } else {
+      logger.info(`📰 Artículo publicado sin empuje automático: ${articleId}`);
+      res.json({
+        data: updatedArticle,
+        message: 'Article published successfully',
+        pushExecuted: false
+      });
+    }
 
     logger.info('Article published', {
       articleId,
@@ -711,7 +747,29 @@ router.put('/:id/publication-settings', validateRequest(publicationSettingsSchem
     }
 
     // Update publication settings using the service
-    await PublicationPositionService.updatePublicationSettings(articleId, settings);
+    // Note: For General section specifically, we use ArticlePositioningService for consistency with 6-article system
+    if (settings.isGeneral !== undefined) {
+      if (settings.isGeneral) {
+        // Use ArticlePositioningService for General section to ensure consistency with 6-article system
+        await ArticlePositioningService.pushArticlesThroughPortal(articleId);
+      } else {
+        // Remove from General section manually
+        await prisma.article.update({
+          where: { id: articleId },
+          data: {
+            isGeneral: false,
+            posicionGeneral: null
+          }
+        });
+      }
+    }
+
+    // For other settings, use PublicationPositionService
+    const otherSettings = { ...settings };
+    delete otherSettings.isGeneral;
+    if (Object.keys(otherSettings).length > 0) {
+      await PublicationPositionService.updatePublicationSettings(articleId, otherSettings);
+    }
 
     // Get updated article
     const updatedArticle = await prisma.article.findUnique({
@@ -773,7 +831,8 @@ router.put('/:id/publication-settings', validateRequest(publicationSettingsSchem
  */
 router.get('/publication-stats', async (req: Request, res: Response) => {
   try {
-    const stats = await PublicationPositionService.getPublicationStats();
+    // Use ArticlePositioningService for comprehensive portal stats including 6-article General section
+    const stats = await ArticlePositioningService.getPortalStats();
 
     res.json({
       data: stats,
@@ -784,6 +843,130 @@ router.get('/publication-stats', async (req: Request, res: Response) => {
     logger.error('Error getting publication stats', { error, userId: req.user.id });
     res.status(500).json({
       error: 'Failed to retrieve publication statistics',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/articles/{id}/publish-general:
+ *   post:
+ *     summary: Publish article in General section with automatic push
+ *     tags: [Articles]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.post('/:id/publish-general', async (req: Request, res: Response) => {
+  try {
+    const articleId = req.params.id;
+
+    const article = await prisma.article.findUnique({
+      where: { id: articleId }
+    });
+
+    if (!article) {
+      return res.status(404).json({
+        error: 'Article not found'
+      });
+    }
+
+    if (article.status === 'PUBLISHED') {
+      return res.status(400).json({
+        error: 'Article is already published'
+      });
+    }
+
+    // Check if article is ready for publication
+    if (!article.content.trim() || !article.summary.trim()) {
+      return res.status(400).json({
+        error: 'Article must have content and summary before publishing'
+      });
+    }
+
+    // Publicar el artículo
+    const updatedArticle = await prisma.article.update({
+      where: { id: articleId },
+      data: {
+        status: 'PUBLISHED',
+        publishedAt: new Date(),
+      }
+    });
+
+    // Log audit trail
+    await prisma.auditLog.create({
+      data: {
+        userId: req.user.id,
+        action: 'ARTICLE_PUBLISHED_GENERAL',
+        description: `Article "${updatedArticle.title}" published in General section with auto-push`,
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent') || '',
+      }
+    });
+
+    // Ejecutar empuje automático
+    try {
+      logger.info(`🚀 Ejecutando empuje automático en General para artículo: ${articleId}`);
+
+      await ArticlePositioningService.pushArticlesThroughPortal(articleId);
+
+      logger.info(`✅ Empuje automático completado para artículo: ${articleId}`);
+
+      // Obtener estadísticas del portal después del empuje
+      const portalStats = await ArticlePositioningService.getPortalStats();
+
+      res.json({
+        data: updatedArticle,
+        message: 'Article published successfully in General section with automatic positioning',
+        portalStats,
+        pushCompleted: true
+      });
+
+    } catch (pushError) {
+      logger.error(`❌ Error en empuje automático:`, pushError);
+
+      res.json({
+        data: updatedArticle,
+        message: 'Article published but automatic positioning failed',
+        error: pushError instanceof Error ? pushError.message : 'Unknown positioning error',
+        pushCompleted: false
+      });
+    }
+
+  } catch (error) {
+    logger.error('Error publishing article in General section:', error);
+    res.status(500).json({
+      error: 'Failed to publish article in General section',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/articles/portal-stats:
+ *   get:
+ *     summary: Get portal positioning statistics
+ *     tags: [Articles]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.get('/portal-stats', async (req: Request, res: Response) => {
+  try {
+    const stats = await ArticlePositioningService.getPortalStats();
+    const integrity = await ArticlePositioningService.validatePortalIntegrity();
+
+    res.json({
+      data: {
+        stats,
+        integrity
+      }
+    });
+
+  } catch (error) {
+    logger.error('Error getting portal stats:', error);
+    res.status(500).json({
+      error: 'Failed to get portal stats',
       message: error instanceof Error ? error.message : 'Unknown error'
     });
   }

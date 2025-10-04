@@ -2,6 +2,7 @@ import React from 'react'
 import { Link } from 'react-router-dom'
 import { Clock, User } from 'lucide-react'
 import { PublicArticle, getDefaultArticleImage } from '@/types/publicArticle.types'
+import { ResponsiveImage } from '@/components/ui/ResponsiveImage'
 
 interface ArticleCardProps {
   article: PublicArticle
@@ -33,8 +34,50 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
   // Generate SEO-optimized article URL
   const articleUrl = `/portal/articles/${article.slug}`
 
-  // Get image URL or default
-  const imageUrl = article.imageUrl || getDefaultArticleImage(article.category)
+  // Get image URL with fallback hierarchy
+  const getImageUrl = (): string => {
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+
+    // 1. Usar imageUrl si está disponible (ya procesado por backend)
+    if (article.imageUrl) {
+      // Si ya tiene el host completo, usarla tal como está
+      if (article.imageUrl.startsWith('http')) {
+        return article.imageUrl
+      }
+      // Si es relativa, agregar el host del backend
+      return `${API_URL}${article.imageUrl}`
+    }
+
+    // 2. Usar primera imagen de generatedImages si está disponible
+    if (article.generatedImages && article.generatedImages.length > 0) {
+      const firstImage = article.generatedImages[0]
+
+      // Priorizar URL procesada por backend
+      if (firstImage.url) {
+        // Si ya tiene el host completo, usarla tal como está
+        if (firstImage.url.startsWith('http')) {
+          return firstImage.url
+        }
+        // Si es relativa, agregar el host del backend
+        return `${API_URL}${firstImage.url}`
+      }
+
+      // Fallback a filename si está disponible
+      if (firstImage.filename) {
+        return `${API_URL}/api/storage/images/${firstImage.filename}`
+      }
+
+      // Usar fallbackUrl si está definida
+      if (firstImage.fallbackUrl && firstImage.fallbackUrl !== 'base64-image') {
+        return firstImage.fallbackUrl
+      }
+    }
+
+    // 3. Imagen por defecto basada en categoría
+    return getDefaultArticleImage(article.category)
+  }
+
+  const imageUrl = getImageUrl()
 
   // Layout horizontal (imagen izquierda, contenido derecha)
   if (layout === 'horizontal') {
@@ -47,12 +90,15 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
       >
         <article>
         <div className="flex">
-          <div className="flex-shrink-0 w-36 bg-gray-50 rounded-l-lg overflow-hidden">
-            <img
+          <div className="flex-shrink-0 w-36">
+            <ResponsiveImage
               src={imageUrl}
               alt={article.title}
-              className="w-full h-auto object-cover"
-              style={{ aspectRatio: '3/2' }}
+              aspectRatio="4/3"
+              objectFit="cover"
+              className="rounded-l-lg"
+              category={article.category}
+              sizes="(max-width: 768px) 144px, 144px"
             />
           </div>
           <div className="flex-1 px-4 py-3 sm:px-5 sm:py-4">
@@ -85,14 +131,16 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
         aria-label={`Artículo destacado sobre ${article.category}: ${article.title}`}
       >
         <article>
-        <div className="relative bg-gray-50 rounded-t-lg overflow-hidden">
-          <img
-            src={imageUrl}
-            alt={article.title}
-            className="w-full h-auto object-cover"
-            style={{ aspectRatio: '16/9' }}
-          />
-        </div>
+        <ResponsiveImage
+          src={imageUrl}
+          alt={article.title}
+          aspectRatio="16/9"
+          objectFit="cover"
+          className="rounded-t-lg"
+          category={article.category}
+          priority={true}
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+        />
         <div className="px-5 py-4 sm:px-6 sm:py-5">
           <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-4">
             {article.title}
@@ -157,17 +205,21 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
       aria-label={`Artículo sobre ${article.category}: ${article.title}`}
     >
       <article>
-      <div className="relative bg-gray-50 rounded-t-lg overflow-hidden">
-        <img
-          src={imageUrl}
-          alt={article.title}
-          className="w-full h-auto object-cover"
-          style={{
-            aspectRatio: '16/9',
-            minHeight: size === 'small' ? '8rem' : size === 'large' ? '12rem' : '10rem'
-          }}
-        />
-      </div>
+      <ResponsiveImage
+        src={imageUrl}
+        alt={article.title}
+        aspectRatio="16/9"
+        objectFit="cover"
+        className="rounded-t-lg"
+        category={article.category}
+        sizes={
+          size === 'small'
+            ? "(max-width: 768px) 100vw, 300px"
+            : size === 'large'
+            ? "(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 400px"
+            : "(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 350px"
+        }
+      />
       <div className={`px-4 py-3 ${size === 'large' ? 'sm:px-5 sm:py-4' : ''}`}>
         <h3 className={`font-semibold text-gray-900 line-clamp-2 mb-3 ${
           size === 'small' ? 'text-sm' : size === 'large' ? 'text-lg' : 'text-base'

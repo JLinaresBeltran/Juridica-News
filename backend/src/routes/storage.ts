@@ -627,9 +627,129 @@ router.post('/images/save-from-url', async (req: Request, res: Response) => {
   }
 });
 
-// Endpoint eliminado: Las imágenes ahora se sirven directamente
-// a través del middleware express.static() configurado en server.ts
-// en la línea: app.use('/api/storage/images', express.static(...))
+/**
+ * @swagger
+ * /api/storage/images/{filename}:
+ *   get:
+ *     summary: Serve generated images from local storage
+ *     tags: [Storage]
+ *     parameters:
+ *       - in: path
+ *         name: filename
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The filename of the image to serve
+ *     responses:
+ *       200:
+ *         description: Image file
+ *         content:
+ *           image/*:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       404:
+ *         description: Image not found
+ *       500:
+ *         description: Server error
+ */
+router.get('/images/:filename', async (req: Request, res: Response) => {
+  try {
+    const { filename } = req.params;
+
+    // Validar que el filename no contenga caracteres peligrosos
+    if (!filename || filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+      return res.status(400).json({
+        error: 'Invalid filename'
+      });
+    }
+
+    // Construir la ruta del archivo
+    const imagePath = path.join(process.cwd(), 'storage', 'images', filename);
+
+    try {
+      // Verificar que el archivo existe
+      await fs.access(imagePath);
+
+      // Obtener información del archivo
+      const stats = await fs.stat(imagePath);
+
+      // Determinar el content-type basado en la extensión
+      const ext = path.extname(filename).toLowerCase();
+      let contentType = 'application/octet-stream';
+
+      switch (ext) {
+        case '.jpg':
+        case '.jpeg':
+          contentType = 'image/jpeg';
+          break;
+        case '.png':
+          contentType = 'image/png';
+          break;
+        case '.gif':
+          contentType = 'image/gif';
+          break;
+        case '.webp':
+          contentType = 'image/webp';
+          break;
+        case '.svg':
+          contentType = 'image/svg+xml';
+          break;
+      }
+
+      // Configurar headers de respuesta
+      res.set({
+        'Content-Type': contentType,
+        'Content-Length': stats.size.toString(),
+        'Cache-Control': 'public, max-age=31536000', // Cache por 1 año
+        'ETag': `"${stats.mtime.getTime()}-${stats.size}"`,
+        'Last-Modified': stats.mtime.toUTCString(),
+      });
+
+      // Verificar si el cliente ya tiene una versión cached
+      const ifNoneMatch = req.get('If-None-Match');
+      const etag = `"${stats.mtime.getTime()}-${stats.size}"`;
+
+      if (ifNoneMatch === etag) {
+        return res.status(304).end();
+      }
+
+      // Leer y enviar el archivo
+      const imageBuffer = await fs.readFile(imagePath);
+      res.send(imageBuffer);
+
+      logger.info('Image served successfully', {
+        filename,
+        contentType,
+        size: stats.size
+      });
+
+    } catch (fileError) {
+      // El archivo no existe o no se puede leer
+      logger.warn('Image file not found', {
+        filename,
+        imagePath,
+        error: fileError instanceof Error ? fileError.message : 'Unknown error'
+      });
+
+      return res.status(404).json({
+        error: 'Image not found'
+      });
+    }
+
+  } catch (error) {
+    logger.error('Error serving image', {
+      filename: req.params.filename,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
+
+    return res.status(500).json({
+      error: 'Internal server error',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
 
 /**
  * @swagger
