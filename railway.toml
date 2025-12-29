@@ -1,0 +1,19 @@
+[build]
+builder = "nixpacks"
+buildCommand = "npm run install:all && npm run build"
+
+[deploy]
+startCommand = "npm start"
+restartPolicyType = "on-failure"
+restartPolicyMaxRetries = 3
+
+[[services]]
+name = "juridica-news"
+
+[[services.volumes]]
+mountPath = "/app/backend/storage"
+name = "juridica-storage"
+
+[[services.volumes]]
+mountPath = "/app/backend/prisma"
+name = "juridica-database"

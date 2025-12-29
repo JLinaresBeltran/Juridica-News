@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import path from 'path';
+import fs from 'fs';
 import { config } from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import Redis from 'ioredis';
@@ -147,6 +148,27 @@ app.use('/api/storage/documents', express.static(path.join(__dirname, '../storag
 
 // Image files are now served via programmatic endpoint in storage.ts
 // for better error handling, logging, and cache control
+
+// Servir frontend estático en producción
+if (process.env.NODE_ENV === 'production') {
+  const frontendPath = path.join(__dirname, 'public');
+
+  app.use(express.static(frontendPath, {
+    maxAge: '1y',
+    etag: true,
+    index: false // Evitar servir index.html automáticamente
+  }));
+
+  // Catch-all route para SPA (debe ser ÚLTIMA ruta, después de todas las API routes)
+  app.get('*', (req, res) => {
+    const indexPath = path.join(frontendPath, 'index.html');
+    if (fs.existsSync(indexPath)) {
+      res.sendFile(indexPath);
+    } else {
+      res.status(404).json({ error: 'Frontend not found. Run: npm run build' });
+    }
+  });
+}
 
 // Servir placeholder SVG para evitar 404s infinitos
 app.get('/images/placeholder-article.jpg', (req, res) => {
