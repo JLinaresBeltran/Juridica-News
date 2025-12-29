@@ -117,7 +117,7 @@ export default function PublishingPreview({
 
   const handlePublish = async () => {
     if (!validateArticle()) return
-    
+
     setIsPublishing(true)
     try {
       console.log('Aprobando artículo para publicación:', {
@@ -125,16 +125,16 @@ export default function PublishingPreview({
         publishData,
         sourceDocument: document
       })
-      
-      // Simulación de aprobación
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      
-      // Mover documento de "Aprobados" a "Listos"
-      moveToReady(document, generatedArticle)
-      
+
+      // Mover documento de "Aprobados" a "Listos" (llamada al backend)
+      // IMPORTANTE: await es necesario para esperar a que el backend procese
+      await moveToReady(document, generatedArticle)
+
+      // Solo llamar onPublish si moveToReady fue exitoso
       onPublish(publishData)
     } catch (error) {
       console.error('Error aprobando artículo:', error)
+      alert('Error al aprobar el artículo. Por favor intenta de nuevo.')
     } finally {
       setIsPublishing(false)
     }

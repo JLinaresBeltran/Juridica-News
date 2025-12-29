@@ -53,6 +53,7 @@ interface Document {
   area: string
   summary?: string
   url?: string
+  documentPath?: string // Ruta al archivo local descargado (DOCX/RTF)
   extractionDate: string
   magistradoPonente?: string
   expediente?: string
@@ -215,6 +216,7 @@ export default function CurationPage() {
           area: mapLegalArea(doc.legalArea),
           summary: doc.summary || '',
           url: doc.url,
+          documentPath: doc.documentPath, // Ruta al archivo local descargado
           extractionDate: doc.extractedAt || doc.createdAt,
           curatedBy: (doc as any).curatedBy,
           
@@ -280,32 +282,41 @@ export default function CurationPage() {
   }
 
   const getShortTitle = (doc: any): string => {
-    // Priorizar numeroSentencia si está disponible
-    if (doc.numeroSentencia && doc.numeroSentencia.trim()) {
-      return doc.numeroSentencia.trim()
+    // 1. Priorizar numeroSentencia del análisis IA si está disponible
+    if (doc.numeroSentencia?.trim()) {
+      return doc.numeroSentencia.trim().toUpperCase()
     }
-    
-    // Extraer patrón T-XXX/XX o similar del título completo
+
+    // 2. Usar identifier si tiene formato de sentencia (ej: T-390-25, C-123/2024)
+    if (doc.identifier) {
+      const identifierMatch = doc.identifier.match(/^([TCSA]U?-\d{1,4}[-\/]\d{2,4})$/i)
+      if (identifierMatch) {
+        return identifierMatch[1].toUpperCase()
+      }
+    }
+
+    // 3. Extraer patrón del título completo
     const titlePatterns = [
-      /\b([CT]-\d{1,4}\/\d{2,4})\b/i,  // T-347/25, C-123/2024
-      /\b(SU-\d{1,4}\/\d{2,4})\b/i,    // SU-123/25
-      /\b(\d{4}-\d{5})\b/i,            // 2024-12345 (formato alternativo)
+      /\b([TCSA]U?-\d{1,4}\/\d{2,4})\b/i,  // T-347/25, C-123/2024, SU-123/25
+      /\b([TCSA]U?-\d{1,4}-\d{2,4})\b/i,   // T-347-25, C-123-2024 (con guión)
+      /\b(Auto\s+\d{1,4}[A-Z]?\/\d{2,4})\b/i, // Auto 123/25, Auto 123A/25
     ]
-    
+
     for (const pattern of titlePatterns) {
       const match = doc.title?.match(pattern)
       if (match) {
-        return match[1]
+        return match[1].toUpperCase()
       }
     }
-    
-    // Fallback: mostrar primeras palabras del título si no hay patrón
+
+    // 4. Fallback: mostrar primeras palabras del título
     if (doc.title) {
-      const words = doc.title.split(' ').slice(0, 3)
-      return words.join(' ') + (doc.title.split(' ').length > 3 ? '...' : '')
+      const words = doc.title.split(/\s+/).slice(0, 4).join(' ')
+      return words + (doc.title.split(/\s+/).length > 4 ? '...' : '')
     }
-    
-    return 'Sin título'
+
+    // 5. Último recurso: usar parte del ID
+    return doc.id?.slice(0, 12) || 'Sin título'
   }
   
   // Actualizar contadores de fuentes con documentos reales
@@ -570,14 +581,44 @@ export default function CurationPage() {
     }
   }, [realDocuments, selectedDocument, triggerPoll, analyzingDocuments])
 
+  // ⚡ OPTIMIZACIÓN: Precarga de documentos adyacentes
+  const prefetchAdjacentDocuments = useCallback((currentDocId: string) => {
+    const documents = realDocuments.length > 0 ? realDocuments : mockDocuments;
+    const currentIndex = documents.findIndex(doc => doc.id === currentDocId);
+
+    if (currentIndex === -1) return;
+
+    // Precargar 2 documentos siguientes y 1 anterior
+    const adjacentIndexes = [
+      currentIndex - 1, // Anterior
+      currentIndex + 1, // Siguiente
+      currentIndex + 2  // Siguiente + 1
+    ].filter(idx => idx >= 0 && idx < documents.length);
+
+    // Precargar en background sin bloquear UI
+    adjacentIndexes.forEach(idx => {
+      const doc = documents[idx];
+      if (doc?.id) {
+        // Precargar de forma silenciosa (sin await)
+        documentsService.getDocument(doc.id).catch(err => {
+          console.log(`⚠️ Error precargando documento ${doc.id}:`, err);
+        });
+      }
+    });
+
+    console.log(`🔄 Precargando ${adjacentIndexes.length} documentos adyacentes en background`);
+  }, [realDocuments]);
+
   const handleDocumentAction = useCallback((docId: string, action: 'approve' | 'reject' | 'preview' | 'analyze') => {
     const document = (realDocuments.length > 0 ? realDocuments : mockDocuments).find(doc => doc.id === docId)
-    
+
     if (action === 'preview' && document) {
       // Guardar posición del scroll antes de abrir el modal
       saveScrollPosition()
       setSelectedDocument(document)
       setIsPreviewModalOpen(true)
+      // ⚡ OPTIMIZACIÓN: Precargar documentos adyacentes
+      prefetchAdjacentDocuments(docId)
       // Trigger polling después de preview para refrescar estado
       triggerPoll('preview', true)
     } else if (action === 'approve') {
@@ -587,7 +628,7 @@ export default function CurationPage() {
     } else if (action === 'analyze') {
       handleAnalyzeDocument(docId)
     }
-  }, [realDocuments, saveScrollPosition, handleApproveDocument, handleRejectDocument, handleAnalyzeDocument, triggerPoll])
+  }, [realDocuments, saveScrollPosition, handleApproveDocument, handleRejectDocument, handleAnalyzeDocument, triggerPoll, prefetchAdjacentDocuments])
 
   // Función para cambiar la fuente seleccionada preservando scroll en grid view
   const handleSourceSelection = useCallback((sourceId: string) => {
@@ -872,7 +913,8 @@ export default function CurationPage() {
                                       )}
                                       {doc.expediente && (
                                         <div className="text-sm text-gray-600 dark:text-gray-300">
-                                          <span className="font-medium">No. de expediente:</span> {doc.expediente}
+                                          <div className="font-medium">No. de expediente:</div>
+                                          <div className="break-all whitespace-normal" style={{ overflowWrap: 'anywhere', wordBreak: 'break-all' }}>{doc.expediente}</div>
                                         </div>
                                       )}
                                     </div>
@@ -951,7 +993,7 @@ export default function CurationPage() {
                                   {/* PRIORIDAD 3: Información adicional */}
                                   <div className="space-y-1 text-xs text-gray-500">
                                     <div>
-                                      <span><strong>Web oficial:</strong> {
+                                      <span><strong>Publicación:</strong> {
                                         doc.webOfficialDate
                                           ? new Date(doc.webOfficialDate).toLocaleDateString('es-ES', {
                                               day: '2-digit',
@@ -1190,7 +1232,8 @@ export default function CurationPage() {
                           )}
                           {doc.expediente && (
                             <div className="text-sm text-gray-600 dark:text-gray-300">
-                              <span className="font-medium">No. de expediente:</span> {doc.expediente}
+                              <div className="font-medium">No. de expediente:</div>
+                              <div className="break-all whitespace-normal" style={{ overflowWrap: 'anywhere', wordBreak: 'break-all' }}>{doc.expediente}</div>
                             </div>
                           )}
                         </div>
@@ -1269,7 +1312,7 @@ export default function CurationPage() {
                       {/* PRIORIDAD 3: Información adicional */}
                       <div className="space-y-1 text-xs text-gray-500">
                         <div>
-                          <span><strong>Web oficial:</strong> {
+                          <span><strong>Publicación:</strong> {
                             doc.webOfficialDate
                               ? new Date(doc.webOfficialDate).toLocaleDateString('es-ES', {
                                   day: '2-digit',

@@ -22,7 +22,7 @@ import {
   Sparkles
 } from 'lucide-react'
 import { clsx } from 'clsx'
-import { getImageUrl } from '@/services/api'
+import { api, getImageUrl } from '@/services/api'
 
 // Tipos para las etiquetas e imágenes
 interface ImageTag {
@@ -160,11 +160,8 @@ export default function ImageLibraryModal({
   // Función para cargar etiquetas disponibles
   const loadAvailableTags = async () => {
     try {
-      const response = await fetch('/api/storage/images/tags')
-      if (!response.ok) throw new Error('Error cargando etiquetas')
-
-      const data = await response.json()
-      setAvailableTags(data.data)
+      const response = await api.get('/storage/images/tags')
+      setAvailableTags(response.data.data)
     } catch (error) {
       console.error('Error cargando etiquetas:', error)
       setError('Error cargando etiquetas disponibles')
@@ -191,14 +188,11 @@ export default function ImageLibraryModal({
       params.append('limit', '12')
       params.append('offset', (currentPage * 12).toString())
 
-      const response = await fetch(`/api/storage/images/library?${params.toString()}`)
-      if (!response.ok) throw new Error('Error cargando imágenes')
+      const response = await api.get(`/storage/images/library?${params.toString()}`)
 
-      const data: { success: boolean; data: LibraryResponse } = await response.json()
-
-      setImages(data.data.images)
-      setTotalImages(data.data.pagination.total)
-      setHasNextPage(data.data.pagination.hasNext)
+      setImages(response.data.data.images)
+      setTotalImages(response.data.data.pagination.total)
+      setHasNextPage(response.data.data.pagination.hasNext)
 
     } catch (error) {
       console.error('Error cargando imágenes:', error)
@@ -211,9 +205,7 @@ export default function ImageLibraryModal({
   // Función para marcar imagen como usada
   const markImageAsUsed = async (imageId: string) => {
     try {
-      await fetch(`/api/storage/images/${imageId}/use`, {
-        method: 'POST'
-      })
+      await api.post(`/storage/images/${imageId}/use`)
     } catch (error) {
       console.error('Error marcando imagen como usada:', error)
     }
@@ -222,24 +214,11 @@ export default function ImageLibraryModal({
   // Función para asociar imagen con documento
   const associateImageWithDocument = async (imageId: string, documentId: string) => {
     try {
-      const response = await fetch('/api/storage/images/associate-document', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          imageId: imageId,
-          documentId: documentId
-        })
+      const response = await api.post('/storage/images/associate-document', {
+        imageId: imageId,
+        documentId: documentId
       })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Error asociando imagen con documento')
-      }
-
-      const result = await response.json()
-      console.log('✅ Imagen asociada con documento:', result)
+      console.log('✅ Imagen asociada con documento:', response.data)
       return true
     } catch (error) {
       console.error('❌ Error asociando imagen con documento:', error)

@@ -12,14 +12,18 @@ import {
   Tag,
   Copy,
   Check,
-  User
+  User,
+  Download
 } from 'lucide-react'
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 export default function PublicArticlePage() {
   const { slug } = useParams<{ slug: string }>()
   const [copied, setCopied] = useState(false)
   const [article, setArticle] = useState<any>(null)
   const [publicArticle, setPublicArticle] = useState<PublicArticle | null>(null)
+  const [relatedArticles, setRelatedArticles] = useState<PublicArticle[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -37,8 +41,32 @@ export default function PublicArticlePage() {
         const articleData = await publicPortalService.getArticleBySlug(slug)
 
         if (articleData) {
+          console.log('📄 Article data from API:', articleData)
           setArticle(articleData)
-          setPublicArticle(adaptApiToPublicArticle(articleData))
+          const adapted = adaptApiToPublicArticle(articleData)
+          console.log('🔄 Adapted public article:', adapted)
+          console.log('🖼️ Image URL in adapted article:', adapted.imageUrl)
+          setPublicArticle(adapted)
+
+          // Cargar artículos relacionados de la misma área legal
+          if (articleData.legalArea) {
+            try {
+              const relatedData = await publicPortalService.getArticlesByLegalArea(
+                articleData.legalArea,
+                1,
+                4 // Máximo 4 artículos relacionados
+              )
+              // Filtrar para excluir el artículo actual
+              const filteredRelated = relatedData.data
+                .filter((art: any) => art.slug !== slug)
+                .slice(0, 3) // Mostrar máximo 3 artículos relacionados
+                .map(adaptApiToPublicArticle)
+              setRelatedArticles(filteredRelated)
+            } catch (relErr) {
+              console.error('Error loading related articles:', relErr)
+              // No es crítico, solo no mostramos relacionados
+            }
+          }
         } else {
           setError('Artículo no encontrado')
         }
@@ -300,12 +328,30 @@ export default function PublicArticlePage() {
                 {article.content || publicArticle.summary}
               </div>
 
-              {/* Llamada a la acción */}
-              <div className="bg-blue-50 border-l-4 border-blue-400 p-4 my-8">
-                <p className="text-blue-800 font-medium">
-                  📄 <strong>Descarga el documento completo</strong> - Accede al documento oficial de esta decisión totalmente gratis.
-                </p>
-              </div>
+              {/* Botón de descarga de sentencia */}
+              {publicArticle.sourceDocument?.documentPath && (
+                <div className="bg-blue-50 border-l-4 border-blue-400 p-4 my-8">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                      <p className="text-blue-800 font-medium">
+                        Documento oficial de esta decision
+                      </p>
+                      <p className="text-blue-600 text-sm mt-1">
+                        {publicArticle.sourceDocument.title || 'Sentencia de la Corte Constitucional'}
+                      </p>
+                    </div>
+                    <a
+                      href={`${API_URL}/api/storage/documents/${publicArticle.sourceDocument.documentPath}`}
+                      download
+                      className="inline-flex items-center justify-center px-4 py-2 text-white rounded-lg transition-colors hover:opacity-90"
+                      style={{ backgroundColor: '#04315a' }}
+                    >
+                      <Download size={18} className="mr-2" />
+                      Descargar Sentencia
+                    </a>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Tags del artículo */}
@@ -350,10 +396,24 @@ export default function PublicArticlePage() {
               </div>
             </div>
 
-            {/* TODO: Implementar lógica para obtener artículos relacionados del API */}
-            <div className="text-center text-gray-500">
-              <p>Los artículos relacionados se mostrarán aquí próximamente.</p>
-            </div>
+            {/* Grid de artículos relacionados */}
+            {relatedArticles.length > 0 ? (
+              <div className="grid gap-6 sm:gap-8 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                {relatedArticles.map((relatedArticle) => (
+                  <ArticleCard
+                    key={relatedArticle.id}
+                    article={relatedArticle}
+                    layout="vertical"
+                    size="medium"
+                    className="h-full"
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center text-gray-500">
+                <p>No hay artículos relacionados disponibles en este momento.</p>
+              </div>
+            )}
           </div>
         </div>
       </article>

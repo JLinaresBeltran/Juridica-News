@@ -9,6 +9,7 @@ import { aiAnalysisService } from '@/services/AiAnalysisService';
 import { logger } from '@/utils/logger';
 import * as fs from 'fs';
 import * as path from 'path';
+import mammoth from 'mammoth';
 
 const prisma = new PrismaClient();
 
@@ -160,6 +161,7 @@ export class DocumentReprocessor {
         title: true,
         url: true,
         content: true,
+        documentPath: true,
         status: true,
         aiAnalysisStatus: true,
         temaPrincipal: true,
@@ -178,19 +180,54 @@ export class DocumentReprocessor {
    */
   private async reprocessSingleDocument(document: any, aiModel: 'openai' | 'gemini') {
     try {
-      // 1. Como no tenemos filePath en el modelo, siempre usar contenido de BD
-      logger.info(`   📄 Analizando contenido desde base de datos`);
-      
+      let contentToAnalyze = document.content;
+      let shouldUpdateContent = false;
+
+      // 1. Si existe archivo DOCX, regenerar el resumen inteligente
+      if (document.documentPath) {
+        // Construir ruta absoluta si es relativa
+        const absolutePath = path.isAbsolute(document.documentPath)
+          ? document.documentPath
+          : path.join(__dirname, '../../storage/documents', document.documentPath);
+
+        if (fs.existsSync(absolutePath)) {
+          logger.info(`   📄 Regenerando resumen inteligente desde archivo DOCX: ${absolutePath}`);
+
+          try {
+            const fileBuffer = fs.readFileSync(absolutePath);
+            const result = await mammoth.extractRawText({ buffer: fileBuffer });
+            const fullText = result.value;
+
+            // Usar primeros 1500 caracteres del documento (incluye encabezado con expediente)
+            // + el contenido existente (que ya tiene resumen de secciones)
+            const header = fullText.substring(0, 1500);
+            contentToAnalyze = '=== ENCABEZADO ===\n' + header + '\n\n' + document.content;
+
+            shouldUpdateContent = true;
+            logger.info(`   ✅ Resumen regenerado: ${contentToAnalyze.length} caracteres (con encabezado de 1500 chars)`);
+          } catch (error: any) {
+            logger.error(`   ❌ ERROR regenerando resumen:`, error?.message || error);
+            logger.error(`   Stack trace:`, error?.stack);
+            contentToAnalyze = document.content;
+          }
+        } else {
+          logger.info(`   ⚠️  Archivo DOCX no encontrado en: ${absolutePath}`);
+          contentToAnalyze = document.content;
+        }
+      } else {
+        logger.info(`   📄 Analizando contenido desde base de datos (sin documentPath)`);
+      }
+
       // Verificar que hay contenido suficiente
-      if (!document.content || document.content.length < 100) {
+      if (!contentToAnalyze || contentToAnalyze.length < 100) {
         logger.warn(`   ⚠️  Documento sin contenido suficiente para análisis`);
         this.stats.skipped++;
         return false;
       }
 
-      // 2. Realizar análisis de IA desde contenido en BD
+      // 2. Realizar análisis de IA
       const aiAnalysis = await aiAnalysisService.analyzeDocument(
-        document.content,
+        contentToAnalyze,
         document.title,
         aiModel
       );
@@ -220,6 +257,12 @@ export class DocumentReprocessor {
         decision: aiAnalysis.decision,
         aiModel: aiAnalysis.modeloUsado
       };
+
+      // Actualizar content si se regeneró el resumen
+      if (shouldUpdateContent) {
+        updateData.content = contentToAnalyze;
+        logger.info(`   📝 Actualizando campo 'content' con resumen regenerado`);
+      }
 
       // Agregar campos opcionales si están disponibles
       if (aiAnalysis.numeroSentencia) {

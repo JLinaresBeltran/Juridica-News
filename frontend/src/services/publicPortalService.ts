@@ -170,8 +170,10 @@ export const getLegalAreaDisplayName = (area: string): string => {
     'MERCANTIL': 'Derecho Comercial',
     'LABORAL': 'Derecho Laboral',
     'ADMINISTRATIVO': 'Derecho Administrativo',
-    'FISCAL': 'Derecho Tributario',
-    'CONSTITUCIONAL': 'Derecho Constitucional'
+    'FISCAL': 'Derecho Fiscal y Aduanero',
+    'CONSTITUCIONAL': 'Derecho Constitucional',
+    'REGULATORIO': 'Derecho Regulatorio',
+    'SOCIETARIO': 'Derecho Societario'
   }
   return areaNames[area] || area
 }

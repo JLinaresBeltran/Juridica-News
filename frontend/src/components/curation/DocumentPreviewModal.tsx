@@ -29,6 +29,7 @@ interface Document {
   area: string
   summary?: string
   url?: string
+  documentPath?: string // Ruta al archivo local descargado (DOCX/RTF)
   extractionDate: string
   // Campos del análisis IA
   magistradoPonente?: string
@@ -47,6 +48,7 @@ interface GeneratedArticle {
   content: string
   image?: string
   imagePrompt?: string
+  imageId?: string // 🔥 NUEVO: ID de la imagen en la biblioteca
   imageMetaDescription?: string | null // Nueva propiedad para metadescripción de imagen
   // Campos para persistir títulos generados - NUEVOS
   generatedTitleSets?: Array<{
@@ -86,6 +88,29 @@ interface DocumentPreviewModalProps {
   mode?: 'preview' | 'generation' // 'preview' para pendientes, 'generation' para aprobados
 }
 
+// 🎯 Skeleton Loader Component
+function DocumentSkeleton() {
+  return (
+    <div className="h-full bg-white dark:bg-gray-800 p-8 animate-pulse">
+      <div className="space-y-6">
+        {/* Header skeleton */}
+        <div className="space-y-3">
+          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
+          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+        </div>
+
+        {/* Content skeleton */}
+        {[...Array(8)].map((_, i) => (
+          <div key={i} className="space-y-2">
+            <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded"></div>
+            <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-5/6"></div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // Componente mejorado para vista previa de documentos
 interface DocumentViewerProps {
   url: string;
@@ -99,15 +124,25 @@ function DocumentViewer({ url, title, documentType }: DocumentViewerProps) {
   const [currentViewerIndex, setCurrentViewerIndex] = useState(0);
   const [showTextView, setShowTextView] = useState(false);
   const [documentText, setDocumentText] = useState<string | null>(null);
+  const [documentStats, setDocumentStats] = useState<{ wordCount: number; charCount: number } | null>(null);
 
-  // Solo Google Docs y LibreOffice Online
+  // Detectar si es una URL local (documento descargado)
+  const isLocalDocument = url.startsWith('/api/storage/documents/');
+
+  // Extraer el nombre del archivo de la URL local
+  const getFilenameFromUrl = (localUrl: string): string => {
+    const parts = localUrl.split('/');
+    return parts[parts.length - 1];
+  };
+
+  // ⚡ OPTIMIZACIÓN: Reducción de timeouts 12s→5s, 8s→3s
   const viewers = [
     // Google Docs como primera opción (funciona excelente en iframe)
     {
       name: 'Google Docs',
       url: url.includes('https://') ? `https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true` : null,
       supportedTypes: ['pdf', 'rtf', 'docx', 'doc'],
-      timeout: 12000,
+      timeout: 5000, // ⚡ OPTIMIZADO: 12000 → 5000ms
       allowIframe: true
     },
     // LibreOffice Online como segunda opción (abre en ventana nueva)
@@ -115,7 +150,7 @@ function DocumentViewer({ url, title, documentType }: DocumentViewerProps) {
       name: 'LibreOffice Online',
       url: url.includes('https://') ? `https://www.viewdocs.com/viewer?url=${encodeURIComponent(url)}` : null,
       supportedTypes: ['rtf', 'docx', 'doc', 'odt'],
-      timeout: 8000,
+      timeout: 3000, // ⚡ OPTIMIZADO: 8000 → 3000ms
       allowIframe: false,
       openInNewWindow: true
     }
@@ -186,12 +221,45 @@ function DocumentViewer({ url, title, documentType }: DocumentViewerProps) {
     return () => clearTimeout(timeout);
   }, [isLoading, currentViewerIndex]);
 
-  // Función para obtener el contenido como texto
+  // Función para obtener el contenido como texto de documento local
+  const fetchLocalDocumentText = async () => {
+    try {
+      setIsLoading(true);
+      const filename = getFilenameFromUrl(url);
+      const response = await fetch(`/api/storage/documents/${filename}/text`);
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data?.text) {
+          setDocumentText(data.data.text);
+          setDocumentStats({
+            wordCount: data.data.wordCount,
+            charCount: data.data.charCount
+          });
+          setShowTextView(true);
+          setViewerError(false);
+        } else {
+          throw new Error('No se pudo extraer el texto');
+        }
+      } else {
+        throw new Error('Failed to fetch document text');
+      }
+    } catch (error) {
+      console.error('Error fetching local document text:', error);
+      setDocumentText('Error al obtener el contenido del documento.');
+      setShowTextView(true);
+      setViewerError(true);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Función para obtener el contenido como texto (URL externa)
   const fetchDocumentText = async () => {
     try {
       setIsLoading(true);
       const response = await fetch(`/api/public/preview?url=${encodeURIComponent(url)}`);
-      
+
       if (response.ok) {
         const text = await response.text();
         setDocumentText(text);
@@ -208,14 +276,20 @@ function DocumentViewer({ url, title, documentType }: DocumentViewerProps) {
     }
   };
 
-  // Reset cuando cambia el documento
+  // Reset cuando cambia el documento y cargar automáticamente si es local
   React.useEffect(() => {
     setCurrentViewerIndex(0);
     setViewerError(false);
     setIsLoading(true);
     setShowTextView(false);
     setDocumentText(null);
-  }, [url]);
+    setDocumentStats(null);
+
+    // Si es documento local, cargar texto automáticamente
+    if (isLocalDocument) {
+      fetchLocalDocumentText();
+    }
+  }, [url, isLocalDocument]);
 
   if (viewerError) {
     return (
@@ -280,20 +354,41 @@ function DocumentViewer({ url, title, documentType }: DocumentViewerProps) {
     return (
       <div className="h-full flex flex-col">
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-750">
-          <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 flex items-center">
-            <FileText className="w-4 h-4 mr-2" />
-            Vista de Texto - {title}
-          </h4>
-          <button
-            onClick={() => setShowTextView(false)}
-            className="text-xs px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-          >
-            Volver a Vista Previa
-          </button>
+          <div className="flex items-center">
+            <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 flex items-center">
+              <FileText className="w-4 h-4 mr-2" />
+              {isLocalDocument ? 'Documento Local' : 'Vista de Texto'} - {title}
+            </h4>
+            {documentStats && (
+              <span className="ml-3 text-xs text-gray-500 dark:text-gray-400">
+                {documentStats.wordCount.toLocaleString()} palabras | {documentStats.charCount.toLocaleString()} caracteres
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {isLocalDocument && (
+              <a
+                href={url}
+                download
+                className="text-xs px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors flex items-center"
+              >
+                <Download className="w-3 h-3 mr-1" />
+                Descargar
+              </a>
+            )}
+            {!isLocalDocument && (
+              <button
+                onClick={() => setShowTextView(false)}
+                className="text-xs px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+              >
+                Volver a Vista Previa
+              </button>
+            )}
+          </div>
         </div>
         <div className="flex-1 overflow-auto p-4 bg-white dark:bg-gray-800">
           {documentText ? (
-            <pre className="whitespace-pre-wrap text-xs text-gray-800 dark:text-gray-200 font-mono leading-relaxed">
+            <pre className="whitespace-pre-wrap text-sm text-gray-800 dark:text-gray-200 font-sans leading-relaxed">
               {documentText}
             </pre>
           ) : (
@@ -311,15 +406,13 @@ function DocumentViewer({ url, title, documentType }: DocumentViewerProps) {
 
   return (
     <div className="relative h-full">
+      {/* ⚡ OPTIMIZACIÓN: Skeleton loader en lugar de spinner genérico */}
       {isLoading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-white dark:bg-gray-800">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-2"></div>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Cargando vista previa...</p>
-          </div>
+        <div className="absolute inset-0 z-10">
+          <DocumentSkeleton />
         </div>
       )}
-      {currentViewer && currentViewer.allowIframe !== false && (
+      {currentViewer && currentViewer.allowIframe !== false && currentViewer.url && (
         <iframe
           key={`${currentViewer.name}-${currentViewerIndex}`}
           src={currentViewer.url}
@@ -343,7 +436,7 @@ function DocumentViewer({ url, title, documentType }: DocumentViewerProps) {
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <button
-                onClick={() => window.open(currentViewer.url, '_blank', 'noopener,noreferrer')}
+                onClick={() => currentViewer.url && window.open(currentViewer.url, '_blank', 'noopener,noreferrer')}
                 className="inline-flex items-center justify-center px-6 py-3 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-colors"
               >
                 <ExternalLink className="w-4 h-4 mr-2" />
@@ -399,6 +492,7 @@ export function DocumentPreviewModal({
     content: '',
     image: '',
     imagePrompt: '',
+    imageId: '',
     metadata: {
       description: '',
       keywords: [],
@@ -602,19 +696,21 @@ export function DocumentPreviewModal({
     }))
   }
 
-  const handleImageGenerated = (imageUrl: string, prompt: string = '', metaDescription?: string) => {
+  const handleImageGenerated = (imageUrl: string, prompt: string, metaDescription?: string | null, imageId?: string) => {
     console.log('📸 DEBUG: handleImageGenerated called', {
       imageUrl: imageUrl.substring(0, 50) + '...',
       prompt: prompt.substring(0, 100) + '...',
       metaDescription,
-      hasMetaDescription: !!metaDescription
+      hasMetaDescription: !!metaDescription,
+      imageId
     })
 
     setGeneratedArticle(prev => ({
       ...prev,
       image: imageUrl,
       imagePrompt: prompt,
-      imageMetaDescription: metaDescription || null
+      imageMetaDescription: metaDescription || null,
+      imageId: imageId || ''
     }))
   }
 
@@ -698,6 +794,7 @@ export function DocumentPreviewModal({
           title: generatedArticle.title,
           content: generatedArticle.content,
           image: generatedArticle.image,
+          imageId: generatedArticle.imageId,
           keywords: generatedArticle.metadata.keywords.join(', '),
           metaTitle: generatedArticle.metadata.metaTitle,
           publicationSection: generatedArticle.metadata.publicationSection
@@ -744,8 +841,8 @@ export function DocumentPreviewModal({
       
       {/* Modal */}
       <div className="fixed inset-0 overflow-hidden">
-        <div className="flex items-center justify-center min-h-full p-2">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-[98vw] max-h-[96vh] flex flex-col">
+        <div className="flex items-center justify-center min-h-full p-1">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-[98vw] h-[98vh] flex flex-col">
 
             {/* Floating Close Button */}
             <button
@@ -900,8 +997,10 @@ export function DocumentPreviewModal({
                             
                             {/* PDF Content - MEJORADO */}
                             <div className="flex-1 bg-gray-100 dark:bg-gray-800">
-                              <DocumentViewer 
-                                url={selectedDoc.url}
+                              <DocumentViewer
+                                url={selectedDoc.documentPath
+                                  ? `/api/storage/documents/${selectedDoc.documentPath}`
+                                  : selectedDoc.url || ''}
                                 title={selectedDoc.title}
                                 documentType={selectedDoc.type}
                               />
@@ -955,18 +1054,19 @@ export function DocumentPreviewModal({
                           </div>
                           <div className="space-y-1.5 mb-3">
                             {selectedDoc.magistradoPonente && (
-                              <div className="text-xs text-gray-600 dark:text-gray-300">
+                              <div className="text-xs text-gray-600 dark:text-gray-300 break-words">
                                 <span className="font-medium">Magistrado P.:</span> {selectedDoc.magistradoPonente}
                               </div>
                             )}
                             {selectedDoc.salaRevision && (
-                              <div className="text-xs text-gray-600 dark:text-gray-300">
+                              <div className="text-xs text-gray-600 dark:text-gray-300 break-words">
                                 <span className="font-medium">Sala de Revisión:</span> {selectedDoc.salaRevision}
                               </div>
                             )}
                             {selectedDoc.expediente && (
                               <div className="text-xs text-gray-600 dark:text-gray-300">
-                                <span className="font-medium">No. de expediente:</span> {selectedDoc.expediente}
+                                <span className="font-medium block mb-0.5">No. de expediente:</span>
+                                <span className="block break-all">{selectedDoc.expediente}</span>
                               </div>
                             )}
                           </div>

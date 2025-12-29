@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { 
+import { useState, useEffect, useCallback } from 'react'
+import {
   Calendar,
   Building,
   Tag,
@@ -14,7 +14,8 @@ import {
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { getAreaColors, getEntityColors } from '../../constants/entityColors'
-import { useCurationStore } from '../../stores/curationStore'
+import { articlesService } from '../../services/articlesService'
+import { documentEvents } from '../../utils/documentEvents'
 
 const LEGAL_AREAS = ['Todos', 'Laboral', 'Constitucional', 'Civil', 'Penal', 'Tributario', 'Ambiental', 'Financiero', 'Administrativo']
 const ENTITIES = ['Todas', 'Corte Constitucional', 'Corte Suprema de Justicia', 'Consejo de Estado', 'DIAN', 'Ministerio de Ambiente', 'Superintendencia Financiera']
@@ -26,24 +27,59 @@ export default function PublishedArticlesPage() {
   const [timeFilter, setTimeFilter] = useState('all') // all, day, week, month
   const [viewMode, setViewMode] = useState('grid') // grid, list
   const [sortBy, setSortBy] = useState('recent') // recent, views, area
+  const [apiArticles, setApiArticles] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const { publishedDocuments } = useCurationStore()
+  // ✅ FIX: Cargar artículos PUBLICADOS desde la API
+  const loadPublishedArticles = useCallback(async () => {
+    console.debug('🔄 PublishedArticlesPage: Cargando artículos PUBLISHED desde API...')
+    try {
+      setLoading(true)
+      const response = await articlesService.getArticles({ status: 'PUBLISHED', limit: 100 })
 
-  // Transformar publishedDocuments a formato que espera la vista
-  const publishedArticles = publishedDocuments.map(doc => ({
-    id: doc.id,
-    title: doc.articleData?.title || `Análisis jurídico: ${doc.title}`,
-    area: doc.area,
-    entity: doc.source,
-    publicationDate: doc.publicationDate,
-    extractionDate: doc.extractionDate,
-    publishedDate: doc.publishedAt || new Date().toISOString(),
-    publishedTime: new Date(doc.publishedAt || new Date()).toTimeString().slice(0, 5),
-    url: `#/article/${doc.id}`, // URL del artículo público
-    views: Math.floor(Math.random() * 1000) + 50, // Mock de vistas por ahora
-    description: doc.articleData?.metadata?.description || doc.summary || '',
-    keywords: doc.articleData?.metadata?.keywords || [],
-    image: doc.articleData?.image
+      if (!response || !response.articles) {
+        console.warn('⚠️ Respuesta de API sin articles:', response)
+        setApiArticles([])
+        return
+      }
+
+      setApiArticles(response.articles)
+      console.debug(`✅ PublishedArticlesPage: ${response.articles.length} artículos PUBLISHED cargados`)
+    } catch (error) {
+      console.error('❌ Error cargando artículos publicados:', error)
+      setApiArticles([])
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  // Cargar artículos al montar y cuando se publique uno nuevo
+  useEffect(() => {
+    loadPublishedArticles()
+
+    // Escuchar evento document:published para recargar
+    documentEvents.on('document:published', loadPublishedArticles)
+
+    return () => {
+      documentEvents.off('document:published', loadPublishedArticles)
+    }
+  }, [loadPublishedArticles])
+
+  // Transformar artículos de la API a formato que espera la vista
+  const publishedArticles = (apiArticles || []).map(article => ({
+    id: article.id,
+    title: article.title,
+    area: article.legalArea || 'CONSTITUCIONAL',
+    entity: article.sourceDocument?.source || 'Corte Constitucional',
+    publicationDate: article.sourceDocument?.publicationDate || article.createdAt,
+    extractionDate: article.createdAt,
+    publishedDate: article.publishedAt || article.updatedAt,
+    publishedTime: new Date(article.publishedAt || article.updatedAt).toTimeString().slice(0, 5),
+    url: `/portal/article/${article.slug}`, // URL del artículo público
+    views: article.views || 0,
+    description: article.metaDescription || article.summary || '',
+    keywords: article.keywords ? article.keywords.split(',').map((k: string) => k.trim()) : [],
+    image: article.imageUrl
   }))
 
   // Filtrar artículos

@@ -1,38 +1,155 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { ArticleCard } from './ArticleCard'
-import { 
-  getArticlesByCategory, 
-  getArticleCountByCategory, 
-  getSectionDisplayName 
-} from '@/data/mockArticles'
+import { publicPortalService } from '@/services/publicPortalService'
+import { adaptApiToPublicArticle, PublicArticle } from '@/types/publicArticle.types'
 
 interface SectionPageProps {
-  sectionKey: string // 'civil', 'penal', etc.
+  sectionKey: string // 'constitucional', 'civil', 'penal', etc.
   className?: string
 }
 
-export const SectionPage: React.FC<SectionPageProps> = ({ 
-  sectionKey, 
-  className = '' 
+// Mapeo de section keys a legal areas del backend
+const sectionToLegalAreaMap: Record<string, string> = {
+  'constitucional': 'CONSTITUCIONAL',
+  'administrativo': 'ADMINISTRATIVO',
+  'fiscal': 'FISCAL',
+  'societario': 'SOCIETARIO',
+  'penal': 'PENAL',
+  'civil': 'CIVIL',
+  'digital': 'CIVIL', // Digital es un subconjunto de civil por ahora
+  'laboral': 'LABORAL',
+  'regulatorio': 'REGULATORIO',
+  'opinion': 'CONSTITUCIONAL', // Opinión por defecto a constitucional
+  'comercial': 'MERCANTIL',
+  'familia': 'CIVIL',
+  'tributario': 'FISCAL'
+}
+
+const getSectionDisplayName = (sectionKey: string): string => {
+  const displayNames: Record<string, string> = {
+    'constitucional': 'Derecho Constitucional',
+    'administrativo': 'Derecho Administrativo',
+    'fiscal': 'Derecho Fiscal y Aduanero',
+    'societario': 'Derecho Societario',
+    'penal': 'Derecho Penal',
+    'civil': 'Derecho Civil',
+    'digital': 'Derecho Digital',
+    'laboral': 'Derecho Laboral',
+    'regulatorio': 'Derecho Regulatorio',
+    'opinion': 'Opinión',
+    'comercial': 'Derecho Comercial',
+    'familia': 'Derecho de Familia',
+    'tributario': 'Derecho Tributario'
+  }
+  return displayNames[sectionKey] || sectionKey
+}
+
+export const SectionPage: React.FC<SectionPageProps> = ({
+  sectionKey,
+  className = ''
 }) => {
+  const [articles, setArticles] = useState<PublicArticle[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [totalCount, setTotalCount] = useState(0)
+
   const sectionName = getSectionDisplayName(sectionKey)
-  const articles = getArticlesByCategory(sectionKey, 10) // Máximo 10 artículos
-  const totalCount = getArticleCountByCategory(sectionKey)
+  const legalArea = sectionToLegalAreaMap[sectionKey] || 'CONSTITUCIONAL'
   const hasMore = totalCount > 10
+
+  useEffect(() => {
+    loadArticles()
+  }, [sectionKey])
+
+  const loadArticles = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const response = await publicPortalService.getArticlesByLegalArea(legalArea, 1, 10)
+      const adaptedArticles = response.data.map(adaptApiToPublicArticle)
+      setArticles(adaptedArticles)
+      setTotalCount(response.pagination.total)
+    } catch (err) {
+      setError('Error al cargar los artículos')
+      console.error('Error loading articles:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const getSectionDescription = (key: string): string => {
     const descriptions: Record<string, string> = {
-      'digital': 'Noticias sobre transformación digital del sector jurídico, tecnología legal y innovación.',
-      'civil': 'Actualidad en derecho civil, contratos, responsabilidad civil y derecho de las personas.',
+      'constitucional': 'Sentencias, análisis y noticias sobre jurisprudencia constitucional, derechos fundamentales y control de constitucionalidad.',
+      'administrativo': 'Contratación estatal, función pública, control fiscal y derecho administrativo general.',
+      'fiscal': 'Normativa fiscal, jurisprudencia tributaria, aduanas y política fiscal.',
+      'societario': 'Derecho de sociedades, gobierno corporativo, fusiones y adquisiciones.',
       'penal': 'Jurisprudencia penal, política criminal y desarrollo del sistema penal acusatorio.',
-      'familia': 'Derecho de familia, adopción, régimen patrimonial y protección de menores.',
+      'civil': 'Actualidad en derecho civil, contratos, responsabilidad civil y derecho de las personas.',
+      'digital': 'Noticias sobre transformación digital del sector jurídico, tecnología legal e innovación.',
       'laboral': 'Legislación laboral, derechos de los trabajadores y relaciones laborales.',
-      'tributario': 'Normativa fiscal, jurisprudencia tributaria y política fiscal.',
-      'comercial': 'Derecho mercantil, sociedades, títulos valores y derecho de la competencia.',
-      'administrativo': 'Contratación estatal, función pública y control fiscal.',
-      'opinion': 'Análisis y opiniones de expertos sobre temas jurídicos de actualidad.'
+      'regulatorio': 'Regulación sectorial, compliance, supervisión y derecho regulatorio.',
+      'opinion': 'Análisis y opiniones de expertos sobre temas jurídicos de actualidad.',
+      'comercial': 'Derecho mercantil, títulos valores y derecho de la competencia.',
+      'familia': 'Derecho de familia, adopción, régimen patrimonial y protección de menores.',
+      'tributario': 'Normativa fiscal, jurisprudencia tributaria y política fiscal.'
     }
     return descriptions[key] || 'Contenido especializado en esta área del derecho.'
+  }
+
+  if (loading) {
+    return (
+      <div className={`min-h-screen bg-gray-50 ${className}`}>
+        <div className="bg-white border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-8 py-8 sm:py-12">
+            <div className="text-center">
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-4" style={{ color: '#04315a' }}>
+                {sectionName}
+              </h1>
+            </div>
+          </div>
+        </div>
+        <main className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-8 py-8 sm:py-12">
+          <div className="flex items-center justify-center min-h-96">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4" style={{ borderColor: '#04315a' }}></div>
+              <p className="text-gray-600">Cargando artículos...</p>
+            </div>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className={`min-h-screen bg-gray-50 ${className}`}>
+        <div className="bg-white border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-8 py-8 sm:py-12">
+            <div className="text-center">
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-4" style={{ color: '#04315a' }}>
+                {sectionName}
+              </h1>
+            </div>
+          </div>
+        </div>
+        <main className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-8 py-8 sm:py-12">
+          <div className="flex items-center justify-center min-h-96">
+            <div className="text-center">
+              <p className="text-red-600 mb-4">{error}</p>
+              <button
+                onClick={loadArticles}
+                className="px-4 py-2 rounded text-white transition-colors"
+                style={{ backgroundColor: '#04315a' }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#032a4d'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#04315a'}
+              >
+                Reintentar
+              </button>
+            </div>
+          </div>
+        </main>
+      </div>
+    )
   }
 
   return (
@@ -101,26 +218,17 @@ export const SectionPage: React.FC<SectionPageProps> = ({
                   }}
                 >
                   <span>Ver todas las noticias</span>
-                  <span 
-                    className="ml-2 px-2 py-1 rounded-full text-sm font-semibold"
-                    style={{ 
-                      backgroundColor: '#40f3f2',
-                      color: '#04315a'
-                    }}
-                  >
-                    {totalCount}
-                  </span>
-                  <svg 
-                    className="ml-2 w-5 h-5" 
-                    fill="none" 
-                    stroke="currentColor" 
+                  <svg
+                    className="ml-2 w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
                     viewBox="0 0 24 24"
                   >
-                    <path 
-                      strokeLinecap="round" 
-                      strokeLinejoin="round" 
-                      strokeWidth={2} 
-                      d="M9 5l7 7-7 7" 
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5l7 7-7 7"
                     />
                   </svg>
                 </button>

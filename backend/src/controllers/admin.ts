@@ -4,9 +4,54 @@ import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { logger } from '@/utils/logger';
 import { validateRequest } from '@/middleware/validation';
+import * as fs from 'fs';
+import * as path from 'path';
 
 const router = Router();
 const prisma = new PrismaClient();
+
+// Helper: Limpiar directorio de archivos físicos
+async function cleanStorageDirectory(dirPath: string): Promise<{ deleted: number; errors: string[] }> {
+  const result = { deleted: 0, errors: [] as string[] };
+
+  try {
+    if (!fs.existsSync(dirPath)) {
+      logger.info(`📁 Directorio no existe, omitiendo: ${dirPath}`);
+      return result;
+    }
+
+    const files = fs.readdirSync(dirPath);
+
+    for (const file of files) {
+      // Ignorar archivos ocultos y README
+      if (file.startsWith('.') || file === 'README.md') continue;
+
+      const filePath = path.join(dirPath, file);
+
+      try {
+        const stat = fs.statSync(filePath);
+
+        if (stat.isFile()) {
+          fs.unlinkSync(filePath);
+          result.deleted++;
+          logger.debug(`🗑️ Archivo eliminado: ${file}`);
+        }
+      } catch (fileError) {
+        const errorMsg = `Error eliminando ${file}: ${fileError instanceof Error ? fileError.message : 'Unknown'}`;
+        result.errors.push(errorMsg);
+        logger.warn(errorMsg);
+      }
+    }
+
+    logger.info(`✅ Limpieza de ${dirPath}: ${result.deleted} archivos eliminados`);
+  } catch (error) {
+    const errorMsg = `Error limpiando directorio ${dirPath}: ${error instanceof Error ? error.message : 'Unknown'}`;
+    result.errors.push(errorMsg);
+    logger.error(errorMsg);
+  }
+
+  return result;
+}
 
 // Validation schema for reset confirmation
 const resetConfirmationSchema = z.object({
@@ -89,6 +134,9 @@ router.post('/reset', validateRequest(resetConfirmationSchema), async (req: Requ
       auditLogsDeleted: 0,
       extractionHistoryDeleted: 0,
       refreshTokensDeleted: 0,
+      generatedImagesDeleted: 0,
+      physicalDocumentsDeleted: 0,
+      physicalImagesDeleted: 0,
     };
 
     // Ejecutar transacción para reset completo
@@ -134,6 +182,12 @@ router.post('/reset', validateRequest(resetConfirmationSchema), async (req: Requ
       await tx.article.deleteMany();
       resetStats.articlesDeleted = articleCount;
 
+      // 6.5. Contar y eliminar imágenes generadas (tabla GeneratedImage)
+      // FUNCIÓN TEMPORAL - Limpiar registros de imágenes AI
+      const generatedImageCount = await tx.generatedImage.count();
+      await tx.generatedImage.deleteMany();
+      resetStats.generatedImagesDeleted = generatedImageCount;
+
       // 7. Actualizar documentos para remover referencias FK antes de eliminar
       // FUNCIÓN TEMPORAL - Limpiar foreign keys manualmente 
       await tx.document.updateMany({
@@ -162,6 +216,27 @@ router.post('/reset', validateRequest(resetConfirmationSchema), async (req: Requ
         }
       });
     });
+
+    // 10. Limpiar archivos físicos DESPUÉS de la transacción exitosa
+    // FUNCIÓN TEMPORAL - Eliminar documentos DOCX/RTF descargados
+    const storageDir = path.resolve(__dirname, '../../storage');
+    const documentsDir = path.join(storageDir, 'documents');
+    const imagesDir = path.join(storageDir, 'images');
+
+    logger.info('🗂️ Iniciando limpieza de archivos físicos...');
+
+    const documentsCleanup = await cleanStorageDirectory(documentsDir);
+    resetStats.physicalDocumentsDeleted = documentsCleanup.deleted;
+
+    const imagesCleanup = await cleanStorageDirectory(imagesDir);
+    resetStats.physicalImagesDeleted = imagesCleanup.deleted;
+
+    if (documentsCleanup.errors.length > 0 || imagesCleanup.errors.length > 0) {
+      logger.warn('⚠️ Algunos archivos no pudieron ser eliminados:', {
+        documentsErrors: documentsCleanup.errors,
+        imagesErrors: imagesCleanup.errors
+      });
+    }
 
     const executionTime = (Date.now() - startTime) / 1000;
 

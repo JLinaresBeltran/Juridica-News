@@ -1,17 +1,24 @@
 import puppeteer, { Browser } from 'puppeteer';
 import { BaseScrapingService } from '@/scrapers/base/BaseScrapingService';
-import { 
-  ExtractionParameters, 
-  ExtractionResult, 
-  ExtractedDocument, 
+import {
+  ExtractionParameters,
+  ExtractionResult,
+  ExtractedDocument,
   SourceMetadata,
   DocumentType,
-  LegalArea
+  LegalArea,
+  JobStatus
 } from '@/scrapers/base/types';
 import { logger } from '@/utils/logger';
 
+// Black Box Adapters
+import { MammothContentProcessor } from '@/adapters/content/MammothContentProcessor';
+import { RegexMetadataExtractor } from '@/adapters/metadata/RegexMetadataExtractor';
+
 export class CorteConstitucionalScraper extends BaseScrapingService {
   private browser: Browser | null = null;
+  private contentProcessor: MammothContentProcessor;
+  private metadataExtractor: RegexMetadataExtractor;
 
   constructor() {
     const metadata: SourceMetadata = {
@@ -38,6 +45,10 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
       }
     };
     super('corte-constitucional', metadata);
+
+    // Inicializar Black Box Adapters
+    this.contentProcessor = new MammothContentProcessor();
+    this.metadataExtractor = new RegexMetadataExtractor();
   }
 
   async extractDocuments(parameters: ExtractionParameters): Promise<ExtractionResult> {
@@ -54,13 +65,21 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
     });
     
     try {
-      this.updateProgress({ progress: 5, message: 'Iniciando extracción real...' });
-      
+      this.updateProgress({
+        progress: 5,
+        message: '🚀 Etapa 1/5: Iniciando extracción de sentencias...',
+        status: JobStatus.RUNNING
+      });
+
       const limit = Math.min(parameters.limit || 10, 20);
       logger.info(`🔍 Iniciando extracción real de ${limit} documentos de Corte Constitucional`);
 
       // Inicializar Puppeteer
-      this.updateProgress({ progress: 15, message: 'Inicializando navegador...' });
+      this.updateProgress({
+        progress: 15,
+        message: '🌐 Etapa 2/5: Inicializando navegador Chromium...',
+        status: JobStatus.RUNNING
+      });
       this.browser = await puppeteer.launch({
         headless: true,
         args: [
@@ -79,7 +98,11 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
       await page.setViewport({ width: 1920, height: 1080 });
       await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
 
-      this.updateProgress({ progress: 25, message: 'Navegando a Corte Constitucional...' });
+      this.updateProgress({
+        progress: 25,
+        message: '📍 Etapa 3/5: Navegando al portal de la Corte Constitucional...',
+        status: JobStatus.RUNNING
+      });
 
       // Seguir el flujo correcto del usuario
       logger.info(`🌐 PASO 1: Navegando a página principal`);
@@ -122,7 +145,11 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
       }
 
       logger.info('📄 Página cargada, buscando sentencias...');
-      this.updateProgress({ progress: 40, message: 'Buscando enlaces de sentencias...' });
+      this.updateProgress({
+        progress: 40,
+        message: '🔍 Etapa 4/5: Buscando sentencias en el buscador jurídico...',
+        status: JobStatus.RUNNING
+      });
 
       // Esperar a que Angular/contenido dinámico cargue
       await this.waitForAngularLoad(page);
@@ -133,40 +160,61 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
       const sentenceLinks = await this.extractSentencesFromUltimasSentencias(page, limit);
 
       logger.info(`📋 Encontrados ${sentenceLinks.length} enlaces de sentencias`);
-      this.updateProgress({ progress: 60, message: `Procesando ${sentenceLinks.length} sentencias encontradas...` });
+      this.updateProgress({
+        progress: 60,
+        message: `📥 Etapa 5/5: Descargando y procesando ${sentenceLinks.length} sentencias...`,
+        documentsFound: sentenceLinks.length,
+        status: JobStatus.RUNNING
+      });
 
 
-      this.updateProgress({ progress: 75, message: 'Procesando documentos extraídos...' });
+      this.updateProgress({
+        progress: 65,
+        message: '⚙️ Verificando documentos y extrayendo contenido...',
+        documentsFound: sentenceLinks.length,
+        status: JobStatus.RUNNING
+      });
+
+      // Contadores para estadísticas
+      let duplicatesSkipped = 0;
+      let newDocumentsProcessed = 0;
+      let failedDownloads = 0;
 
       // Procesar documentos encontrados con verificación RTF
       for (let i = 0; i < sentenceLinks.length; i++) {
         const linkData = sentenceLinks[i];
         if (!linkData) continue;
-        
+
         try {
           // Determinar tipo de documento
           let documentType = DocumentType.SENTENCE;
           let typeKey = 'sentencia';
-          
+
           if (linkData.documentId.startsWith('T-')) {
             typeKey = 'tutela';
           } else if (linkData.documentId.startsWith('C-')) {
             typeKey = 'constitucionalidad';
           } else if (linkData.documentId.startsWith('SU-')) {
             typeKey = 'sala-unificada';
+            logger.info(`📋 Sentencia SU detectada en procesamiento: ${linkData.documentId}`);
           } else if (linkData.documentId.startsWith('A-')) {
             typeKey = 'auto';
           }
 
-          this.updateProgress({ 
-            progress: 75 + (i / sentenceLinks.length) * 15,
-            message: `Verificando documento RTF: ${linkData.documentId}`
+          this.updateProgress({
+            progress: 65 + ((i + 1) / sentenceLinks.length) * 30,
+            message: `📄 Procesando documento ${i + 1}/${sentenceLinks.length}: ${linkData.documentId}`,
+            documentsFound: sentenceLinks.length,
+            documentsProcessed: i,
+            currentDocument: linkData.documentId,
+            status: JobStatus.RUNNING
           });
 
           // VERIFICAR DUPLICADOS - Si ya existe, omitir
           const documentExists = await this.checkDocumentExists(linkData.documentId);
           if (documentExists) {
-            logger.debug(`⏩ OMITIENDO ${linkData.documentId} - Ya existe`);
+            duplicatesSkipped++;
+            logger.info(`⏩ OMITIENDO ${linkData.documentId} - Ya existe (${duplicatesSkipped} duplicados omitidos)`);
             continue; // Saltar al siguiente documento
           }
 
@@ -292,6 +340,12 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
 
           if (documentVerification.success) {
             logger.debug(`✅ Documento RTF verificado: ${linkData.documentId}`);
+
+            // 🔍 Log especial para sentencias SU
+            if (linkData.documentId.startsWith('SU-')) {
+              logger.info(`✅ Sentencia SU descargada exitosamente: ${linkData.documentId} (${documentVerification.extractedText?.length || 0} caracteres)`);
+            }
+
             finalUrl = documentVerification.localPath || linkData.url;
             // documentStatus = 'verified_rtf'; // Variable no utilizada eliminada
             documentMetadata.rtfVerification = {
@@ -302,6 +356,12 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
             };
           } else {
             logger.warn(`⚠️ Documento RTF no verificado: ${linkData.documentId} - ${documentVerification.error}`);
+
+            // 🔍 Warning especial para sentencias SU fallidas
+            if (linkData.documentId.startsWith('SU-')) {
+              logger.error(`❌ FALLO DESCARGA SU: ${linkData.documentId} - URL: ${linkData.url} - Error: ${documentVerification.error}`);
+            }
+
             documentMetadata.rtfVerification = {
               verified: false,
               error: documentVerification.error
@@ -329,19 +389,22 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
             content += `\n\nEste documento fue extraído del sitio web oficial de la Corte Constitucional de Colombia usando el sistema de scraping actualizado con filtrado por los últimos 5 días hábiles.`;
           }
 
-          // 🔥 EXTRAER METADATOS DEL CONTENIDO RTF ANTES DE CREAR EL DOCUMENTO FINAL
+          // 🔥 EXTRAER METADATOS DEL CONTENIDO RTF USANDO BLACK BOX ADAPTER
           let finalMetadata = documentMetadata;
-          
+
           if (documentVerification.success && documentVerification.extractedText) {
             try {
-              const { documentMetadataExtractor } = await import('@/services/DocumentMetadataExtractor');
-              const extractedMetadata = await documentMetadataExtractor.extractMetadata({
-                content: documentVerification.extractedText
-              });
-              
+              const extractedMetadata = await this.metadataExtractor.extract(
+                documentVerification.extractedText,
+                {
+                  documentTitle: linkData.title,
+                  source: 'corte-constitucional'
+                }
+              );
+
               if (extractedMetadata) {
                 logger.info(`🔍 Metadatos extraídos del RTF - Magistrado: ${extractedMetadata.magistradoPonente || 'N/A'}, Expediente: ${extractedMetadata.expediente || 'N/A'}, Sala: ${extractedMetadata.salaRevision || 'N/A'}`);
-                
+
                 // Añadir metadatos extraídos al objeto metadata
                 finalMetadata.extractedMetadata = extractedMetadata;
               }
@@ -367,23 +430,39 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
           };
 
           extractedDocuments.push(document);
-          
-          this.updateProgress({ 
+          newDocumentsProcessed++;
+
+          this.updateProgress({
             progress: 75 + (i / sentenceLinks.length) * 20,
-            message: `Procesado: ${linkData.documentId}${documentVerification.success ? ' ✓' : ' ⚠'}`
+            message: `Procesado: ${linkData.documentId}${documentVerification.success ? ' ✓' : ' ⚠'} (${newDocumentsProcessed} nuevos, ${duplicatesSkipped} duplicados)`
           });
 
         } catch (error) {
+          failedDownloads++;
           logger.warn(`⚠️ Error procesando ${linkData.documentId}:`, (error as Error).message);
           continue;
         }
       }
 
+      // Mostrar resumen de estadísticas
+      logger.info(`📊 RESUMEN DE EXTRACCIÓN:`);
+      logger.info(`   → Documentos encontrados en web: ${sentenceLinks.length}`);
+      logger.info(`   → Documentos NUEVOS procesados: ${newDocumentsProcessed}`);
+      logger.info(`   → Duplicados omitidos: ${duplicatesSkipped}`);
+      logger.info(`   → Descargas fallidas: ${failedDownloads}`);
+
       const endTime = Date.now();
       const extractionTime = (endTime - startTime) / 1000;
 
-      this.updateProgress({ progress: 100, message: `Extracción completada - ${extractedDocuments.length} documentos reales` });
-      
+      // 🎉 Enviar evento final de completado con status COMPLETED
+      this.updateProgress({
+        progress: 100,
+        message: `✅ Extracción completada - ${newDocumentsProcessed} nuevos, ${duplicatesSkipped} duplicados omitidos`,
+        documentsFound: sentenceLinks.length,
+        documentsProcessed: extractedDocuments.length,
+        status: JobStatus.COMPLETED
+      });
+
       logger.info(`✅ Extracción REAL completada: ${extractedDocuments.length} documentos en ${extractionTime}s`);
 
       return {
@@ -391,7 +470,7 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
         documents: extractedDocuments,
         downloadedCount: extractedDocuments.length,
         extractionTime,
-        totalFound: extractedDocuments.length,
+        totalFound: sentenceLinks.length,
         metadata: {
           source: 'corte-constitucional',
           realWebScraping: true,
@@ -403,6 +482,14 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
             'https://www.corteconstitucional.gov.co/relatoria/buscador-jurisprudencia'
           ],
           documentTypesSupported: ['T-', 'C-', 'SU-', 'A-'],
+          // Estadísticas de duplicados
+          statistics: {
+            documentsFoundInWeb: sentenceLinks.length,
+            newDocumentsProcessed: newDocumentsProcessed,
+            duplicatesSkipped: duplicatesSkipped,
+            failedDownloads: failedDownloads,
+            dateRangeUsed: '15 días hábiles'
+          },
           parameters
         }
       };
@@ -410,9 +497,16 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
     } catch (error) {
       const endTime = Date.now();
       const extractionTime = (endTime - startTime) / 1000;
-      
+
+      // ❌ Enviar evento de error con status FAILED
+      this.updateProgress({
+        progress: 0,
+        message: `❌ Error en extracción: ${error instanceof Error ? error.message : String(error)}`,
+        status: JobStatus.FAILED
+      });
+
       logger.error('❌ Error en extracción REAL de Corte Constitucional:', error);
-      
+
       return {
         success: false,
         documents: extractedDocuments,
@@ -637,11 +731,11 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
     const results: any[] = [];
 
     try {
-      // 1. Obtener los últimos 5 días hábiles (para asegurar archivos RTF disponibles)
+      // 1. Obtener los últimos 15 días hábiles (para cubrir vacaciones)
       const targetDates = this.getLastTwoWorkingDays();
 
       if (targetDates.length === 0) {
-        logger.warn('⚠️ No hay días hábiles para extraer (últimos 5 días hábiles no encontrados)');
+        logger.warn('⚠️ No hay días hábiles para extraer (últimos 15 días hábiles no encontrados)');
         return results;
       }
 
@@ -798,7 +892,7 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
                 
                 debugInfo.push(`📄 Fila ${i}: ${numero} - ${fechaToUse} (cols: ${cells.length})`);
 
-                // FILTRO CRÍTICO: Solo procesar si la fecha de publicación está en los últimos 5 días hábiles
+                // FILTRO: Solo procesar si la fecha de publicación está en los últimos 15 días hábiles
                 const isTargetDate = targetDatesData.some(targetDate => {
                   return fechaToUse.includes(targetDate.dateShort) ||
                          fechaToUse.includes(targetDate.dateAlt) ||
@@ -810,17 +904,29 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
 
                 if (isTargetDate && numero && foundSentences.length < maxResults) {
                   // Generar ID de documento
-                  const sentenceId = numero.toUpperCase().replace(/[\s\/]+/g, '-');
-                  
+                  const sentenceId = numero.toUpperCase().replace(/[\s\/\.]+/g, '-');
+
                   // Determinar año y generar URLs correctas
                   const currentYear = new Date().getFullYear();
-                  // Convertir "T-373/25" -> "t-373-25"
-                  const urlSafeName = numero.toLowerCase().replace(/[\s\/]+/g, '-');
+
+                  // 🔥 FIX: Normalización mejorada para sentencias SU
+                  // Convertir cualquier formato a URL correcta
+                  let urlSafeName = numero.toUpperCase()
+                    .replace(/[.\s]/g, '-')  // ✅ Normalizar puntos Y espacios a guion
+                    .replace('/', '-')       // Separador para año
+                    .toLowerCase();
+
+                  // 🔥 FIX: Sentencias SU no llevan guion después de SU
+                  // "SU-315-25" → "su315-25" (remover guion entre SU y número)
+                  if (numero.toUpperCase().startsWith('SU')) {
+                    urlSafeName = urlSafeName.replace('su-', 'su');
+                  }
+
                   const htmlUrl = `https://www.corteconstitucional.gov.co/sentencias/${currentYear}/${urlSafeName}.htm`;
                   const rtfUrl = htmlUrl.replace('.htm', '.rtf');
-                  
-                  console.log(`🔧 DEBUG URL: "${numero}" -> "${urlSafeName}" -> ${rtfUrl}`);
-                  
+
+                  console.log(`🔧 DEBUG URL: "${numero}" (ID: ${sentenceId}) -> RTF: ${rtfUrl}`);
+
                   foundSentences.push({
                     documentId: sentenceId,
                     title: `${numero} - ${tipo}`,
@@ -842,6 +948,11 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
                   });
 
                   debugInfo.push(`✅ Documento de fecha objetivo AGREGADO: ${sentenceId} - ${fechaToUse}`);
+
+                  // 🔍 Log especial para sentencias SU encontradas en tabla
+                  if (numero.toUpperCase().startsWith('SU')) {
+                    debugInfo.push(`🎯 SENTENCIA SU ENCONTRADA EN TABLA: ${numero} -> URL: ${rtfUrl}`);
+                  }
                 } else if (!isTargetDate) {
                   debugInfo.push(`     ⏩ Omitiendo documento de fecha diferente: ${fechaToUse} (no está en fechas objetivo)`);
                 } else if (!numero) {
@@ -956,8 +1067,24 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
                 // Generar URL completa
                 const fullUrl = href.startsWith('http') ? href : `https://www.corteconstitucional.gov.co${href}`;
 
-                // Generar URL de descarga RTF
-                const rtfUrl = fullUrl.replace('.htm', '.rtf');
+                // 🔥 FIX: Generar URL de descarga RTF con normalización mejorada
+                let urlSafeName = sentenceId.toLowerCase()
+                  .replace(/[.\s]/g, '-')  // Normalizar puntos y espacios
+                  .replace('/', '-');      // Separador para año
+
+                // Sentencias SU: remover guion después de "su"
+                if (sentenceId.toUpperCase().startsWith('SU')) {
+                  urlSafeName = urlSafeName.replace('su-', 'su');
+                }
+
+                const rtfUrl = `https://www.corteconstitucional.gov.co/sentencias/${year}/${urlSafeName}.rtf`;
+
+                console.log(`🔗 Fallback URL generada: ${sentenceId} -> ${rtfUrl}`);
+
+                // 🔍 Log especial para sentencias SU en fallback
+                if (sentenceId.toUpperCase().startsWith('SU')) {
+                  console.log(`🎯 SENTENCIA SU ENCONTRADA EN FALLBACK: ${sentenceId} -> ${rtfUrl}`);
+                }
 
                 // ✅ CREAR structuredData cuando tenemos fechaPublicacion
                 const structuredData = fechaPublicacion ? {
@@ -1014,8 +1141,9 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
       logger.info(`📋 Encontrados ${sentences.length} documentos de las fechas objetivo`);
 
       if (sentences.length === 0) {
-        logger.warn('⚠️ No se encontraron documentos en los últimos 5 días hábiles');
+        logger.warn('⚠️ No se encontraron documentos nuevos en los últimos 15 días hábiles');
         logger.info('💡 Esto puede suceder si:');
+        logger.info('   - Todos los documentos ya fueron descargados previamente');
         logger.info('   - No hay sentencias publicadas en los días hábiles objetivo');
         logger.info('   - El formato de fecha en la tabla ha cambiado');
         logger.info('   - La tabla estructurada no está disponible');
@@ -1042,15 +1170,18 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
           
           logger.info(`✅ Documento RTF verificado: ${sentence.documentId}`);
           
-          // Extraer metadatos del contenido del documento si tenemos texto extraído
+          // Extraer metadatos del contenido del documento usando Black Box Adapter
           let extractedMetadata: any = null;
           if (rtfVerification.success && rtfVerification.extractedText) {
             try {
-              const { documentMetadataExtractor } = await import('@/services/DocumentMetadataExtractor');
-              extractedMetadata = await documentMetadataExtractor.extractMetadata({
-                content: rtfVerification.extractedText
-              });
-              
+              extractedMetadata = await this.metadataExtractor.extract(
+                rtfVerification.extractedText,
+                {
+                  documentTitle: sentence.title,
+                  source: 'corte-constitucional'
+                }
+              );
+
               if (extractedMetadata) {
                 logger.info(`🔍 Metadatos extraídos del RTF - Magistrado: ${extractedMetadata.magistradoPonente || 'N/A'}, Expediente: ${extractedMetadata.expediente || 'N/A'}, Sala: ${extractedMetadata.salaRevision || 'N/A'}`);
               }
@@ -1108,37 +1239,76 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
 
   private async checkDocumentExists(documentId: string): Promise<boolean> {
     try {
-      // Verificar en base de datos si el documento ya existe
+      // Normalizar el documentId para búsqueda (ej: "T-390-25" → múltiples variantes)
+      const normalizedId = documentId.toUpperCase().replace(/[.\s]/g, '-');
+
+      // Crear variantes del ID para búsqueda más robusta
+      // Ej: "T-390-25" puede estar como "T-390/25", "T-390-25", "T.390.25", etc.
+      const idVariants = [
+        normalizedId,                           // T-390-25
+        normalizedId.replace(/-/g, '/'),        // T/390/25
+        normalizedId.replace(/-/g, '.'),        // T.390.25
+        normalizedId.replace(/-(\d{2})$/, '/$1'), // T-390/25 (solo el último guion)
+        documentId,                             // Original
+        documentId.toLowerCase(),               // minúsculas
+      ];
+
+      // Verificar en base de datos usando múltiples campos
       const existingDoc = await global.prisma?.document.findFirst({
         where: {
           OR: [
-            { documentId: documentId },
-            { title: { contains: documentId } },
-            { url: { contains: documentId } }
+            // Buscar por externalId (campo único)
+            { externalId: { in: idVariants } },
+            // Buscar por numeroSentencia
+            { numeroSentencia: { in: idVariants } },
+            // Buscar en URL (contiene el ID del documento)
+            ...idVariants.map(variant => ({ url: { contains: variant } })),
+            // Buscar en título
+            ...idVariants.map(variant => ({ title: { contains: variant } }))
           ]
+        },
+        select: {
+          id: true,
+          title: true,
+          numeroSentencia: true,
+          externalId: true
         }
       });
 
       if (existingDoc) {
-        logger.debug(`📋 Documento ${documentId} YA EXISTE en BD (ID: ${existingDoc.id}) - OMITIENDO`);
+        logger.info(`📋 DUPLICADO DETECTADO: ${documentId} ya existe en BD`);
+        logger.info(`   → ID: ${existingDoc.id}`);
+        logger.info(`   → Título: ${existingDoc.title?.substring(0, 50)}...`);
+        logger.info(`   → Número Sentencia: ${existingDoc.numeroSentencia || 'N/A'}`);
         return true;
       }
 
-      // También verificar por archivo descargado localmente
+      // También verificar por archivo descargado localmente en storage/documents
       const fs = require('fs');
       const path = require('path');
-      const downloadPath = path.join(process.cwd(), 'test_documents', `${documentId}.rtf`);
-      
-      if (fs.existsSync(downloadPath)) {
-        logger.debug(`📁 Documento ${documentId} YA EXISTE como archivo local - OMITIENDO`);
-        return true;
+
+      // Verificar en múltiples ubicaciones posibles
+      const possiblePaths = [
+        path.join(process.cwd(), 'storage', 'documents', `${documentId}.docx`),
+        path.join(process.cwd(), 'storage', 'documents', `${documentId}.rtf`),
+        path.join(process.cwd(), 'storage', 'documents', `${normalizedId}.docx`),
+        path.join(process.cwd(), 'storage', 'documents', `${normalizedId}.rtf`),
+        path.join(process.cwd(), 'test_documents', `${documentId}.rtf`),
+      ];
+
+      for (const filePath of possiblePaths) {
+        if (fs.existsSync(filePath)) {
+          logger.info(`📁 DUPLICADO DETECTADO: ${documentId} ya existe como archivo local`);
+          logger.info(`   → Ruta: ${filePath}`);
+          return true;
+        }
       }
 
       logger.debug(`🆕 Documento ${documentId} es NUEVO - PROCESAR`);
       return false;
     } catch (error) {
       logger.warn(`⚠️ Error verificando duplicado para ${documentId}: ${(error as Error).message}`);
-      return false; // En caso de error, procesar el documento
+      return false; // En caso de error, procesar el documento (mejor duplicar que perder)
     }
   }
 
@@ -1169,7 +1339,7 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
     }> = [];
     const today = new Date();
 
-    logger.info(`🔍 Buscando ÚLTIMOS 5 DÍAS HÁBILES desde: ${today.toLocaleDateString('es-CO')}`);
+    logger.info(`🔍 Buscando ÚLTIMOS 15 DÍAS HÁBILES (3 semanas) desde: ${today.toLocaleDateString('es-CO')}`);
 
     // Función para procesar una fecha
     const processDate = (date: Date, label: string) => {
@@ -1206,12 +1376,13 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
       }
     };
 
-    // Buscar los últimos 5 días hábiles
+    // Buscar los últimos 15 días hábiles (3 semanas laborales)
+    // Ampliado para cubrir períodos de vacaciones (Navidad, Semana Santa, etc.)
     let searchDate = new Date(today);
     let daysSearched = 0;
     let workingDaysFound = 0;
-    const maxSearch = 14; // Buscar máximo 2 semanas atrás
-    const targetWorkingDays = 5; // Queremos exactamente 5 días hábiles
+    const maxSearch = 30; // Buscar máximo 1 mes atrás
+    const targetWorkingDays = 15; // Queremos exactamente 15 días hábiles (3 semanas)
 
     while (workingDaysFound < targetWorkingDays && daysSearched < maxSearch) {
       // Retroceder un día
@@ -1260,25 +1431,33 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
     try {
       const cleanNumber = sentenceNumber.trim().toUpperCase();
       let normalizedId = '';
-      
-      // Casos especiales para SU (como el scraper Python)
-      if (cleanNumber.startsWith('SU.')) {
-        normalizedId = cleanNumber.replace('SU.', 'su').replace('/', '-').toLowerCase();
-      } else if (cleanNumber.startsWith('SU')) {
-        normalizedId = cleanNumber.replace('SU', 'su').replace('/', '-').toLowerCase();
+
+      // 🔥 FIX: Sentencias SU tienen formato especial (sin guion después de SU)
+      if (cleanNumber.startsWith('SU')) {
+        // "SU-315/25", "SU.315/25", "SU 315/25" → "su315-25" (sin guion entre SU y número)
+        normalizedId = cleanNumber
+          .replace(/[.\s]/g, '-')  // ✅ Normalizar puntos Y espacios a guion
+          .replace('SU-', 'su')    // Remover guion después de SU
+          .replace('/', '-')       // Separador para año
+          .toLowerCase();
+
+        logger.info(`🔧 Sentencia SU detectada: "${sentenceNumber}" -> "${normalizedId}"`);
       } else {
-        // Para T, C, A, etc. mantener formato estándar
-        normalizedId = cleanNumber.toLowerCase().replace('/', '-');
+        // Para T, C, A, etc. mantener formato estándar con guiones
+        normalizedId = cleanNumber
+          .replace(/[.\s]/g, '-')  // ✅ También normalizar puntos y espacios para otros tipos
+          .replace('/', '-')       // Separador para año
+          .toLowerCase();
       }
-      
+
       const currentYear = new Date().getFullYear();
-      
+
       // URL correcta basada en la inspección del HTML de las páginas individuales
       const primaryUrl = `https://www.corteconstitucional.gov.co/sentencias/${currentYear}/${normalizedId}.rtf`;
-      logger.debug(`URL RTF generada: ${sentenceNumber} -> ${primaryUrl}`);
-      
+      logger.debug(`📍 URL RTF generada: ${sentenceNumber} -> ${primaryUrl}`);
+
       return primaryUrl;
-      
+
     } catch (error) {
       logger.error(`Error generando URL para ${sentenceNumber}:`, error);
       return '';
@@ -1354,17 +1533,16 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
       
       try {
         // ⚠️ IMPORTANTE: Los archivos de Corte Constitucional con extensión .rtf son realmente DOCX
-        // Usar siempre DocumentTextExtractor (mammoth) independientemente del content-type
+        // Usar Content Processor Black Box Adapter (mammoth) independientemente del content-type
         logger.info(`📖 Extrayendo texto de ${documentId} (${buffer.length} bytes, tipo: ${contentType})`);
 
-        const { documentTextExtractor } = await import('@/services/DocumentTextExtractor');
-        const extraction = await documentTextExtractor.extractFromBuffer(buffer, `${documentId}.docx`);
+        const extraction = await this.contentProcessor.extractText(buffer, `${documentId}.docx`);
 
         if (extraction && extraction.fullText) {
           extractedText = extraction.fullText;
-          logger.info(`✅ Texto extraído con mammoth (DOCX real): ${extractedText.length} caracteres`);
+          logger.info(`✅ Texto extraído con Content Processor (DOCX real): ${extractedText.length} caracteres`);
         } else {
-          logger.warn(`⚠️ No se pudo extraer texto con mammoth de ${documentId} - Extracción resultó vacía`);
+          logger.warn(`⚠️ No se pudo extraer texto con Content Processor de ${documentId} - Extracción resultó vacía`);
         }
 
       } catch (textError) {
@@ -1399,44 +1577,62 @@ export class CorteConstitucionalScraper extends BaseScrapingService {
   private parseSpanishDate(dateString: string): Date {
     try {
       if (!dateString) return new Date();
-      
+
+      // ✅ FIX: Limpiar espacios extra y caracteres invisibles
+      const cleanDate = dateString.trim().replace(/\s+/g, ' ');
+
+      // ✅ CRÍTICO: Detectar formato ISO YYYY-MM-DD PRIMERO (de la tabla de la Corte: 2025-12-19)
+      // Este debe ir ANTES del regex genérico DD-MM-YYYY para evitar confusión
+      const isoMatch = cleanDate.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+      if (isoMatch) {
+        const year = parseInt(isoMatch[1]);
+        const month = parseInt(isoMatch[2]) - 1; // JavaScript months are 0-indexed
+        const day = parseInt(isoMatch[3]);
+        logger.info(`✅ Fecha ISO parseada: "${cleanDate}" -> ${year}-${month + 1}-${day}`);
+        return new Date(year, month, day);
+      }
+
       // Formatos: "04/09/2025", "04-09-2025", "4 de septiembre de 2025"
       const monthsSpanish = {
         'enero': 0, 'febrero': 1, 'marzo': 2, 'abril': 3, 'mayo': 4, 'junio': 5,
         'julio': 6, 'agosto': 7, 'septiembre': 8, 'octubre': 9, 'noviembre': 10, 'diciembre': 11
       };
-      
-      // Formato DD/MM/YYYY o DD-MM-YYYY
-      const numericMatch = dateString.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
-      if (numericMatch) {
-        const day = parseInt(numericMatch[1]);
-        const month = parseInt(numericMatch[2]) - 1; // JavaScript months are 0-indexed
-        const year = parseInt(numericMatch[3]);
+
+      // Formato DD/MM/YYYY (solo con /)
+      const slashMatch = cleanDate.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if (slashMatch) {
+        const day = parseInt(slashMatch[1]);
+        const month = parseInt(slashMatch[2]) - 1;
+        const year = parseInt(slashMatch[3]);
         return new Date(year, month, day);
       }
-      
+
+      // Formato DD-MM-YYYY (día de 1-2 dígitos AL INICIO, año de 4 dígitos AL FINAL)
+      const ddmmyyyyMatch = cleanDate.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+      if (ddmmyyyyMatch) {
+        const day = parseInt(ddmmyyyyMatch[1]);
+        const month = parseInt(ddmmyyyyMatch[2]) - 1;
+        const year = parseInt(ddmmyyyyMatch[3]);
+        return new Date(year, month, day);
+      }
+
       // Formato "4 de septiembre de 2025"
-      const spanishMatch = dateString.match(/(\d{1,2})\s+de\s+(\w+)\s+de\s+(\d{4})/i);
+      const spanishMatch = cleanDate.match(/(\d{1,2})\s+de\s+(\w+)\s+de\s+(\d{4})/i);
       if (spanishMatch) {
         const day = parseInt(spanishMatch[1]);
         const monthName = spanishMatch[2].toLowerCase();
         const year = parseInt(spanishMatch[3]);
         const month = monthsSpanish[monthName as keyof typeof monthsSpanish];
-        
+
         if (month !== undefined) {
+          logger.info(`✅ Fecha español parseada: "${cleanDate}" -> ${year}-${month + 1}-${day}`);
           return new Date(year, month, day);
         }
       }
-      
-      // Fallback: intentar parseado directo
-      const parsedDate = new Date(dateString);
-      if (!isNaN(parsedDate.getTime())) {
-        return parsedDate;
-      }
-      
-      logger.warn(`⚠️ No se pudo parsear fecha: ${dateString}`);
+
+      logger.warn(`⚠️ No se pudo parsear fecha: "${dateString}" (limpia: "${cleanDate}")`);
       return new Date();
-      
+
     } catch (error) {
       logger.error(`❌ Error parseando fecha "${dateString}":`, error);
       return new Date();

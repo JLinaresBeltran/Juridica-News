@@ -1,13 +1,11 @@
 import { NavLink, useLocation } from 'react-router-dom'
-import { useMemo, useEffect, useState } from 'react'
-import { 
-  LayoutDashboard, 
-  Clock, 
-  CheckCircle, 
-  Edit3, 
-  Eye, 
-  Send, 
-  FileText, 
+import { useEffect, useState, useCallback, useRef } from 'react'
+import {
+  LayoutDashboard,
+  Clock,
+  CheckCircle,
+  Send,
+  FileText,
   BarChart3,
   ChevronLeft,
   ChevronRight
@@ -16,14 +14,9 @@ import { useAppStore } from '@/stores/appStore'
 import { useCurationStore } from '@/stores/curationStore'
 import { clsx } from 'clsx'
 import documentsService from '@/services/documentsService'
-// import { useEventStore } from '@/stores/eventStore' // Ya no se usa
-
-// FUNCIÓN TEMPORAL - Eliminar datos mock, usar datos reales del backend
-const MOCK_DATA_TOTALS = {
-  totalReadyArticles: 0,     // readyArticles en ArticlesPage.tsx (inicialmente vacío)
-  totalPublishedArticles: 0, // publishedArticles en PublishedArticlesPage.tsx (inicialmente vacío)
-  totalArchivedDocuments: 0  // archivedDocuments en ArchivedArticlesPage.tsx (inicialmente vacío)
-}
+import { articlesService } from '@/services/articlesService'
+import { documentEvents } from '@/utils/documentEvents' // ✅ Event emitter
+import { useAuthStore } from '@/stores/authStore' // ✅ Para SSE connection
 
 interface NavItem {
   id: string
@@ -44,10 +37,11 @@ export function Sidebar() {
     sidebarCollapsed: state.uiPreferences.sidebarCollapsed,
     toggleSidebar: state.toggleSidebar
   }))
-  
-  const { approvedDocuments, rejectedDocuments, readyDocuments, publishedDocuments, archivedDocuments } = useCurationStore()
-  // const subscribe = useEventStore(state => state.subscribe) // Ya no se usa
-  
+
+  const { archivedDocuments } = useCurationStore()
+  const { accessToken } = useAuthStore() // ✅ Token para SSE
+  const eventSourceRef = useRef<EventSource | null>(null) // ✅ Ref para conexión SSE
+
   // Estados para contadores reales de la API
   const [documentCounts, setDocumentCounts] = useState({
     PENDING: 0,
@@ -57,40 +51,136 @@ export function Sidebar() {
     PUBLISHED: 0,
     ARCHIVED: 0
   })
-  
-  // Cargar contadores de documentos desde la API
+
+  // ✅ Función para cargar contadores desde la API (memoizada para reutilización)
+  const loadDocumentCounts = useCallback(async () => {
+    console.debug('🔄 Sidebar: Recargando contadores...')
+    try {
+      // Cargar contadores de cada estado en paralelo
+      const [pendingRes, approvedRes, rejectedRes, readyRes, publishedRes] = await Promise.all([
+        documentsService.getDocuments({ status: 'PENDING', limit: 1 }),
+        documentsService.getDocuments({ status: 'APPROVED', limit: 1 }),
+        documentsService.getDocuments({ status: 'REJECTED', limit: 1 }),
+        articlesService.getArticles({ status: 'READY', limit: 1 }),
+        articlesService.getArticles({ status: 'PUBLISHED', limit: 1 })
+      ])
+
+      const newCounts = {
+        PENDING: pendingRes.pagination.total,
+        APPROVED: approvedRes.pagination.total,
+        REJECTED: rejectedRes.pagination.total,
+        READY: readyRes.total || 0, // ✅ Real desde API
+        PUBLISHED: publishedRes.total || 0, // ✅ Real desde API
+        ARCHIVED: archivedDocuments.length // Del store local por ahora
+      }
+
+      setDocumentCounts(newCounts)
+
+      console.debug('✅ Sidebar: Contadores actualizados:', newCounts)
+
+    } catch (error) {
+      console.error('Error loading document counts:', error)
+    }
+  }, [archivedDocuments.length])
+
+  // ✅ Cargar contadores iniciales y suscribirse a eventos de cambios
   useEffect(() => {
-    const loadDocumentCounts = async () => {
+    // Carga inicial
+    loadDocumentCounts()
+
+    // Wrapper para log específico de document:published
+    const handlePublished = () => {
+      console.debug('📡 Sidebar recibió evento document:published, recargando contadores...')
+      loadDocumentCounts()
+    }
+
+    // Suscribirse a eventos de cambios en documentos
+    documentEvents.on('document:approved', loadDocumentCounts)
+    documentEvents.on('document:rejected', loadDocumentCounts)
+    documentEvents.on('document:ready', loadDocumentCounts)
+    documentEvents.on('document:published', handlePublished)
+    documentEvents.on('document:updated', loadDocumentCounts)
+
+    // Cleanup: desuscribirse al desmontar
+    return () => {
+      documentEvents.off('document:approved', loadDocumentCounts)
+      documentEvents.off('document:rejected', loadDocumentCounts)
+      documentEvents.off('document:ready', loadDocumentCounts)
+      documentEvents.off('document:published', handlePublished)
+      documentEvents.off('document:updated', loadDocumentCounts)
+    }
+  }, [loadDocumentCounts])
+
+  // ✅ Listener SSE para evento 'documents_extracted' desde el backend
+  useEffect(() => {
+    if (!accessToken) {
+      console.debug('⚠️ Sidebar SSE: No hay accessToken, saltando conexión')
+      return
+    }
+
+    const connectSSE = () => {
       try {
-        // Cargar contadores de cada estado
-        const [pendingRes, approvedRes, rejectedRes] = await Promise.all([
-          documentsService.getDocuments({ status: 'PENDING', limit: 1 }),
-          documentsService.getDocuments({ status: 'APPROVED', limit: 1 }),
-          documentsService.getDocuments({ status: 'REJECTED', limit: 1 })
-        ])
-        
-        setDocumentCounts({
-          PENDING: pendingRes.pagination.total,
-          APPROVED: approvedRes.pagination.total,
-          REJECTED: rejectedRes.pagination.total,
-          READY: 0, // TODO: Cuando se implemente
-          PUBLISHED: 0, // TODO: Cuando se implemente  
-          ARCHIVED: 0 // TODO: Cuando se implemente
+        // Crear conexión SSE con token en query params
+        const sseUrl = new URL(`${import.meta.env.VITE_API_URL}/api/events/stream`)
+        sseUrl.searchParams.set('token', accessToken)
+
+        console.debug('🔌 Sidebar: Conectando a SSE...', sseUrl.toString())
+
+        const eventSource = new EventSource(sseUrl.toString())
+        eventSourceRef.current = eventSource
+
+        // Log cuando se conecta exitosamente
+        eventSource.addEventListener('connected', (event) => {
+          console.debug('✅ Sidebar SSE: Conectado exitosamente', event.data)
         })
-        
-        console.debug('🔄 Sidebar: Document counts loaded:', {
-          PENDING: pendingRes.pagination.total,
-          APPROVED: approvedRes.pagination.total,
-          REJECTED: rejectedRes.pagination.total
+
+        // Listener específico para 'documents_extracted'
+        eventSource.addEventListener('documents_extracted', (event) => {
+          try {
+            const data = JSON.parse(event.data)
+            console.log('📡 SSE Event "documents_extracted" received in Sidebar:', data)
+
+            // Recargar contadores cuando se extraen nuevos documentos
+            console.debug('🔄 Sidebar: Recargando contadores por evento documents_extracted...')
+            loadDocumentCounts()
+          } catch (error) {
+            console.error('Error parsing documents_extracted event:', error)
+          }
         })
-        
+
+        // Log todos los eventos para debugging
+        eventSource.onmessage = (event) => {
+          console.debug('📨 Sidebar SSE: Mensaje genérico recibido:', event)
+        }
+
+        eventSource.onerror = (error) => {
+          console.error('❌ SSE connection error in Sidebar:', error)
+
+          // Intentar reconectar después de un delay
+          setTimeout(() => {
+            if (eventSourceRef.current?.readyState === EventSource.CLOSED) {
+              console.debug('🔄 Sidebar SSE: Intentando reconectar...')
+              connectSSE()
+            }
+          }, 5000)
+        }
+
       } catch (error) {
-        console.error('Error loading document counts:', error)
+        console.error('Failed to create SSE connection in Sidebar:', error)
       }
     }
-    
-    loadDocumentCounts()
-  }, [])
+
+    connectSSE()
+
+    // Cleanup: cerrar conexión SSE al desmontar
+    return () => {
+      if (eventSourceRef.current) {
+        console.debug('🔌 Sidebar SSE: Cerrando conexión')
+        eventSourceRef.current.close()
+        eventSourceRef.current = null
+      }
+    }
+  }, [accessToken, loadDocumentCounts])
 
   const navigationSections: NavSection[] = [
     {
@@ -109,9 +199,9 @@ export function Sidebar() {
     {
       title: 'Editorial',
       items: [
-        { id: 'ready', label: 'Listos', icon: Send, path: '/articles?status=ready', count: () => readyDocuments.length },
-        { id: 'published', label: 'Publicados', icon: FileText, path: '/articles?status=published', count: () => publishedDocuments.length },
-        { id: 'archived', label: 'Archivados', icon: BarChart3, path: '/articles?status=archived', count: () => archivedDocuments.length },
+        { id: 'ready', label: 'Listos', icon: Send, path: '/articles?status=ready', count: documentCounts.READY },
+        { id: 'published', label: 'Publicados', icon: FileText, path: '/articles?status=published', count: documentCounts.PUBLISHED },
+        { id: 'archived', label: 'Archivados', icon: BarChart3, path: '/articles?status=archived', count: documentCounts.ARCHIVED },
       ]
     }
   ]
@@ -175,7 +265,7 @@ export function Sidebar() {
                     {!sidebarCollapsed && (
                       <>
                         <span className="flex-1">{item.label}</span>
-                        {item.count && (
+                        {item.count !== undefined && (
                           <span className={clsx(
                             "text-xs px-2 py-0.5 rounded-full transition-all duration-200",
                             isItemActive(item.path)
@@ -194,17 +284,17 @@ export function Sidebar() {
           ))}
         </nav>
 
-        {/* Toggle button */}
+        {/* Toggle Button */}
         <div className="p-2 border-t border-gray-200 dark:border-gray-700">
           <button
             onClick={toggleSidebar}
-            className="w-full p-2 rounded-md text-gray-500 dark:text-gray-400 hover:text-[#3ff3f2] hover:bg-[#04315a] transition-all duration-200 flex items-center justify-center"
-            title={sidebarCollapsed ? 'Expandir sidebar' : 'Colapsar sidebar'}
+            className="w-full p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors"
+            title={sidebarCollapsed ? 'Expandir sidebar' : 'Contraer sidebar'}
           >
             {sidebarCollapsed ? (
-              <ChevronRight className="w-5 h-5" />
+              <ChevronRight className="w-5 h-5 mx-auto" />
             ) : (
-              <ChevronLeft className="w-5 h-5" />
+              <ChevronLeft className="w-5 h-5 mx-auto" />
             )}
           </button>
         </div>

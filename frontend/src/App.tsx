@@ -16,11 +16,15 @@ import PublicArticlePage from '@/pages/public/PublicArticlePage'
 import AdministrativoPage from '@/pages/public/AdministrativoPage'
 import CivilPage from '@/pages/public/CivilPage'
 import ComercialPage from '@/pages/public/ComercialPage'
+import ConstitucionalPage from '@/pages/public/ConstitucionalPage'
 import DigitalPage from '@/pages/public/DigitalPage'
 import FamiliaPage from '@/pages/public/FamiliaPage'
+import FiscalPage from '@/pages/public/FiscalPage'
 import LaboralPage from '@/pages/public/LaboralPage'
 import OpinionPage from '@/pages/public/OpinionPage'
 import PenalPage from '@/pages/public/PenalPage'
+import RegulatorioPage from '@/pages/public/RegulatorioPage'
+import SocietarioPage from '@/pages/public/SocietarioPage'
 import TributarioPage from '@/pages/public/TributarioPage'
 
 function App() {
@@ -36,11 +40,15 @@ function App() {
         <Route path="/portal/administrativo" element={<AdministrativoPage />} />
         <Route path="/portal/civil" element={<CivilPage />} />
         <Route path="/portal/comercial" element={<ComercialPage />} />
+        <Route path="/portal/constitucional" element={<ConstitucionalPage />} />
         <Route path="/portal/digital" element={<DigitalPage />} />
         <Route path="/portal/familia" element={<FamiliaPage />} />
+        <Route path="/portal/fiscal" element={<FiscalPage />} />
         <Route path="/portal/laboral" element={<LaboralPage />} />
         <Route path="/portal/opinion" element={<OpinionPage />} />
         <Route path="/portal/penal" element={<PenalPage />} />
+        <Route path="/portal/regulatorio" element={<RegulatorioPage />} />
+        <Route path="/portal/societario" element={<SocietarioPage />} />
         <Route path="/portal/tributario" element={<TributarioPage />} />
         
         {/* Protected routes */}

@@ -109,15 +109,15 @@ export default function PublicPortalPage() {
 
                 {/* Contenido de la tarjeta */}
                 <div className="p-6">
-                  <div className="grid gap-4">
+                  <div className="space-y-1">
                     {portalData.ultimasNoticias.map((article, index) => {
                       const publicArticle = adaptApiToPublicArticle(article)
                       return (
                         <ArticleCard
                           key={article.id}
                           article={publicArticle}
-                          layout="minimal"
-                          className="border-none shadow-none hover:bg-gray-50 rounded-lg p-2"
+                          layout="numbered"
+                          index={index}
                         />
                       )
                     })}
@@ -148,44 +148,59 @@ export default function PublicPortalPage() {
           </section>
         )}
 
-        {/* SECCIÓN INSTITUCIONES - Timeline con datos reales */}
+        {/* SECCIÓN INSTITUCIONES - Diseño minimalista y elegante */}
         {portalData?.entidades && Object.keys(portalData.entidades).length > 0 && (
           <section className="mb-16 sm:mb-20">
-            <div className="flex items-center gap-3 mb-4 sm:mb-6">
+            <div className="flex items-center gap-3 mb-6 sm:mb-8">
               <h2 className="text-xl sm:text-2xl font-bold" style={{ color: '#04315a' }}>Instituciones</h2>
               <div className="flex-1 h-px" style={{ background: 'linear-gradient(to right, #04315a, transparent)' }}></div>
             </div>
 
-            <div className="space-y-8">
+            <div className="space-y-8 max-w-4xl mx-auto">
               {Object.entries(portalData.entidades).map(([entidad, articles]) => (
-                <div key={entidad} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                  <div className="flex items-center gap-3 mb-4">
-                    <Building className="w-5 h-5 text-blue-600" />
-                    <h3 className="font-semibold text-lg text-gray-900">
-                      {getEntityDisplayName(entidad)}
-                    </h3>
-                    <span className="text-sm text-gray-500">({articles.length} artículos)</span>
+                <div key={entidad} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                  {/* Header de la institución con diseño elegante */}
+                  <div
+                    className="px-6 py-4"
+                    style={{
+                      background: 'linear-gradient(135deg, #04315a 0%, #053d6f 100%)',
+                    }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Building className="w-5 h-5" style={{ color: '#40f3f2' }} />
+                      <h3 className="font-bold text-lg text-white">
+                        {getEntityDisplayName(entidad)}
+                      </h3>
+                    </div>
                   </div>
 
-                  <div className="grid gap-4">
+                  {/* Lista de artículos con diseño minimalista */}
+                  <div className="divide-y divide-gray-100">
                     {articles.slice(0, 3).map((article) => {
                       const publicArticle = adaptApiToPublicArticle(article)
                       return (
                         <ArticleCard
                           key={article.id}
                           article={publicArticle}
-                          layout="horizontal"
+                          layout="institutional"
                           size="small"
-                          className="border-l-4 border-blue-600"
                         />
                       )
                     })}
                   </div>
 
+                  {/* Footer con botón de ver más */}
                   {articles.length > 3 && (
-                    <div className="mt-4 text-center">
-                      <button className="text-sm text-blue-600 hover:text-blue-800 font-medium">
-                        Ver más artículos de {getEntityDisplayName(entidad)} →
+                    <div
+                      className="px-6 py-3 text-center border-t border-gray-100"
+                      style={{ backgroundColor: '#fafafa' }}
+                    >
+                      <button
+                        className="text-sm font-medium transition-colors hover:underline"
+                        style={{ color: '#04315a' }}
+                      >
+                        Ver todos los artículos de {getEntityDisplayName(entidad)}
+                        <span className="ml-1" style={{ color: '#40f3f2' }}>→</span>
                       </button>
                     </div>
                   )}
@@ -224,15 +239,15 @@ export default function PublicPortalPage() {
               <div className="flex-1 h-px bg-gradient-to-r from-blue-200 to-transparent"></div>
             </div>
 
-            <div className="space-y-6 max-w-4xl mx-auto">
+            <div className="space-y-4 max-w-3xl mx-auto">
               {portalData.destacados.map((article) => {
                 const publicArticle = adaptApiToPublicArticle(article)
                 return (
                   <ArticleCard
                     key={article.id}
                     article={publicArticle}
-                    layout="featured"
-                    size="medium"
+                    layout="horizontal"
+                    size="small"
                     className="shadow-sm"
                   />
                 )

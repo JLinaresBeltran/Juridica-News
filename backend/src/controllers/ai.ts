@@ -5,8 +5,14 @@ import { validateRequest } from '@/middleware/validation';
 import { logger } from '@/utils/logger';
 import { imageStorageService } from '../services/ImageStorageService';
 
+// Black Box Adapter
+import { MammothContentProcessor } from '@/adapters/content/MammothContentProcessor';
+
 const router = Router();
 const prisma = new PrismaClient();
+
+// Instancia de content processor Black Box
+const contentProcessor = new MammothContentProcessor();
 
 // Validation schemas
 const generateArticleSchema = z.object({
@@ -183,8 +189,8 @@ router.post('/generate-titles', validateRequest(generateTitlesSchema), async (re
       area: document.area
     });
 
-    // Generate titles using AI
-    const titles = await generateTitlesWithAI(document, model || 'gpt4o-mini', style, count, articleContent, includeSubtitle);
+    // Generate titles using AI - USAR GPT-4O-MINI (Gemini agotó la cuota)
+    const titles = await generateTitlesWithAI(document, 'gpt4o-mini', style, count, articleContent, includeSubtitle);
 
     if (!titles) {
       return res.status(500).json({
@@ -217,7 +223,14 @@ router.post('/generate-titles', validateRequest(generateTitlesSchema), async (re
     });
 
   } catch (error) {
-    logger.error('AI title generation error', { error, userId: req.user.id });
+    logger.error('❌ AI title generation error', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      userId: req.user.id,
+      documentId,
+      style,
+      articleContentLength: articleContent?.length || 0
+    });
     res.status(500).json({
       error: 'Failed to generate titles',
       message: error instanceof Error ? error.message : 'Unknown error'
@@ -547,18 +560,17 @@ async function generateArticleWithAI(
               isDocx: bufferData.length > 4 && bufferData.subarray(0, 4).equals(Buffer.from([0x50, 0x4B, 0x03, 0x04]))
             });
             
-            // Si es DOCX/RTF, extraer texto usando DocumentTextExtractor
+            // Si es DOCX/RTF, extraer texto usando Content Processor Black Box Adapter
             if (bufferData.length > 4 && bufferData.subarray(0, 4).equals(Buffer.from([0x50, 0x4B, 0x03, 0x04]))) {
-              logger.info('📄 DEBUG: Detectado archivo DOCX, usando DocumentTextExtractor');
-              const { documentTextExtractor } = await import('../services/DocumentTextExtractor');
-              const extractedContent = await documentTextExtractor.extractFromBuffer(bufferData, document.title);
-              
+              logger.info('📄 DEBUG: Detectado archivo DOCX, usando Content Processor');
+              const extractedContent = await contentProcessor.extractText(bufferData, document.title);
+
               if (extractedContent) {
                 documentContent = extractedContent.fullText;
                 logger.info('✅ DEBUG: Texto extraído exitosamente', {
                   originalSize: bufferData.length,
                   extractedLength: documentContent.length,
-                  wordCount: extractedContent.metadata.wordCount,
+                  wordCount: extractedContent.wordCount,
                   hasStructure: extractedContent.metadata.hasStructure
                 });
               } else {
@@ -890,17 +902,25 @@ async function generateTitlesWithAI(
 
     } else {
       // Gemini implementation for titles
+      logger.info('🔥 DEBUG: Iniciando generación con Gemini');
+
       const { GoogleGenerativeAI } = await import('@google/generative-ai');
       const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
       const geminiModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
       const prompt = buildTitlePrompt(document, style, count, articleContent, includeSubtitle);
 
-      logger.info('🚀 DEBUG: Enviando prompt a Gemini 1.5 Flash');
+      logger.info('🚀 DEBUG: Enviando prompt a Gemini 2.5 Flash', {
+        promptLength: prompt.length,
+        model: 'gemini-2.5-flash',
+        hasApiKey: !!process.env.GEMINI_API_KEY
+      });
 
       const result = await geminiModel.generateContent([prompt]);
       const response = await result.response;
       const text = response.text();
+
+      logger.info('📥 DEBUG: Respuesta recibida de Gemini');
 
       logger.info('✅ DEBUG: Respuesta recibida de Gemini:', {
         responseLength: text?.length || 0,
@@ -1010,7 +1030,14 @@ async function generateTitlesWithAI(
     }
 
   } catch (error) {
-    logger.error(`Error generating titles: ${error}`);
+    logger.error('❌ ERROR CRÍTICO en generateTitlesWithAI:', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      documentId: document?.id,
+      model,
+      style,
+      articleContentLength: articleContent?.length || 0
+    });
     return null;
   }
 }
@@ -1194,13 +1221,12 @@ async function buildImagePromptWithAI(document: any, style: string): Promise<{ p
 
   } catch (error) {
     logger.error('❌ Error generating AI prompt, using fallback:', error);
-    const fallbackPrompt = buildImagePromptFallback(document, style);
-    return { prompt: fallbackPrompt, metaDescription: null };
+    return buildImagePromptFallback(document, style);
   }
 }
 
 // Función de respaldo (mejorada de la función original)
-function buildImagePromptFallback(document: any, style: string): string {
+function buildImagePromptFallback(document: any, style: string): { prompt: string; metaDescription: string | null } {
   const styleInstructions = {
     professional: 'Professional editorial photography, corporate style, formal lighting',
     conceptual: 'Conceptual artistic representation, symbolic elements, creative composition',
@@ -1208,7 +1234,9 @@ function buildImagePromptFallback(document: any, style: string): string {
   };
 
   const basePrompt = styleInstructions[style as keyof typeof styleInstructions] || styleInstructions.professional;
-  return `${basePrompt} related to ${document.legal_area || 'Colombian law'} and ${document.title}. High quality, editorial style, appropriate for legal publication.`;
+  const prompt = `${basePrompt} related to ${document.legal_area || 'Colombian law'} and ${document.title}. High quality, editorial style, appropriate for legal publication.`;
+
+  return { prompt, metaDescription: null };
 }
 
 // Mejoras de estilo específicas

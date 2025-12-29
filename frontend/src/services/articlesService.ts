@@ -21,6 +21,13 @@ export interface Article {
     firstName: string
     lastName: string
   }
+  sourceDocument?: {
+    id: string
+    title: string
+    source: string
+    legalArea?: string
+    publicationDate?: string
+  }
 }
 
 export interface ArticlesResponse {
@@ -34,17 +41,35 @@ export interface ArticlesResponse {
 
 export const articlesService = {
   /**
+   * Obtener artículos con filtros opcionales
+   */
+  async getArticles(params?: { status?: string; limit?: number; page?: number }): Promise<ArticlesResponse> {
+    const response = await api.get<any>('/articles', {
+      params: {
+        limit: 100,
+        page: 1,
+        ...params
+      }
+    })
+
+    // ✅ FIX: Mapear respuesta del backend al formato esperado
+    const backendResponse = response.data
+
+    return {
+      success: true,
+      articles: backendResponse.data || [],
+      total: backendResponse.pagination?.total || 0,
+      page: backendResponse.pagination?.page || 1,
+      limit: backendResponse.pagination?.limit || 20,
+      totalPages: backendResponse.pagination?.totalPages || 0
+    }
+  },
+
+  /**
    * Obtener artículos listos para publicar (READY)
    */
   async getReadyArticles(): Promise<ArticlesResponse> {
-    const response = await api.get<ArticlesResponse>('/articles', {
-      params: {
-        status: 'READY',
-        limit: 100,
-        page: 1
-      }
-    })
-    return response.data
+    return this.getArticles({ status: 'READY' })
   },
 
   /**

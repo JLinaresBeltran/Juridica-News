@@ -1,3 +1,12 @@
+// Tipo para documento fuente (sentencia original)
+export interface SourceDocument {
+  title: string
+  source: string
+  url: string
+  publicationDate: string
+  documentPath?: string
+}
+
 // Tipo para imágenes generadas
 export interface GeneratedImage {
   id: string
@@ -31,44 +40,19 @@ export interface PublicArticle {
   tags?: string[]
   viewCount?: number
   generatedImages?: GeneratedImage[]
+  sourceDocument?: SourceDocument
 }
 
 // Función adaptadora para convertir datos del API a PublicArticle
 export const adaptApiToPublicArticle = (apiData: any): PublicArticle => {
-  // Buscar imagen generada disponible
-  let imageUrl = undefined
-
-  // Primero revisar si hay imageUrl ya procesado por el backend
-  if (apiData.imageUrl) {
-    imageUrl = apiData.imageUrl
-  } else if (apiData.generatedImages && apiData.generatedImages.length > 0) {
-    // Usar la primera imagen generada disponible
-    const firstImage = apiData.generatedImages[0]
-
-    // Priorizar la URL procesada por el backend
-    if (firstImage.url) {
-      imageUrl = firstImage.url
-    } else if (firstImage.filename) {
-      // Construir URL para servir desde nuestro endpoint
-      imageUrl = `/api/storage/images/${firstImage.filename}`
-    } else if (firstImage.localPath) {
-      // Si tenemos localPath pero no filename, extraer filename
-      const filename = firstImage.localPath.split('/').pop()
-      if (filename) {
-        imageUrl = `/api/storage/images/${filename}`
-      }
-    } else if (firstImage.originalUrl && !firstImage.originalUrl.startsWith('data:') && firstImage.originalUrl !== 'base64-image') {
-      // Solo usar originalUrl si no es base64 y es una URL válida
-      imageUrl = firstImage.originalUrl
-    }
-  }
-
+  // El backend ya envía imageUrl procesado, solo lo usamos directamente
+  // No necesitamos procesar generatedImages porque el backend ya seleccionó la imagen correcta
   return {
     id: apiData.id,
     title: apiData.title,
     slug: apiData.slug,
     summary: apiData.summary || '',
-    imageUrl: imageUrl,
+    imageUrl: apiData.imageUrl, // Ya viene procesado del backend
     category: getCategoryDisplayName(apiData.legalArea || 'General'),
     publishedAt: apiData.publishedAt,
     readingTime: apiData.readingTime,
@@ -78,7 +62,8 @@ export const adaptApiToPublicArticle = (apiData: any): PublicArticle => {
     } : undefined,
     tags: apiData.tags ? apiData.tags.split(',').filter(t => t.trim()) : [],
     viewCount: apiData.views || 0,
-    generatedImages: apiData.generatedImages || []
+    generatedImages: apiData.generatedImages || [],
+    sourceDocument: apiData.sourceDocument
   }
 }
 

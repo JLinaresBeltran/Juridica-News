@@ -18,7 +18,7 @@ import {
   ShieldAlert,
   AlertTriangle
 } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useCurationStore } from '../../stores/curationStore'
 import { getEntityColors } from '../../constants/entityColors'
 import { clsx } from 'clsx'
@@ -74,22 +74,69 @@ export default function DashboardPage() {
   const [systemStats, setSystemStats] = useState<SystemInfo | null>(null)
   const [documentStats, setDocumentStats] = useState<DocumentStatsResponse['data'] | null>(null)
   const [, setIsLoadingStats] = useState(false)
-  
+
+  // Refs para control de requests y prevención de bucles infinitos
+  const isLoadingRef = useRef(false)
+  const abortControllerRef = useRef<AbortController | null>(null)
+  const lastLoadTimeRef = useRef<number>(0)
+  const isMountedRef = useRef(true)
+
   const { rejectedDocuments, undoRejection, resetSystemCompletely } = useCurationStore()
   const emit = useEventStore(state => state.emit)
   const { clearProgress } = useScrapingProgress()
 
   // FUNCIÓN TEMPORAL - Cargar estadísticas del sistema
   const loadSystemStats = async () => {
+    // Protección 1: Verificar si ya hay una carga en progreso
+    if (isLoadingRef.current) {
+      return
+    }
+
+    // Protección 2: Throttling - mínimo 2 segundos entre cargas
+    const now = Date.now()
+    const timeSinceLastLoad = now - lastLoadTimeRef.current
+    const MIN_INTERVAL = 2000 // 2 segundos
+
+    if (timeSinceLastLoad < MIN_INTERVAL) {
+      return
+    }
+
     try {
+      // Marcar como cargando
+      isLoadingRef.current = true
+      lastLoadTimeRef.current = now
       setIsLoadingStats(true)
-      
-      // Cargar ambas estadísticas en paralelo
+
+      // Cancelar request anterior si existe
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+
+      // Crear nuevo AbortController
+      const abortController = new AbortController()
+      abortControllerRef.current = abortController
+
+      // Cargar ambas estadísticas en paralelo con señal de cancelación
       const [systemResponse, documentResponse] = await Promise.all([
-        adminService.getSystemInfo().catch(() => null),
-        documentsService.getDocumentStats().catch(() => null)
+        adminService.getSystemInfo(abortController.signal).catch((error) => {
+          if (error.name !== 'CanceledError' && error.code !== 'ERR_CANCELED') {
+            console.error('Failed to load system info:', error)
+          }
+          return null
+        }),
+        documentsService.getDocumentStats(abortController.signal).catch((error) => {
+          if (error.name !== 'CanceledError' && error.code !== 'ERR_CANCELED') {
+            console.error('Failed to load document stats:', error)
+          }
+          return null
+        })
       ])
-      
+
+      // Protección 3: Solo actualizar state si el componente está montado
+      if (!isMountedRef.current) {
+        return
+      }
+
       if (systemResponse) {
         setSystemStats(systemResponse.data)
       } else {
@@ -122,15 +169,34 @@ export default function DashboardPage() {
         })
       }
     } catch (error: any) {
-      console.error('Error loading system stats:', error)
+      // Solo loggear si no fue cancelación
+      if (error.name !== 'CanceledError' && error.code !== 'ERR_CANCELED') {
+        console.error('Error loading system stats:', error)
+      }
     } finally {
-      setIsLoadingStats(false)
+      isLoadingRef.current = false
+      if (isMountedRef.current) {
+        setIsLoadingStats(false)
+      }
     }
   }
 
   // FUNCIÓN TEMPORAL - Cargar estadísticas al montar el componente
   useEffect(() => {
+    // Marcar componente como montado
+    isMountedRef.current = true
+
     loadSystemStats()
+
+    // Cleanup: cancelar requests pendientes al desmontar
+    return () => {
+      isMountedRef.current = false
+
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+        abortControllerRef.current = null
+      }
+    }
   }, [])
 
   // FUNCIÓN TEMPORAL - Generar estadísticas dinámicas basadas en datos reales
@@ -215,8 +281,7 @@ export default function DashboardPage() {
       setIsExtracting(true)
       setShowProgressModal(true) // Mostrar modal de progreso inmediatamente
       clearProgress() // Limpiar progreso anterior
-      toast.loading('Iniciando extracción de documentos...', { id: 'extraction' })
-      
+
       const result = await scrapingService.extractCorteConstitucional(20, true) // Extraer hasta 20 documentos (todas las de HOY y AYER)
       
       // Validar respuesta antes de mostrar modal
@@ -260,24 +325,11 @@ export default function DashboardPage() {
         
         // Si se procesaron documentos, recargar estadísticas locales
         if (normalizedResult.data.documents.length > 0) {
-          toast.loading('Actualizando contadores...', { id: 'extraction' })
           await loadSystemStats() // Recargar las estadísticas para reflejar los nuevos documentos
         }
-        
-        console.info('🎉 Document extraction completed, events emitted:', {
-          totalFound: normalizedResult.data.totalFound,
-          processed: normalizedResult.data.documents.length
-        })
       }
       
-      // Mensajes más descriptivos según el resultado
-      if (normalizedResult.data.totalFound === 0) {
-        toast.success('Extracción completada: No se encontraron documentos nuevos para las fechas recientes', { id: 'extraction' })
-      } else if (normalizedResult.data.documents.length === 0) {
-        toast.success(`Extracción completada: ${normalizedResult.data.totalFound} documentos encontrados pero no se pudieron procesar`, { id: 'extraction' })
-      } else {
-        toast.success(`Extracción completada: ${normalizedResult.data.totalFound} documentos encontrados y ${normalizedResult.data.documents.length} procesados`, { id: 'extraction' })
-      }
+      // El modal de progreso ya muestra el resultado, no necesitamos notificaciones toast adicionales
     } catch (error: any) {
       console.error('Error during extraction:', error)
       
@@ -292,8 +344,8 @@ export default function DashboardPage() {
       
       setExtractionResult(errorResult)
       setShowExtractionModal(true)
-      
-      toast.error(error.message || 'Error durante la extracción', { id: 'extraction' })
+
+      // El modal de progreso ya muestra el error, no necesitamos notificación toast adicional
     } finally {
       setIsExtracting(false)
       // Don't close progress modal here - let it handle completion automatically
@@ -935,6 +987,7 @@ export default function DashboardPage() {
         isOpen={showProgressModal}
         onClose={() => setShowProgressModal(false)}
         onComplete={handleProgressComplete}
+        isExtracting={isExtracting}
       />
     </div>
   )

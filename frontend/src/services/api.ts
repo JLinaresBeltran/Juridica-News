@@ -1,9 +1,33 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosError } from 'axios'
 import { toast } from 'react-hot-toast'
-import { useAuthStore } from '@/stores/authStore'
+import { IAuthenticationManager } from '@/auth/IAuthenticationManager'
+import { jwtAuthManager } from '@/auth/JWTAuthManager'
 
 // API configuration
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api'
+
+/**
+ * Authentication manager para el API client
+ *
+ * PRINCIPIO BLACK BOX:
+ * - Puede ser JWTAuthManager (producción) o MockAuthManager (testing)
+ * - El API client no conoce la implementación, solo la interfaz
+ */
+let authManager: IAuthenticationManager = jwtAuthManager
+
+/**
+ * Configurar el authentication manager (útil para testing)
+ */
+export const setAuthManager = (manager: IAuthenticationManager): void => {
+  authManager = manager
+}
+
+/**
+ * Obtener el authentication manager actual
+ */
+export const getAuthManager = (): IAuthenticationManager => {
+  return authManager
+}
 
 // Create axios instance
 export const api: AxiosInstance = axios.create({
@@ -16,12 +40,10 @@ export const api: AxiosInstance = axios.create({
 
 // Request interceptor - Add auth token
 api.interceptors.request.use(
-  (config) => {
-    const { accessToken } = useAuthStore.getState()
-
-    if (accessToken) {
-      config.headers.Authorization = `Bearer ${accessToken}`
-    }
+  async (config) => {
+    // Obtener headers de autenticación desde el manager
+    const headers = await authManager.getAuthHeaders()
+    Object.assign(config.headers, headers)
 
     return config
   },
@@ -36,53 +58,41 @@ api.interceptors.response.use(
     return response
   },
   async (error: AxiosError) => {
+    // ✅ Ignorar errores de cancelación (AbortController)
+    if (error.name === 'CanceledError' || error.code === 'ERR_CANCELED') {
+      return Promise.reject(error)
+    }
+
     const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean }
-    
+
     // Handle 401 errors (unauthorized)
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true
-      
-      const { refreshToken, clearAuth } = useAuthStore.getState()
-      
-      if (refreshToken) {
-        try {
-          // Try to refresh token
-          const { refreshUserToken } = await import('./authService')
-          await refreshUserToken()
-          
-          // Retry original request with new token
-          const { accessToken } = useAuthStore.getState()
-          if (accessToken && originalRequest.headers) {
-            originalRequest.headers.Authorization = `Bearer ${accessToken}`
-            return api(originalRequest)
-          }
-        } catch (refreshError) {
-          // Refresh failed, clear auth and redirect to login
-          clearAuth()
-          
-          // Only show toast if not already on login page
-          if (!window.location.pathname.includes('/login')) {
-            toast.error('Your session has expired. Please log in again.')
-            window.location.href = '/login'
-          }
-          
-          return Promise.reject(refreshError)
+
+      // Delegar al authentication manager
+      const recovered = await authManager.handleUnauthorized()
+
+      if (recovered) {
+        // Retry original request with new token
+        const headers = await authManager.getAuthHeaders()
+        if (originalRequest.headers) {
+          Object.assign(originalRequest.headers, headers)
         }
+        return api(originalRequest)
       } else {
-        // No refresh token, clear auth
-        clearAuth()
-        
+        // No se pudo recuperar la sesión
         if (!window.location.pathname.includes('/login')) {
-          toast.error('Please log in to continue.')
-          window.location.href = '/login'
+          toast.error('Your session has expired. Please log in again.')
         }
+        return Promise.reject(error)
       }
     }
-    
+
     // Handle other HTTP errors
     if (error.response) {
-      const errorMessage = error.response.data?.message || error.response.data?.error
-      
+      const errorData = error.response.data as any
+      const errorMessage = errorData?.message || errorData?.error
+
       switch (error.response.status) {
         case 400:
           if (errorMessage) {
@@ -123,7 +133,7 @@ api.interceptors.response.use(
       // Other error
       toast.error('An unexpected error occurred.')
     }
-    
+
     return Promise.reject(error)
   }
 )

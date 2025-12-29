@@ -17,6 +17,9 @@ export interface SystemResetResponse {
     auditLogsDeleted: number;
     extractionHistoryDeleted: number;
     refreshTokensDeleted: number;
+    generatedImagesDeleted: number;
+    physicalDocumentsDeleted: number;
+    physicalImagesDeleted: number;
   };
   executionTime: string;
   timestamp: string;
@@ -61,11 +64,17 @@ class AdminService {
    * FUNCIÓN TEMPORAL - Obtiene información actual del sistema
    * Muestra estadísticas de documentos, artículos y otros datos
    */
-  async getSystemInfo(): Promise<SystemInfoResponse> {
+  async getSystemInfo(signal?: AbortSignal): Promise<SystemInfoResponse> {
     try {
-      const response = await api.get<SystemInfoResponse>('/admin/system-info');
+      const response = await api.get<SystemInfoResponse>('/admin/system-info', {
+        signal
+      });
       return response.data;
     } catch (error: any) {
+      // No loggear errores de cancelación
+      if (error.name === 'CanceledError' || error.code === 'ERR_CANCELED') {
+        throw error;
+      }
       console.error('❌ Error getting system info:', error.response?.data || error.message);
       throw new Error(error.response?.data?.message || 'Failed to get system information');
     }
@@ -93,6 +102,9 @@ Sistema reseteado exitosamente:
 - Logs de auditoría eliminados: ${statistics.auditLogsDeleted}
 - Historial de extracciones eliminado: ${statistics.extractionHistoryDeleted}
 - Tokens de refresco eliminados: ${statistics.refreshTokensDeleted}
+- Imágenes generadas eliminadas: ${statistics.generatedImagesDeleted}
+- Archivos físicos documentos: ${statistics.physicalDocumentsDeleted}
+- Archivos físicos imágenes: ${statistics.physicalImagesDeleted}
 - Tiempo de ejecución: ${executionTime}
 
 ⚠️  FUNCIÓN TEMPORAL - Solo para desarrollo

@@ -25,7 +25,7 @@ const saveImageFromUrlSchema = z.object({
   style: z.enum(['persona', 'paisaje', 'elemento']).optional(),
   documentId: z.string().cuid().optional(),
   customTags: z.array(z.string()).optional(),
-  isPublic: z.boolean().default(true),
+  isPublic: z.boolean().default(false),
   metaDescription: z.string().max(125).nullable().optional()
 });
 
@@ -491,7 +491,7 @@ router.post('/images/save-from-url', async (req: Request, res: Response) => {
       });
     }
 
-    const { imageUrl: validatedUrl, prompt, model, style, documentId, customTags = [], isPublic = true, metaDescription } = validation.data;
+    const { imageUrl: validatedUrl, prompt, model, style, documentId, customTags = [], isPublic = false, metaDescription } = validation.data;
 
     // Generar un filename único para la imagen
     const timestamp = Date.now();
@@ -531,6 +531,44 @@ router.post('/images/save-from-url', async (req: Request, res: Response) => {
       } catch (saveError) {
         logger.error('❌ Error guardando imagen base64:', saveError);
         // Continuar con el proceso aunque no se pueda guardar la imagen
+      }
+    }
+    // Si es una URL HTTP/HTTPS (DALL-E), descargar y guardar
+    else if (validatedUrl.startsWith('http://') || validatedUrl.startsWith('https://')) {
+      try {
+        const fs = require('fs');
+        const path = require('path');
+
+        logger.info('📥 Descargando imagen desde URL de DALL-E', {
+          url: validatedUrl.substring(0, 100) + '...'
+        });
+
+        const imageResponse = await fetch(validatedUrl);
+        if (!imageResponse.ok) {
+          throw new Error(`HTTP ${imageResponse.status}: ${imageResponse.statusText}`);
+        }
+
+        const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
+        imageSize = imageBuffer.length;
+
+        // Asegurar que el directorio de imágenes existe
+        const imagesDir = path.join(process.cwd(), 'storage', 'images');
+        if (!fs.existsSync(imagesDir)) {
+          fs.mkdirSync(imagesDir, { recursive: true });
+        }
+
+        // Guardar archivo físico
+        localFilePath = path.join(imagesDir, filename);
+        fs.writeFileSync(localFilePath, imageBuffer);
+
+        logger.info('✅ Imagen de DALL-E guardada localmente', {
+          filename,
+          size: imageSize,
+          path: localFilePath
+        });
+      } catch (downloadError) {
+        logger.error('❌ Error descargando imagen de DALL-E:', downloadError);
+        // Continuar con el proceso aunque no se pueda descargar
       }
     }
 
@@ -1227,6 +1265,113 @@ router.get('/images/check/:imageId', async (req: Request, res: Response) => {
     logger.error('❌ Error verificando imagen:', error);
     res.status(500).json({
       error: 'Error interno del servidor'
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/storage/documents/{filename}/text:
+ *   get:
+ *     summary: Extrae el texto de un documento DOCX local
+ *     tags: [Storage]
+ *     parameters:
+ *       - in: path
+ *         name: filename
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Nombre del archivo (ej. C-383-25.docx)
+ *     responses:
+ *       200:
+ *         description: Texto extraído exitosamente
+ *       404:
+ *         description: Documento no encontrado
+ *       500:
+ *         description: Error al procesar el documento
+ */
+router.get('/documents/:filename/text', async (req: Request, res: Response) => {
+  try {
+    const { filename } = req.params;
+
+    // Validar que el filename no tenga path traversal
+    if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nombre de archivo inválido'
+      });
+    }
+
+    const documentsDir = path.join(__dirname, '../../storage/documents');
+    const filePath = path.join(documentsDir, filename);
+
+    // Verificar que el archivo existe
+    try {
+      await fs.access(filePath);
+    } catch {
+      return res.status(404).json({
+        success: false,
+        error: 'Documento no encontrado'
+      });
+    }
+
+    // Leer el archivo
+    const buffer = await fs.readFile(filePath);
+
+    // Usar Mammoth para extraer texto si es DOCX
+    const ext = path.extname(filename).toLowerCase();
+
+    if (ext === '.docx' || ext === '.doc') {
+      // Importar mammoth dinámicamente
+      const mammoth = await import('mammoth');
+      const result = await mammoth.extractRawText({ buffer });
+
+      // Formatear el texto para mejor visualización
+      const formattedText = result.value
+        .replace(/\n{3,}/g, '\n\n') // Reducir múltiples líneas vacías
+        .trim();
+
+      return res.json({
+        success: true,
+        data: {
+          text: formattedText,
+          filename,
+          wordCount: formattedText.split(/\s+/).filter(w => w.length > 0).length,
+          charCount: formattedText.length
+        }
+      });
+    } else if (ext === '.rtf') {
+      // Para RTF, intentar leer como texto plano (limitado)
+      const text = buffer.toString('utf-8');
+      // Remover marcadores RTF básicos
+      const cleanedText = text
+        .replace(/\{\\[^{}]+\}/g, '') // Remover grupos RTF
+        .replace(/\\[a-z]+\d* ?/gi, '') // Remover comandos RTF
+        .replace(/[{}]/g, '') // Remover llaves
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+
+      return res.json({
+        success: true,
+        data: {
+          text: cleanedText || 'No se pudo extraer texto del archivo RTF',
+          filename,
+          wordCount: cleanedText.split(/\s+/).filter(w => w.length > 0).length,
+          charCount: cleanedText.length
+        }
+      });
+    } else {
+      return res.status(400).json({
+        success: false,
+        error: `Formato no soportado: ${ext}. Solo se soportan .docx y .rtf`
+      });
+    }
+
+  } catch (error) {
+    logger.error('❌ Error extrayendo texto del documento:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error al procesar el documento'
     });
   }
 });

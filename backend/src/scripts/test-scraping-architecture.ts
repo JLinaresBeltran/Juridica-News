@@ -2,19 +2,37 @@
 /**
  * Script de prueba para la nueva arquitectura de scraping
  * Sistema Editorial Jurídico Supervisado
+ *
+ * REFACTORIZACIÓN BLACK BOX:
+ * - Usa InMemoryDocumentStorage e InMemoryFileStorage para tests
+ * - No requiere base de datos real
  */
 
 import { logger } from '@/utils/logger';
 import { ScrapingOrchestrator } from '@/services/ScrapingOrchestrator';
 import { ScrapersFactory } from '@/scrapers';
+import { InMemoryDocumentStorage } from '@/adapters/storage/InMemoryDocumentStorage';
+import { InMemoryFileStorage } from '@/adapters/storage/InMemoryFileStorage';
+import { InMemoryContentProcessor } from '@/adapters/content/InMemoryContentProcessor';
+import { RegexMetadataExtractor } from '@/adapters/metadata/RegexMetadataExtractor';
 
 async function main() {
   logger.info('🧪 Iniciando pruebas de la arquitectura de scraping');
 
   try {
-    // 1. Crear orquestador
-    logger.info('1️⃣ Creando orquestador...');
-    const orchestrator = new ScrapingOrchestrator();
+    // 1. Crear orquestador con adapters en memoria
+    logger.info('1️⃣ Creando orquestador con BLACK BOX adapters...');
+    const documentStorage = new InMemoryDocumentStorage();
+    const fileStorage = new InMemoryFileStorage();
+    const contentProcessor = new InMemoryContentProcessor();
+    const metadataExtractor = new RegexMetadataExtractor();
+    const orchestrator = new ScrapingOrchestrator(
+      documentStorage,
+      fileStorage,
+      contentProcessor,
+      metadataExtractor
+    );
+    logger.info('   📦 4 Adapters en memoria inicializados (sin BD real)');
 
     // 2. Registrar scrapers
     logger.info('2️⃣ Registrando scrapers...');

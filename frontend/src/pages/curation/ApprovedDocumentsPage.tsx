@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { 
+import { useState, useEffect, useCallback } from 'react'
+import {
   CheckCircle,
   Calendar,
   FileText,
@@ -16,6 +16,7 @@ import { useCurationStore } from '../../stores/curationStore'
 import documentsService from '../../services/documentsService'
 import { DocumentPreviewModal } from '../../components/curation/DocumentPreviewModal'
 import { getEntityColors, getStatusColors, getAreaColors } from '../../constants/entityColors'
+import { documentEvents } from '@/utils/documentEvents'
 
 // Ya no necesitamos esta definición local - usamos el sistema centralizado
 
@@ -28,73 +29,9 @@ export default function ApprovedDocumentsPage() {
   const [currentStep, setCurrentStep] = useState(0)
   const { undoApproval, archiveDocument } = useCurationStore()
 
-  // ✅ FIX: Cargar documentos aprobados desde la API
-  useEffect(() => {
-    const loadApprovedDocuments = async () => {
-      try {
-        setIsLoading(true)
-        const response = await documentsService.getDocuments({
-          status: 'APPROVED',
-          limit: 100
-        })
-        
-        // Mapear documentos de la API al formato esperado por la UI
-        const mappedDocs = response.data.map((doc) => ({
-          id: doc.id,
-          source: mapBackendSource(doc.source),
-          title: doc.title,
-          type: doc.documentType,
-          publicationDate: doc.publicationDate,
-          identifier: doc.externalId || doc.id,
-          status: 'available' as const,
-          area: mapLegalArea(doc.legalArea),
-          summary: doc.summary || '',
-          url: doc.url, // ✅ URL del PDF original
-          extractionDate: doc.extractedAt || doc.createdAt,
-          approvedAt: doc.updatedAt, // Usar updatedAt como fecha de aprobación
-          
-          // ✅ INCLUIR todos los campos de análisis IA para las tarjetas
-          numeroSentencia: doc.numeroSentencia,
-          magistradoPonente: doc.magistradoPonente,
-          salaRevision: doc.salaRevision,
-          expediente: doc.expediente,
-          temaPrincipal: doc.temaPrincipal,
-          resumenIA: doc.resumenIA,
-          decision: doc.decision,
-          aiAnalysisStatus: doc.aiAnalysisStatus,
-          aiAnalysisDate: doc.aiAnalysisDate,
-          aiModel: doc.aiModel,
-          fragmentosAnalisis: doc.fragmentosAnalisis
-        }))
-        
-        console.log('✅ Documentos aprobados mapeados:', mappedDocs.map(doc => ({
-          id: doc.id,
-          title: doc.title,
-          url: doc.url,
-          hasAiData: {
-            numeroSentencia: !!doc.numeroSentencia,
-            magistradoPonente: !!doc.magistradoPonente,
-            temaPrincipal: !!doc.temaPrincipal,
-            resumenIA: !!doc.resumenIA
-          }
-        })))
-        
-        setApprovedDocuments(mappedDocs)
-        console.log('✅ Documentos aprobados cargados:', mappedDocs.length)
-        
-      } catch (error) {
-        console.error('Error cargando documentos aprobados:', error)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    
-    loadApprovedDocuments()
-  }, [])
-  
-  // Funciones de mapeo
+  // Funciones de mapeo (definidas antes de useCallback para evitar problemas de hoisting)
   const mapBackendSource = (source: string): string => {
-    const sourceMap = {
+    const sourceMap: Record<string, string> = {
       'corte_constitucional': 'corte-constitucional',
       'consejo_estado': 'consejo-estado',
       'corte_suprema': 'corte-suprema-civil',
@@ -102,9 +39,9 @@ export default function ApprovedDocumentsPage() {
     }
     return sourceMap[source] || source
   }
-  
+
   const mapLegalArea = (area: string): string => {
-    const areaMap = {
+    const areaMap: Record<string, string> = {
       'CONSTITUTIONAL': 'constitucional',
       'CIVIL': 'civil',
       'PENAL': 'penal',
@@ -113,6 +50,80 @@ export default function ApprovedDocumentsPage() {
     }
     return areaMap[area] || area
   }
+
+  // ✅ FIX: Función para cargar documentos aprobados desde la API
+  const loadApprovedDocuments = useCallback(async () => {
+    try {
+      setIsLoading(true)
+      const response = await documentsService.getDocuments({
+        status: 'APPROVED',
+        limit: 100
+      })
+
+      // Mapear documentos de la API al formato esperado por la UI
+      const mappedDocs = response.data.map((doc) => ({
+        id: doc.id,
+        source: mapBackendSource(doc.source),
+        title: doc.title,
+        type: doc.documentType,
+        publicationDate: doc.publicationDate,
+        identifier: doc.externalId || doc.id,
+        status: 'available' as const,
+        area: mapLegalArea(doc.legalArea),
+        summary: doc.summary || '',
+        url: doc.url, // ✅ URL del PDF original
+        extractionDate: doc.extractedAt || doc.createdAt,
+        approvedAt: doc.updatedAt, // Usar updatedAt como fecha de aprobación
+
+        // ✅ INCLUIR todos los campos de análisis IA para las tarjetas
+        numeroSentencia: doc.numeroSentencia,
+        magistradoPonente: doc.magistradoPonente,
+        salaRevision: doc.salaRevision,
+        expediente: doc.expediente,
+        temaPrincipal: doc.temaPrincipal,
+        resumenIA: doc.resumenIA,
+        decision: doc.decision,
+        aiAnalysisStatus: doc.aiAnalysisStatus,
+        aiAnalysisDate: doc.aiAnalysisDate,
+        aiModel: doc.aiModel,
+        fragmentosAnalisis: doc.fragmentosAnalisis
+      }))
+
+      console.log('✅ Documentos aprobados mapeados:', mappedDocs.map(doc => ({
+        id: doc.id,
+        title: doc.title,
+        url: doc.url,
+        hasAiData: {
+          numeroSentencia: !!doc.numeroSentencia,
+          magistradoPonente: !!doc.magistradoPonente,
+          temaPrincipal: !!doc.temaPrincipal,
+          resumenIA: !!doc.resumenIA
+        }
+      })))
+
+      setApprovedDocuments(mappedDocs)
+      console.log('✅ Documentos aprobados cargados:', mappedDocs.length)
+
+    } catch (error) {
+      console.error('Error cargando documentos aprobados:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  // Cargar al montar y escuchar eventos para recargar
+  useEffect(() => {
+    loadApprovedDocuments()
+
+    // ✅ FIX: Escuchar eventos para recargar cuando un documento cambie de estado
+    documentEvents.on('document:ready', loadApprovedDocuments)
+    documentEvents.on('document:approved', loadApprovedDocuments)
+
+    return () => {
+      documentEvents.off('document:ready', loadApprovedDocuments)
+      documentEvents.off('document:approved', loadApprovedDocuments)
+    }
+  }, [loadApprovedDocuments])
 
   const filteredDocuments = approvedDocuments // Search functionality removed
 
@@ -272,13 +283,10 @@ export default function ApprovedDocumentsPage() {
                         {/* Información adicional */}
                         <div className="space-y-1 text-xs text-gray-500">
                           <div>
-                            <span><strong>Web Oficial:</strong> {new Date(doc.publicationDate).toLocaleDateString('es-ES', {
-                              year: '2-digit',
-                              month: '2-digit',
+                            <span><strong>Publicación:</strong> {new Date(doc.publicationDate).toLocaleDateString('es-ES', {
                               day: '2-digit',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                              hour12: true
+                              month: '2-digit',
+                              year: 'numeric'
                             })}</span>
                           </div>
                           <div>

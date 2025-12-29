@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react'
+import React, { useState, useMemo, useEffect, useCallback } from 'react'
 import {
   Send,
   CheckCircle,
@@ -23,60 +23,92 @@ import PublicationControls from '../../components/articles/PublicationControls'
 import { ArticlePublicationSettings } from '@/types/publication.types'
 import { api } from '@/services/api'
 import { articlesService, Article as APIArticle } from '@/services/articlesService'
+import { documentEvents } from '@/utils/documentEvents' // ✅ Event emitter
 
 export default function ArticlesPage() {
+  console.log('🎨 ArticlesPage component mounted')
+
   const [selectedArticle, setSelectedArticle] = useState<string | null>(null)
   const [previewArticle, setPreviewArticle] = useState<any>(null)
   const [isPublishing, setIsPublishing] = useState(false)
   const [publicationSettings, setPublicationSettings] = useState<Record<string, ArticlePublicationSettings>>({})
   const [apiArticles, setApiArticles] = useState<APIArticle[]>([])
   const [loading, setLoading] = useState(true)
-  const { readyDocuments, undoReady, publishDocument } = useCurationStore()
+  const { undoReady } = useCurationStore()
 
-  // Cargar artículos de la API
-  useEffect(() => {
-    loadArticles()
-  }, [])
-
-  const loadArticles = async () => {
+  // ✅ FIX: Cargar artículos desde la API (fuente de verdad)
+  const loadArticles = useCallback(async () => {
+    console.log('🔄 ArticlesPage: Cargando artículos READY desde API...')
     try {
       setLoading(true)
       const response = await articlesService.getReadyArticles()
+
+      // Validar estructura de respuesta
+      if (!response || !response.articles) {
+        console.warn('⚠️ Respuesta de API sin articles:', response)
+        setApiArticles([])
+        return
+      }
+
       setApiArticles(response.articles)
+      console.log(`✅ ArticlesPage: ${response.articles.length} artículos READY cargados`)
+
+      // Log detallado solo si hay artículos nuevos
+      if (response.articles.length > 0) {
+        console.log('📋 Artículos READY:', response.articles.map(a => ({
+          id: a.id,
+          title: a.title.substring(0, 50),
+          status: a.status
+        })))
+      }
     } catch (error) {
-      console.error('Error cargando artículos:', error)
+      console.error('❌ Error cargando artículos:', error)
+      setApiArticles([]) // Asegurar que siempre sea array
     } finally {
       setLoading(false)
     }
-  }
-  
-  // Transformar readyDocuments a formato que espera la vista con campos editados
-  // Combinar con datos de la API para obtener imageUrl persistida
-  const readyArticles = readyDocuments.map(doc => {
-    // Buscar artículo correspondiente en la API
-    const apiArticle = apiArticles.find(a => a.slug?.includes(doc.id) || a.id === doc.id)
+  }, [setLoading, setApiArticles])
 
+  // Cargar artículos al montar y cuando hay cambios en documentos
+  useEffect(() => {
+    console.log('🔵 useEffect ejecutándose - iniciando carga de artículos')
+    loadArticles()
+
+    // Escuchar eventos para recargar la lista
+    documentEvents.on('document:approved', loadArticles) // ✅ FIX: Escuchar cuando se aprueba con artículo READY
+    documentEvents.on('document:ready', loadArticles)
+    documentEvents.on('document:published', loadArticles)
+
+    return () => {
+      console.log('🔴 useEffect cleanup - desmontando listeners')
+      documentEvents.off('document:approved', loadArticles) // ✅ FIX: Limpiar listener
+      documentEvents.off('document:ready', loadArticles)
+      documentEvents.off('document:published', loadArticles)
+    }
+  }, [loadArticles])
+
+  // ✅ FIX: Transformar artículos de la API a formato que espera la vista
+  // Ahora usa la API como fuente principal, NO el store local
+  const readyArticles = (apiArticles || []).map(article => {
     return {
-      id: doc.id,
-      // ✅ Usar títulos editados: realTitle > title > fallback
-      title: doc.articleData?.metadata?.realTitle || doc.articleData?.title || `Análisis jurídico: ${doc.title}`,
-      subtitle: doc.articleData?.metadata?.realSubtitle || doc.articleData?.subtitle || '',
-      metaTitle: doc.articleData?.metadata?.metaTitle || '',
-      section: doc.articleData?.metadata?.section || doc.area,
-      entity: doc.source,
-      publicationDate: doc.publicationDate,
-      extractionDate: doc.extractionDate,
-      wordCount: doc.articleData?.content ? doc.articleData.content.split(' ').length : 0,
-      readingTime: doc.articleData?.metadata?.readingTime || 3,
-      keywords: doc.articleData?.metadata?.keywords?.length || 0,
-      // ✅ Priorizar imageUrl de la API (persistida) sobre articleData.image (temporal)
-      hasImage: !!(apiArticle?.imageUrl || doc.articleData?.image),
-      imageUrl: apiArticle?.imageUrl || doc.articleData?.image,
-      // ✅ Metadescripción separada (NO mostrar en artículo)
-      metaDescription: doc.articleData?.metadata?.description || '',
-      content: doc.articleData?.content || '',
-      tags: doc.articleData?.metadata?.keywords || [],
-      customTags: doc.articleData?.metadata?.customTags || [],
+      id: article.id,
+      title: article.title,
+      subtitle: article.metaDescription || '',
+      metaTitle: article.metaTitle || article.title,
+      section: article.legalArea || 'constitucional',
+      entity: article.sourceDocument?.source || 'Corte Constitucional',
+      publicationDate: article.sourceDocument?.publicationDate || article.createdAt,
+      extractionDate: article.createdAt,
+      wordCount: article.wordCount,
+      readingTime: article.readingTime,
+      keywords: article.keywords ? article.keywords.split(',').length : 0,
+      hasImage: !!article.imageUrl,
+      imageUrl: article.imageUrl,
+      metaDescription: article.metaDescription || '',
+      content: article.content, // ✅ Contenido completo desde la API
+      tags: article.keywords ? article.keywords.split(',').map(k => k.trim()) : [],
+      customTags: [],
+      sourceDocument: article.sourceDocument, // ✅ FIX: Incluir sourceDocument para publicación
       publishConfig: {
         publishDate: new Date().toISOString().split('T')[0],
         publishTime: '08:00',
@@ -86,6 +118,8 @@ export default function ArticlesPage() {
       }
     }
   })
+
+  console.log('📊 Ready articles después del mapeo:', readyArticles.length, readyArticles)
   
   const selectedArticleData = useMemo(() => {
     return readyArticles.find(article => article.id === selectedArticle)
@@ -121,68 +155,37 @@ export default function ArticlesPage() {
     try {
       const settings = publicationSettings[selectedArticleData.id]
       console.log('Publishing article with settings:', settings)
+      console.log('Selected article data:', selectedArticleData)
 
-      // ✅ OPTIMIZACIÓN: Verificar si el documento ya tiene artículo generado
-      setPublishingStatus('🔍 Verificando artículo existente...')
-      const documentCheckResponse = await api.get(`/documents/${selectedArticleData.id}`)
-      const documentData = documentCheckResponse.data.data
+      // ✅ FIX: Obtener el ID del documento fuente desde el artículo
+      const sourceDocumentId = selectedArticleData.sourceDocument?.id
+      console.log('Source document ID:', sourceDocumentId)
 
-      let generatedContent
-
-      if (documentData?.generatedArticle && documentData.generatedArticle.length > 100) {
-        // ✅ OPTIMIZACIÓN: Usar artículo ya generado (ahorra 15-30s)
-        setPublishingStatus('✅ Usando artículo previamente generado')
-        console.log('✅ Using pre-generated article content:', documentData.generatedArticle.length, 'characters')
-        generatedContent = {
-          content: documentData.generatedArticle,
-          summary: documentData.generatedArticle.substring(0, 300)
-        }
-      } else {
-        // Generar contenido del artículo con IA solo si no existe
-        setPublishingStatus('🤖 Generando artículo con IA... (15-30s)')
-        console.log('⚠️ No pre-generated article found, generating with AI...')
-        const generateResponse = await api.post('/ai/generate-article', {
-          documentId: selectedArticleData.id,
-          model: 'gemini', // Usar Gemini por cuota de OpenAI excedida
-          maxWords: 600,
-          tone: 'professional',
-          customInstructions: 'Genera un artículo en estilo formal y profesional'
-        })
-
-        generatedContent = generateResponse.data.data // Extract the actual generated content
-        console.log('Article content generated:', generatedContent)
+      if (!sourceDocumentId) {
+        console.error('❌ No sourceDocument found in article data:', selectedArticleData)
+        throw new Error('No se encontró el documento fuente asociado al artículo')
       }
 
-      // Paso 2: Crear el artículo desde el documento aprobado con el contenido generado
-      setPublishingStatus('📝 Creando artículo...')
-      const createArticleResponse = await api.post('/articles', {
-        sourceDocumentId: selectedArticleData.id,
-        title: selectedArticleData.title,
-        content: generatedContent.content,
-        summary: generatedContent.summary || generatedContent.content.substring(0, 300), // Use first 300 chars as summary if no summary provided
-        targetLength: 600,
-        tone: 'PROFESSIONAL'
-      })
+      // ✅ FIX: El artículo ya existe en estado READY, solo necesitamos publicarlo
+      // selectedArticleData.id es el ID del artículo existente que queremos publicar
+      const articleId = selectedArticleData.id
+      console.log('📝 Publicando artículo existente:', articleId)
 
-      const newArticle = createArticleResponse.data.data
-      console.log('Article created:', newArticle)
-
-      // Paso 3: Publicar el artículo CON configuración de publicación para empuje automático
+      // Paso 1: Publicar el artículo CON configuración de publicación para empuje automático
       setPublishingStatus('🚀 Publicando artículo...')
-      await api.post(`/articles/${newArticle.id}/publish`, settings)
+      await api.post(`/articles/${articleId}/publish`, settings)
 
       console.log('Article published successfully with automatic positioning')
 
-      // Paso 4: Configurar las opciones de publicación del artículo (backup)
+      // Paso 2: Configurar las opciones de publicación del artículo (backup)
       setPublishingStatus('⚙️ Configurando posiciones en portal...')
-      await api.put(`/articles/${newArticle.id}/publication-settings`, settings)
+      await api.put(`/articles/${articleId}/publication-settings`, settings)
 
       console.log('Publication settings updated')
 
       setPublishingStatus('✅ ¡Completado!')
 
       // Paso 5: Actualizar el frontend
-      publishDocument(selectedArticleData.id, false) // No sync to backend, ya lo hicimos
       setSelectedArticle(null)
 
       // Limpiar configuración
@@ -191,6 +194,13 @@ export default function ArticlesPage() {
         delete newSettings[selectedArticleData.id]
         return newSettings
       })
+
+      // ✅ Emitir evento para actualizar contadores del sidebar y recargar listas
+      // El evento dispara la recarga automática tanto del Sidebar como de esta página
+      setTimeout(() => {
+        console.debug('📡 Emitiendo evento document:published después de publicación exitosa')
+        documentEvents.emit('document:published')
+      }, 500)
 
       setTimeout(() => setPublishingStatus(''), 2000)
       alert('¡Artículo publicado exitosamente!')
@@ -310,7 +320,7 @@ export default function ArticlesPage() {
 
                             {/* Información del documento fuente */}
                             <div className="text-sm text-gray-600 dark:text-gray-300">
-                              <span className="font-medium">Fuente:</span> {readyDocuments.find(d => d.id === article.id)?.type} No. {readyDocuments.find(d => d.id === article.id)?.identifier}
+                              <span className="font-medium">Fuente:</span> {article.entity}
                             </div>
                             
                             {/* Tiempo de lectura */}
@@ -592,8 +602,8 @@ export default function ArticlesPage() {
 
                         {/* Solo documento fuente y área legal */}
                         <div className="text-xs text-gray-500 dark:text-gray-400">
-                          <p><strong>Documento fuente:</strong> {readyDocuments.find(d => d.id === previewArticle.id)?.identifier} - {readyDocuments.find(d => d.id === previewArticle.id)?.type}</p>
-                          <p><strong>Área Legal:</strong> {readyDocuments.find(d => d.id === previewArticle.id)?.area}</p>
+                          <p><strong>Documento fuente:</strong> {previewArticle.entity}</p>
+                          <p><strong>Área Legal:</strong> {previewArticle.section}</p>
                         </div>
                       </div>
                     </div>

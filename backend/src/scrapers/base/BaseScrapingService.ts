@@ -158,17 +158,12 @@ export abstract class BaseScrapingService extends EventEmitter {
       });
 
       const result = await this.extractDocuments(parameters);
-      
-      this.updateProgress({
-        status: JobStatus.COMPLETED,
-        progress: 100,
-        message: `Completado - ${result.documents.length} documentos extraídos`,
-        documentsFound: result.totalFound,
-        documentsProcessed: result.documents.length
-      });
+
+      // ✅ No enviar evento de progreso aquí - cada scraper envía su propio evento final
+      // para tener control total sobre el mensaje y status
 
       logger.info(`✅ Extracción completada ${this.sourceId} - ${result.documents.length} documentos`);
-      
+
       // Actualizar métricas de salud
       this.lastHealth.successRate = Math.min(100, this.lastHealth.successRate + 1);
       this.lastHealth.errorRate = Math.max(0, this.lastHealth.errorRate - 1);

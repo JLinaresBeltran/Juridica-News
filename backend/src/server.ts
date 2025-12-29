@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import path from 'path';
 import { config } from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import Redis from 'ioredis';
@@ -12,6 +13,7 @@ import { errorHandler } from '@/middleware/errorHandler';
 import { authMiddleware } from '@/middleware/auth';
 import { requestLogger } from '@/middleware/requestLogger';
 import { setupSwagger } from '@/utils/swagger';
+import { scheduledTasksService } from '@/services/ScheduledTasksService';
 
 // Route imports
 import documentRoutes from '@/controllers/documents';
@@ -140,6 +142,9 @@ app.use('/api/admin', authMiddleware, adminRoutes); // FUNCIÓN TEMPORAL - Solo 
 // Static files serving
 app.use('/uploads', express.static(process.env.UPLOAD_DIR || './uploads'));
 
+// Servir documentos descargados (DOCX, RTF) desde storage/documents
+app.use('/api/storage/documents', express.static(path.join(__dirname, '../storage/documents')));
+
 // Image files are now served via programmatic endpoint in storage.ts
 // for better error handling, logging, and cache control
 
@@ -187,6 +192,9 @@ app.use('*', (req, res) => {
 process.on('SIGTERM', async () => {
   logger.info('SIGTERM received, shutting down gracefully');
 
+  // Stop scheduled tasks
+  scheduledTasksService.stop();
+
   // Cleanup scraping orchestrator
   await cleanupOrchestrator();
 
@@ -199,6 +207,9 @@ process.on('SIGTERM', async () => {
 
 process.on('SIGINT', async () => {
   logger.info('SIGINT received, shutting down gracefully');
+
+  // Stop scheduled tasks
+  scheduledTasksService.stop();
 
   // Cleanup scraping orchestrator
   await cleanupOrchestrator();
@@ -215,6 +226,9 @@ const server = app.listen(port, () => {
   logger.info(`🚀 Editorial Jurídico API running on port ${port}`);
   logger.info(`📚 API Documentation: http://localhost:${port}/api-docs`);
   logger.info(`🔍 Environment: ${process.env.NODE_ENV || 'development'}`);
+
+  // ✅ Start scheduled tasks
+  scheduledTasksService.start();
 });
 
 // Export for testing

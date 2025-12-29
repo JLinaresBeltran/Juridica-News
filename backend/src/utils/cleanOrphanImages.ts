@@ -136,6 +136,6 @@ export async function checkImageStatus(imageId: string) {
 
   } catch (error) {
     logger.error('❌ Error verificando estado de imagen:', error);
-    return { status: 'error', message: error.message };
+    return { status: 'error', message: (error as Error).message };
   }
 }

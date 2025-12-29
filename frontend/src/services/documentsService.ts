@@ -1,6 +1,63 @@
 // FUNCIÓN TEMPORAL - Servicio para obtener documentos reales del backend
 import api from './api';
 
+// ⚡ OPTIMIZACIÓN: Sistema de caché con TTL
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+  ttl: number;
+}
+
+class MemoryCache {
+  private cache: Map<string, CacheEntry<any>> = new Map();
+  private readonly DEFAULT_TTL = 5 * 60 * 1000; // 5 minutos
+
+  set<T>(key: string, data: T, ttl: number = this.DEFAULT_TTL): void {
+    this.cache.set(key, {
+      data,
+      timestamp: Date.now(),
+      ttl
+    });
+  }
+
+  get<T>(key: string): T | null {
+    const entry = this.cache.get(key);
+    if (!entry) return null;
+
+    const isExpired = Date.now() - entry.timestamp > entry.ttl;
+    if (isExpired) {
+      this.cache.delete(key);
+      return null;
+    }
+
+    return entry.data as T;
+  }
+
+  clear(): void {
+    this.cache.clear();
+  }
+
+  delete(key: string): void {
+    this.cache.delete(key);
+  }
+
+  // Limpiar entradas expiradas
+  cleanup(): void {
+    const now = Date.now();
+    for (const [key, entry] of this.cache.entries()) {
+      if (now - entry.timestamp > entry.ttl) {
+        this.cache.delete(key);
+      }
+    }
+  }
+}
+
+// Instancia global del cache
+const documentCache = new MemoryCache();
+
+// Ejecutar limpieza cada 1 minuto
+setInterval(() => documentCache.cleanup(), 60 * 1000);
+
 export interface DocumentFilters {
   page?: number;
   limit?: number;
@@ -17,6 +74,7 @@ export interface Document {
   id: string;
   title: string;
   url: string;
+  documentPath?: string; // Ruta al archivo local descargado (DOCX/RTF)
   content: string;
   summary?: string;
   source: string;
@@ -114,11 +172,17 @@ class DocumentsService {
   /**
    * FUNCIÓN TEMPORAL - Obtener estadísticas de documentos
    */
-  async getDocumentStats(): Promise<DocumentStatsResponse> {
+  async getDocumentStats(signal?: AbortSignal): Promise<DocumentStatsResponse> {
     try {
-      const response = await api.get<DocumentStatsResponse>('/documents/stats');
+      const response = await api.get<DocumentStatsResponse>('/documents/stats', {
+        signal
+      });
       return response.data;
     } catch (error: any) {
+      // No loggear ni retornar datos si fue cancelado
+      if (error.name === 'CanceledError' || error.code === 'ERR_CANCELED') {
+        throw error;
+      }
       console.error('❌ Error fetching document stats:', error.response?.data || error.message);
       // En caso de error, retornar estadísticas en cero
       return {
@@ -135,12 +199,27 @@ class DocumentsService {
   }
 
   /**
-   * FUNCIÓN TEMPORAL - Obtener un documento por ID
+   * FUNCIÓN TEMPORAL - Obtener un documento por ID (con caché)
    */
   async getDocument(id: string): Promise<Document | null> {
     try {
+      // ⚡ OPTIMIZACIÓN: Intentar obtener del caché primero
+      const cacheKey = `document:${id}`;
+      const cached = documentCache.get<Document>(cacheKey);
+
+      if (cached) {
+        console.log(`✅ Cache HIT: Documento ${id} obtenido del caché`);
+        return cached;
+      }
+
+      console.log(`❌ Cache MISS: Descargando documento ${id} del backend`);
       const response = await api.get<{ data: Document }>(`/documents/${id}`);
-      return response.data.data;
+      const document = response.data.data;
+
+      // ⚡ Guardar en caché
+      documentCache.set(cacheKey, document);
+
+      return document;
     } catch (error: any) {
       console.error('❌ Error fetching document:', error.response?.data || error.message);
       return null;
@@ -254,16 +333,47 @@ class DocumentsService {
   }
 
   /**
-   * Obtener un documento específico por ID
+   * Obtener un documento específico por ID (con caché)
    */
   async getDocumentById(id: string): Promise<{ data: Document }> {
     try {
+      // ⚡ OPTIMIZACIÓN: Intentar obtener del caché primero
+      const cacheKey = `document:${id}`;
+      const cached = documentCache.get<Document>(cacheKey);
+
+      if (cached) {
+        console.log(`✅ Cache HIT: Documento ${id} obtenido del caché`);
+        return { data: cached };
+      }
+
+      console.log(`❌ Cache MISS: Descargando documento ${id} del backend`);
       const response = await api.get<{ data: Document }>(`/documents/${id}`);
-      return response.data;
+      const document = response.data.data;
+
+      // ⚡ Guardar en caché
+      documentCache.set(cacheKey, document);
+
+      return { data: document };
     } catch (error: any) {
       console.error('❌ Error fetching document by ID:', error.response?.data || error.message);
       throw error;
     }
+  }
+
+  /**
+   * ⚡ OPTIMIZACIÓN: Invalidar caché de un documento específico
+   */
+  invalidateCache(id: string): void {
+    documentCache.delete(`document:${id}`);
+    console.log(`🗑️ Caché invalidado para documento ${id}`);
+  }
+
+  /**
+   * ⚡ OPTIMIZACIÓN: Limpiar todo el caché
+   */
+  clearCache(): void {
+    documentCache.clear();
+    console.log('🗑️ Caché completo limpiado');
   }
 }
 

@@ -31,7 +31,7 @@ type AIModel = 'gpt4o-mini' | 'gemini'
 
 interface ImageGeneratorProps {
   document: any
-  onImageGenerated: (imageUrl: string, prompt: string, metaDescription?: string) => void
+  onImageGenerated: (imageUrl: string, prompt: string, metaDescription?: string | null, imageId?: string) => void
   generatedImage?: string
   articleContent?: string // Contenido del artículo generado
 }
@@ -163,7 +163,14 @@ export default function ImageGenerator({
       }
 
       const result = await response.json()
-      console.log('Imagen guardada exitosamente:', result)
+      console.log('✅ Imagen guardada exitosamente:', result)
+
+      // 🔥 Actualizar onImageGenerated con el imageId retornado por el backend
+      if (result.data?.imageId && imageToSave.url === currentImage) {
+        console.log('🔗 Actualizando imagen actual con imageId de biblioteca:', result.data.imageId)
+        onImageGenerated(imageToSave.url, imageToSave.prompt, metaDescription || imageToSave.metaDescription || null, result.data.imageId)
+      }
+
       return true
     } catch (error) {
       console.error('Error guardando imagen en biblioteca:', error)
@@ -177,6 +184,7 @@ export default function ImageGenerator({
     const libraryImage: GeneratedImageData = {
       url: imageUrl,
       prompt,
+      metaDescription,
       timestamp: Date.now(),
       model: 'library', // Indicar que viene de biblioteca
       isUploaded: false
@@ -201,7 +209,7 @@ export default function ImageGenerator({
       imageId,
       metaDescription
     })
-    onImageGenerated(imageUrl, prompt, metaDescription || null)
+    onImageGenerated(imageUrl, prompt, metaDescription || null, imageId)
 
     // Guardar en localStorage
     if (document?.id) {
@@ -531,32 +539,61 @@ export default function ImageGenerator({
   }
 
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (file && generatedImages.length < MAX_IMAGES) {
+      setIsGenerating(true) // Mostrar loading mientras se sube
+
       const reader = new FileReader()
-      reader.onload = (e) => {
-        const imageUrl = e.target?.result as string
-        
-        // Nueva imagen subida
-        const newImageData: GeneratedImageData = {
-          url: imageUrl,
-          prompt: 'Imagen subida por el usuario',
-          timestamp: Date.now(),
-          isUploaded: true
+      reader.onload = async (e) => {
+        const base64Image = e.target?.result as string
+
+        try {
+          // ✅ FIX: Subir imagen al servidor primero para evitar base64 gigante en BD
+          const { api } = await import('../../services/api')
+          const response = await api.post('/storage/images/save-from-url', {
+            imageUrl: base64Image,
+            prompt: 'Imagen subida por el usuario',
+            model: 'uploaded',
+            style: selectedImageType || 'elemento',
+            documentId: document?.id,
+            customTags: ['subida-usuario'],
+            isPublic: false
+          })
+
+          // Usar la URL del servidor en lugar del base64
+          const serverImageUrl = `/api/storage/images/${response.data.data.filename}`
+          const imageId = response.data.data.id
+
+          console.log('✅ Imagen subida al servidor:', { serverImageUrl, imageId })
+
+          // Nueva imagen subida
+          const newImageData: GeneratedImageData = {
+            url: serverImageUrl,
+            prompt: 'Imagen subida por el usuario',
+            timestamp: Date.now(),
+            isUploaded: true
+          }
+
+          // Actualizar imagen actual
+          setCurrentImage(serverImageUrl)
+          setCurrentImageModel('Foto cargada')
+
+          // Agregar a la lista de imágenes generadas
+          setGeneratedImages(prev => {
+            const updated = [newImageData, ...prev].slice(0, MAX_IMAGES)
+            return updated
+          })
+
+          // Pasar URL del servidor (no base64) + imageId para referencia
+          onImageGenerated(serverImageUrl, 'Imagen subida por el usuario', null, imageId)
+
+        } catch (error) {
+          console.error('❌ Error subiendo imagen al servidor:', error)
+          setGenerationError('Error al subir la imagen. Por favor intenta de nuevo.')
+        } finally {
+          setIsGenerating(false)
         }
-        
-        // Actualizar imagen actual
-        setCurrentImage(imageUrl)
-        setCurrentImageModel('Foto cargada')
-        
-        // Agregar a la lista de imágenes generadas
-        setGeneratedImages(prev => {
-          const updated = [newImageData, ...prev].slice(0, MAX_IMAGES)
-          return updated
-        })
-        
-        onImageGenerated(imageUrl, 'Imagen subida por el usuario', null)
       }
       reader.readAsDataURL(file)
     }

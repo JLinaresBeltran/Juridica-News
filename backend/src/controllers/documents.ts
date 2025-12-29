@@ -4,11 +4,18 @@ import { z } from 'zod';
 import { logger } from '@/utils/logger';
 import { validateRequest } from '@/middleware/validation';
 import { DocumentFilters, DocumentCurationAction, BatchCurationRequest } from '../../../shared/types/document.types';
-import { documentTextExtractor, DocumentTextExtractor } from '@/services/DocumentTextExtractor';
 import { AiAnalysisService } from '@/services/AiAnalysisService';
+
+// Black Box Adapters
+import { MammothContentProcessor } from '@/adapters/content/MammothContentProcessor';
+import { RegexMetadataExtractor } from '@/adapters/metadata/RegexMetadataExtractor';
 
 const router = Router();
 const prisma = new PrismaClient();
+
+// Instancias de adapters Black Box
+const contentProcessor = new MammothContentProcessor();
+const metadataExtractor = new RegexMetadataExtractor();
 
 // Validation schemas
 const documentFiltersSchema = z.object({
@@ -135,14 +142,57 @@ router.get('/', validateRequest(documentFiltersSchema, 'query'), async (req: Req
           { priority: 'desc' },
           { createdAt: 'desc' }
         ],
-        include: {
+        // ✅ LAZY LOADING: Solo metadatos ligeros (~2-5KB/doc vs 113KB/doc)
+        select: {
+          // Identifiers
+          id: true,
+          externalId: true,
+
+          // Minimal content
+          title: true,
+          summary: true,  // ✅ Use summary, NOT content
+
+          // URLs y rutas de documentos (necesario para previsualización)
+          url: true,
+          documentPath: true,
+
+          // Metadata
+          source: true,
+          legalArea: true,
+          documentType: true,
+          status: true,
+          priority: true,
+          publicationDate: true,
+          webOfficialDate: true,
+
+          // AI Analysis (metadata only)
+          numeroSentencia: true,
+          magistradoPonente: true,
+          salaRevision: true,
+          expediente: true,
+          temaPrincipal: true,
+          decision: true,
+          aiAnalysisStatus: true,
+
+          // Extraction info
+          extractionDate: true,
+          createdAt: true,
+          confidenceScore: true,
+
+          // Relations
           curator: {
             select: {
               id: true,
               firstName: true,
               lastName: true,
             }
-          }
+          },
+
+          // ❌ EXCLUDED (heavy content):
+          // content: false
+          // fullTextContent: false
+          // resumenIA: false
+          // generatedArticle: false
         }
       }),
       prisma.document.count({ where })
@@ -454,7 +504,8 @@ router.post('/:id/curate', validateRequest(curationActionSchema), async (req: Re
             imageUrl: articleData.image || null, // 🔥 GUARDAR imagen
             wordCount,
             readingTime,
-            authorId: req.user.id
+            authorId: req.user.id,
+            sourceDocumentId: documentId // ✅ FIX: Vincular artículo con documento fuente
           }
         });
 
@@ -465,6 +516,70 @@ router.post('/:id/curate', validateRequest(curationActionSchema), async (req: Re
           status: createdArticle.status,
           wordCount: createdArticle.wordCount
         });
+
+        // 4.5. Asociar imagen de biblioteca con artículo si existe
+        if (articleData.image) {
+          try {
+            let libraryImage = null;
+
+            // Si tenemos imageId específico, buscarlo directamente
+            if (articleData.imageId) {
+              libraryImage = await prisma.generatedImage.findFirst({
+                where: {
+                  imageId: articleData.imageId,
+                  savedToLibrary: true
+                }
+              });
+
+              if (libraryImage) {
+                logger.info('🎯 Imagen encontrada por imageId específico', {
+                  imageId: articleData.imageId
+                });
+              }
+            }
+
+            // Si no hay imageId o no se encontró, buscar por documentId (fallback)
+            if (!libraryImage) {
+              libraryImage = await prisma.generatedImage.findFirst({
+                where: {
+                  documentId: documentId,
+                  savedToLibrary: true
+                },
+                orderBy: {
+                  createdAt: 'desc'
+                }
+              });
+
+              if (libraryImage) {
+                logger.info('📁 Imagen encontrada por documentId (fallback)', {
+                  imageId: libraryImage.imageId
+                });
+              }
+            }
+
+            if (libraryImage) {
+              // Asociar imagen con artículo
+              await prisma.generatedImage.update({
+                where: { id: libraryImage.id },
+                data: { articleId: createdArticle.id }
+              });
+
+              logger.info('🔗 Imagen de biblioteca asociada con artículo', {
+                imageId: libraryImage.imageId,
+                articleId: createdArticle.id,
+                filename: libraryImage.filename,
+                method: articleData.imageId ? 'specific' : 'fallback'
+              });
+            } else {
+              logger.warn('⚠️ No se encontró imagen en biblioteca para asociar', {
+                imageId: articleData.imageId,
+                documentId
+              });
+            }
+          } catch (imageError) {
+            logger.warn('⚠️ No se pudo asociar imagen de biblioteca', imageError);
+          }
+        }
 
         // 5. Actualizar documento para cambiar estado a READY y guardar el contenido editado
         await prisma.document.update({
@@ -676,16 +791,18 @@ router.post('/:id/analyze', async (req: Request, res: Response) => {
 
     logger.info(`🔍 Iniciando análisis de documento: ${documentId}`);
 
-    // Importar servicios de análisis
+    // Importar servicio de análisis
     const { aiAnalysisService } = await import('@/services/AiAnalysisService');
-    const { documentMetadataExtractor } = await import('@/services/DocumentMetadataExtractor');
 
     try {
-      // 1. Extraer metadatos estructurales
-      const metadata = await documentMetadataExtractor.extractMetadata({
-        url: document.url,
-        content: document.content || undefined
-      });
+      // 1. Extraer metadatos estructurales usando Black Box Adapter
+      const metadata = await metadataExtractor.extract(
+        document.content || document.fullTextContent || '',
+        {
+          documentTitle: document.title,
+          source: document.source
+        }
+      );
 
       // 2. Obtener contenido para análisis de IA - PRIORIZAR fullTextContent
       logger.info(`🔍 DEBUG: document.fullTextContent length: ${document.fullTextContent?.length || 0}`);
@@ -717,14 +834,14 @@ router.post('/:id/analyze', async (req: Request, res: Response) => {
               
               if (isDOCX) {
                 logger.info(`📄 Detectado contenido DOCX desde URL, extrayendo texto...`);
-                
+
                 try {
-                  // Extraer texto usando DocumentTextExtractor
-                  const extractedContent = await documentTextExtractor.extractFromBuffer(
-                    Buffer.from(buffer), 
+                  // Extraer texto usando Content Processor Black Box Adapter
+                  const extractedContent = await contentProcessor.extractText(
+                    Buffer.from(buffer),
                     document.title
                   );
-                  
+
                   if (extractedContent) {
                     // Usar texto completo para asegurar que se incluya el encabezado con magistrado ponente
                     contentForAnalysis = extractedContent.fullText;
@@ -834,7 +951,7 @@ router.post('/:id/analyze', async (req: Request, res: Response) => {
         extractedData.magistradoPonente = metadata.magistradoPonente || originalData.magistradoPonente;
         extractedData.salaRevision = metadata.salaRevision || originalData.salaRevision;
         extractedData.expediente = metadata.expediente || originalData.expediente;
-        updateData.fragmentosAnalisis = metadata.rawText.substring(0, 500);
+        updateData.fragmentosAnalisis = metadata.rawText ? metadata.rawText.substring(0, 500) : '';
       }
 
       // ✅ STEP 3: Aplicar análisis IA solo si mejora los datos existentes
@@ -993,9 +1110,8 @@ router.post('/batch-analyze', async (req: Request, res: Response) => {
       }
     });
 
-    // Importar servicios
+    // Importar servicio
     const { aiAnalysisService } = await import('@/services/AiAnalysisService');
-    const { documentMetadataExtractor } = await import('@/services/DocumentMetadataExtractor');
 
     const results = [];
     const errors = [];
@@ -1003,15 +1119,18 @@ router.post('/batch-analyze', async (req: Request, res: Response) => {
     // Procesar cada documento
     for (let i = 0; i < documents.length; i++) {
       const document = documents[i];
-      
+
       try {
         logger.info(`🔍 Procesando ${i + 1}/${documents.length}: ${document.title}`);
 
-        // Extraer metadatos
-        const metadata = await documentMetadataExtractor.extractMetadata({
-          url: document.url,
-          content: document.content || undefined
-        });
+        // Extraer metadatos usando Black Box Adapter
+        const metadata = await metadataExtractor.extract(
+          document.content || document.fullTextContent || '',
+          {
+            documentTitle: document.title,
+            source: document.source
+          }
+        );
 
         // Obtener contenido
         let contentForAnalysis = document.content;
@@ -1046,7 +1165,7 @@ router.post('/batch-analyze', async (req: Request, res: Response) => {
           updateData.numeroSentencia = metadata.numeroSentencia;
           updateData.magistradoPonente = metadata.magistradoPonente;
           updateData.salaRevision = metadata.salaRevision;
-          updateData.fragmentosAnalisis = metadata.rawText.substring(0, 500);
+          updateData.fragmentosAnalisis = metadata.rawText ? metadata.rawText.substring(0, 500) : '';
         }
 
         if (aiAnalysis) {

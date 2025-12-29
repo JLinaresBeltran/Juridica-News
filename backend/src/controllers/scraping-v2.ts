@@ -1,14 +1,28 @@
 /**
  * Controlador de scraping v2 - Nueva arquitectura modular
  * Sistema Editorial Jurídico Supervisado
+ *
+ * REFACTORIZACIÓN BLACK BOX:
+ * - Inyección de dependencias: PrismaDocumentStorage + LocalFileStorage
+ * - Desacoplamiento completo de lógica de persistencia
  */
 
 import express, { Request, Response, NextFunction } from 'express';
 import { body, query, param, validationResult } from 'express-validator';
+import { PrismaClient } from '@prisma/client';
+import * as path from 'path';
 import { requireRole } from '@/middleware/auth';
 import { ScrapingOrchestrator } from '@/services/ScrapingOrchestrator';
 import { ScrapersFactory } from '@/scrapers';
 import { logger } from '@/utils/logger';
+
+// BLACK BOX ADAPTERS
+import { PrismaDocumentStorage } from '@/adapters/storage/PrismaDocumentStorage';
+import { LocalFileStorage } from '@/adapters/storage/LocalFileStorage';
+import { MammothContentProcessor } from '@/adapters/content/MammothContentProcessor';
+import { RegexMetadataExtractor } from '@/adapters/metadata/RegexMetadataExtractor';
+
+const prisma = new PrismaClient();
 
 // Interfaz para requests autenticados
 interface AuthenticatedRequest extends Request {
@@ -27,15 +41,30 @@ let orchestrator: ScrapingOrchestrator;
 // Inicializar orquestador y registrar scrapers
 const initializeOrchestrator = () => {
   if (!orchestrator) {
-    orchestrator = new ScrapingOrchestrator();
-    
+    // BLACK BOX: Crear adapters
+    const documentStorage = new PrismaDocumentStorage(prisma);
+    const fileStorage = new LocalFileStorage(
+      path.join(process.cwd(), 'storage', 'documents')
+    );
+    const contentProcessor = new MammothContentProcessor();
+    const metadataExtractor = new RegexMetadataExtractor();
+
+    // BLACK BOX: Inyectar adapters en orquestador
+    orchestrator = new ScrapingOrchestrator(
+      documentStorage,
+      fileStorage,
+      contentProcessor,
+      metadataExtractor
+    );
+
     // Registrar todos los scrapers disponibles
     const scrapers = ScrapersFactory.createAllScrapers();
     for (const scraper of scrapers) {
       orchestrator.registerScraper(scraper);
     }
-    
+
     logger.info(`🎭 Orquestador inicializado con ${scrapers.length} scrapers`);
+    logger.info(`📦 BLACK BOX: 4 Adapters inyectados (Storage + File + Content + Metadata)`);
   }
   return orchestrator;
 };
@@ -289,6 +318,17 @@ router.post('/extract',
 
       // Si hay resultado inmediato, devolverlo
       if (result.result) {
+        // ✅ Emitir evento SSE para notificar que hay nuevos documentos PENDING
+        if (userId && result.result.documents.length > 0) {
+          const { sseController } = require('@/controllers/sse');
+          sseController.sendEvent(userId, 'documents_extracted', {
+            count: result.result.documents.length,
+            status: 'PENDING',
+            message: `${result.result.documents.length} documentos extraídos y listos para curación`
+          });
+          logger.info(`📡 Evento SSE enviado a usuario ${userId}: ${result.result.documents.length} documentos extraídos`);
+        }
+
         res.json({
           success: true,
           message: `Extracción completada para ${sourceId}`,

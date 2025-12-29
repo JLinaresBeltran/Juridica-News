@@ -21,7 +21,7 @@ const prisma = new PrismaClient();
 const articleFiltersSchema = z.object({
   page: z.coerce.number().min(1).default(1),
   limit: z.coerce.number().min(1).max(100).default(20),
-  status: z.enum(['DRAFT', 'IN_REVIEW', 'READY_TO_PUBLISH', 'SCHEDULED', 'PUBLISHED', 'ARCHIVED']).optional(),
+  status: z.enum(['DRAFT', 'IN_REVIEW', 'READY', 'READY_TO_PUBLISH', 'SCHEDULED', 'PUBLISHED', 'ARCHIVED']).optional(),
   author: z.string().cuid().optional(),
   legalArea: z.enum(['CIVIL', 'PENAL', 'MERCANTIL', 'LABORAL', 'ADMINISTRATIVO', 'FISCAL', 'CONSTITUCIONAL']).optional(),
   publicationSection: z.enum(['ACTUALIZACIONES_NORMATIVAS', 'JURISPRUDENCIA', 'ANALISIS_PRACTICO', 'DOCTRINA', 'MAS_RECIENTES']).optional(),
@@ -111,15 +111,46 @@ router.get('/', validateRequest(articleFiltersSchema, 'query'), async (req: Requ
         orderBy: [
           { updatedAt: 'desc' }
         ],
-        include: {
+        // ✅ LAZY LOADING: Solo metadatos ligeros, sin content (que puede ser >100KB)
+        select: {
+          // Identifiers
+          id: true,
+          slug: true,
+
+          // Minimal content
+          title: true,
+          summary: true,  // ✅ Use summary, NOT content
+
+          // Metadata
+          legalArea: true,
+          publicationSection: true,
+          status: true,
+          keywords: true,
+          tags: true,
+          metaTitle: true,
+          metaDescription: true,
+
+          // Stats
+          views: true,
+          likes: true,
+          wordCount: true,
+          readingTime: true,
+
+          // Publication status
+          publishedAt: true,
+          scheduledAt: true,
+          isGeneral: true,
+          isUltimasNoticias: true,
+          isDestacadoSemana: true,
+          isSeccionIntermedia: true,
+          isSeccionInferior: true,
+          posicionGeneral: true,
+          posicionUltimasNoticias: true,
+          posicionSeccionIntermedia: true,
+          posicionSeccionInferior: true,
+
+          // Relations
           author: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-            }
-          },
-          editor: {
             select: {
               id: true,
               firstName: true,
@@ -132,13 +163,21 @@ router.get('/', validateRequest(articleFiltersSchema, 'query'), async (req: Requ
               title: true,
               source: true,
               legalArea: true,
+              publicationDate: true, // ✅ FIX: Incluir fecha de publicación
             }
           },
-          _count: {
-            select: {
-              versions: true,
-            }
-          }
+
+          // Timestamps
+          createdAt: true,
+          updatedAt: true,
+
+          // ✅ FIX: Incluir imageUrl y content para la vista de artículos
+          imageUrl: true,
+          content: true,
+
+          // ❌ EXCLUDED (heavy relations):
+          // generatedImages: false
+          // mediaAssets: false
         }
       }),
       prisma.article.count({ where })
@@ -382,13 +421,6 @@ router.get('/:id', async (req: Request, res: Response) => {
             lastName: true,
           }
         },
-        editor: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-          }
-        },
         sourceDocument: {
           select: {
             id: true,
@@ -514,13 +546,6 @@ router.put('/:id', validateRequest(updateArticleSchema), async (req: Request, re
       data: updateData,
       include: {
         author: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-          }
-        },
-        editor: {
           select: {
             id: true,
             firstName: true,
@@ -885,11 +910,14 @@ router.post('/:id/publish-general', async (req: Request, res: Response) => {
     }
 
     // Publicar el artículo
+    // ⚠️ CRÍTICO: Establecer isGeneral: true ANTES del empuje para evitar conflictos
     const updatedArticle = await prisma.article.update({
       where: { id: articleId },
       data: {
         status: 'PUBLISHED',
         publishedAt: new Date(),
+        isGeneral: true,
+        posicionGeneral: null, // El servicio asignará la posición 1
       }
     });
 

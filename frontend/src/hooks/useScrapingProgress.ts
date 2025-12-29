@@ -32,14 +32,14 @@ export const useScrapingProgress = (): UseScrapingProgressReturn => {
   const [connectionError, setConnectionError] = useState<string | null>(null)
   
   const eventSourceRef = useRef<EventSource | null>(null)
-  const { token } = useAuthStore()
+  const { accessToken } = useAuthStore()
 
   const clearProgress = () => {
     setCurrentProgress(null)
   }
 
   useEffect(() => {
-    if (!token) {
+    if (!accessToken) {
       return
     }
 
@@ -47,14 +47,13 @@ export const useScrapingProgress = (): UseScrapingProgressReturn => {
       try {
         // Create SSE connection with token in query params since EventSource doesn't support custom headers
         const sseUrl = new URL(`${import.meta.env.VITE_API_URL}/api/events/stream`)
-        sseUrl.searchParams.set('token', token)
-        
+        sseUrl.searchParams.set('token', accessToken)
+
         const eventSource = new EventSource(sseUrl.toString())
 
         eventSourceRef.current = eventSource
 
         eventSource.onopen = () => {
-          console.log('SSE connection opened')
           setIsConnected(true)
           setConnectionError(null)
         }
@@ -62,14 +61,13 @@ export const useScrapingProgress = (): UseScrapingProgressReturn => {
         eventSource.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data)
-            console.log('SSE message received:', data)
-            
+
             // Handle different event types
             if (event.type === 'scraping_progress' || data.type === 'scraping_progress') {
               setCurrentProgress(data)
             }
           } catch (error) {
-            console.warn('Failed to parse SSE message:', error)
+            console.error('Failed to parse SSE message:', error)
           }
         }
 
@@ -77,7 +75,6 @@ export const useScrapingProgress = (): UseScrapingProgressReturn => {
         eventSource.addEventListener('scraping_progress', (event) => {
           try {
             const data = JSON.parse(event.data)
-            console.log('Scraping progress event:', data)
             setCurrentProgress(data)
           } catch (error) {
             console.error('Failed to parse scraping progress event:', error)
@@ -86,23 +83,22 @@ export const useScrapingProgress = (): UseScrapingProgressReturn => {
 
         eventSource.addEventListener('connected', (event) => {
           try {
-            const data = JSON.parse(event.data)
-            console.log('SSE connected:', data)
+            JSON.parse(event.data)
+            // Connection established, no need to log
           } catch (error) {
-            console.warn('Failed to parse connected event:', error)
+            console.error('Failed to parse connected event:', error)
           }
         })
 
-        eventSource.addEventListener('heartbeat', (event) => {
-          // Heartbeat events to keep connection alive
-          console.debug('SSE heartbeat received')
+        eventSource.addEventListener('heartbeat', () => {
+          // Heartbeat events to keep connection alive - no logging needed
         })
 
         eventSource.onerror = (error) => {
           console.error('SSE connection error:', error)
           setIsConnected(false)
           setConnectionError('Error de conexión con el servidor')
-          
+
           // Attempt to reconnect after a delay
           setTimeout(() => {
             if (eventSourceRef.current?.readyState === EventSource.CLOSED) {
@@ -112,7 +108,6 @@ export const useScrapingProgress = (): UseScrapingProgressReturn => {
         }
 
         eventSource.onclose = () => {
-          console.log('SSE connection closed')
           setIsConnected(false)
         }
 
@@ -132,7 +127,7 @@ export const useScrapingProgress = (): UseScrapingProgressReturn => {
       setIsConnected(false)
       setCurrentProgress(null)
     }
-  }, [token])
+  }, [accessToken])
 
   return {
     isConnected,

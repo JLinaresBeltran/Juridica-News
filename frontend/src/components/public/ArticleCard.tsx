@@ -6,9 +6,10 @@ import { ResponsiveImage } from '@/components/ui/ResponsiveImage'
 
 interface ArticleCardProps {
   article: PublicArticle
-  layout?: 'horizontal' | 'vertical' | 'featured' | 'minimal'
+  layout?: 'horizontal' | 'vertical' | 'featured' | 'minimal' | 'numbered' | 'institutional'
   size?: 'small' | 'medium' | 'large'
   className?: string
+  index?: number
 }
 
 const formatDate = (dateString: string): string => {
@@ -28,17 +29,18 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
   article,
   layout = 'vertical',
   size = 'medium',
-  className = ''
+  className = '',
+  index
 }) => {
 
   // Generate SEO-optimized article URL
   const articleUrl = `/portal/articles/${article.slug}`
 
-  // Get image URL with fallback hierarchy
+  // Get image URL with fallback hierarchy (simplified)
   const getImageUrl = (): string => {
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
-    // 1. Usar imageUrl si está disponible (ya procesado por backend)
+    // Usar imageUrl que ya viene procesado desde el backend
     if (article.imageUrl) {
       // Si ya tiene el host completo, usarla tal como está
       if (article.imageUrl.startsWith('http')) {
@@ -48,32 +50,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
       return `${API_URL}${article.imageUrl}`
     }
 
-    // 2. Usar primera imagen de generatedImages si está disponible
-    if (article.generatedImages && article.generatedImages.length > 0) {
-      const firstImage = article.generatedImages[0]
-
-      // Priorizar URL procesada por backend
-      if (firstImage.url) {
-        // Si ya tiene el host completo, usarla tal como está
-        if (firstImage.url.startsWith('http')) {
-          return firstImage.url
-        }
-        // Si es relativa, agregar el host del backend
-        return `${API_URL}${firstImage.url}`
-      }
-
-      // Fallback a filename si está disponible
-      if (firstImage.filename) {
-        return `${API_URL}/api/storage/images/${firstImage.filename}`
-      }
-
-      // Usar fallbackUrl si está definida
-      if (firstImage.fallbackUrl && firstImage.fallbackUrl !== 'base64-image') {
-        return firstImage.fallbackUrl
-      }
-    }
-
-    // 3. Imagen por defecto basada en categoría
+    // Fallback: Imagen por defecto basada en categoría
     return getDefaultArticleImage(article.category)
   }
 
@@ -164,6 +141,100 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
             )}
           </div>
         </div>
+        </article>
+      </Link>
+    )
+  }
+
+  // Layout numbered (número a la izquierda, título y metadatos)
+  if (layout === 'numbered') {
+    return (
+      <Link
+        to={articleUrl}
+        className={`group block transition-all ${className}`}
+        title={`Leer artículo: ${article.title}`}
+        aria-label={`Artículo sobre ${article.category}: ${article.title}`}
+      >
+        <article className="flex items-start gap-4 py-3 px-4 rounded-lg hover:bg-gray-50/50 transition-all">
+          {/* Número con diseño moderno */}
+          <div
+            className="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center font-bold text-lg transition-all group-hover:scale-110"
+            style={{
+              background: 'linear-gradient(135deg, #04315a 0%, #053d6f 100%)',
+              color: '#40f3f2',
+              boxShadow: '0 2px 8px rgba(4, 49, 90, 0.15)'
+            }}
+          >
+            {typeof index === 'number' ? index + 1 : '•'}
+          </div>
+
+          {/* Contenido */}
+          <div className="flex-1 min-w-0">
+            <h3 className="text-sm font-semibold text-gray-900 line-clamp-2 mb-2 group-hover:text-[#04315a] transition-colors leading-snug">
+              {article.title}
+            </h3>
+            <div className="flex items-center text-xs text-gray-500 gap-3">
+              <span className="flex items-center gap-1">
+                <Clock size={12} className="text-gray-400" />
+                {formatReadingTime(article.readingTime)}
+              </span>
+              <span className="text-gray-400">•</span>
+              <span>
+                {formatDate(article.publishedAt)}
+              </span>
+            </div>
+          </div>
+        </article>
+      </Link>
+    )
+  }
+
+  // Layout institutional (minimalista y elegante para instituciones - sin imagen)
+  if (layout === 'institutional') {
+    return (
+      <Link
+        to={articleUrl}
+        className={`group block transition-all ${className}`}
+        title={`Leer artículo: ${article.title}`}
+        aria-label={`Artículo sobre ${article.category}: ${article.title}`}
+      >
+        <article className="relative py-4 px-5 rounded-lg transition-all duration-300 hover:bg-gray-50/50">
+          {/* Barra lateral decorativa con gradiente de marca */}
+          <div
+            className="absolute left-0 top-0 bottom-0 w-1 rounded-l-lg transition-all duration-300 group-hover:w-1.5"
+            style={{
+              background: 'linear-gradient(180deg, #04315a 0%, #40f3f2 100%)'
+            }}
+          />
+
+          {/* Contenido */}
+          <div className="pl-4">
+            <h3 className="text-sm sm:text-base font-semibold text-gray-900 line-clamp-2 mb-3 group-hover:text-[#04315a] transition-colors leading-relaxed">
+              {article.title}
+            </h3>
+
+            {/* Metadatos con diseño limpio */}
+            <div className="flex items-center text-xs text-gray-500 gap-3">
+              <span className="flex items-center gap-1.5">
+                <Clock size={13} className="text-gray-400" />
+                <span className="font-medium">{formatReadingTime(article.readingTime)}</span>
+              </span>
+              <span className="text-gray-300">•</span>
+              <span className="text-gray-600">
+                {formatDate(article.publishedAt)}
+              </span>
+            </div>
+          </div>
+
+          {/* Indicador de hover sutil */}
+          <div
+            className="absolute right-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+            style={{ color: '#40f3f2' }}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M6 3L11 8L6 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
         </article>
       </Link>
     )

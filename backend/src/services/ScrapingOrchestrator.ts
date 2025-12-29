@@ -1,6 +1,11 @@
 /**
  * Orquestador principal del sistema de scraping modular
  * Sistema Editorial Jurídico Supervisado
+ *
+ * REFACTORIZACIÓN BLACK BOX:
+ * - Inyección de dependencias: IDocumentStorage + IFileStorage
+ * - Desacoplamiento completo de Prisma (solo para ExtractionHistory temporal)
+ * - Lógica de negocio simplificada usando adapters
  */
 
 import { EventEmitter } from 'events';
@@ -10,9 +15,6 @@ import { sseController } from '@/controllers/sse';
 import { SourceRegistry } from '@/scrapers/base/SourceRegistry';
 import { BaseScrapingService } from '@/scrapers/base/BaseScrapingService';
 import { QueueManager } from './QueueManager';
-import { DocumentTextExtractor } from '@/services/DocumentTextExtractor';
-import * as fs from 'fs/promises';
-import * as path from 'path';
 import {
   ExtractionParameters,
   ExtractionResult,
@@ -23,6 +25,12 @@ import {
   ScrapingStats
 } from '@/scrapers/base/types';
 
+// BLACK BOX ADAPTERS
+import { IDocumentStorage, DocumentInput, DocumentStatus, LegalArea, DocumentType } from '@/adapters/storage/IDocumentStorage';
+import { IFileStorage } from '@/adapters/storage/IFileStorage';
+import { IContentProcessor } from '@/adapters/content/IContentProcessor';
+import { IMetadataExtractor } from '@/adapters/metadata/IMetadataExtractor';
+
 const prisma = new PrismaClient();
 
 export class ScrapingOrchestrator extends EventEmitter {
@@ -30,19 +38,20 @@ export class ScrapingOrchestrator extends EventEmitter {
   private queueManager: QueueManager;
   private activeJobs: Map<string, ScrapingJob> = new Map();
   private isInitialized = false;
-  private documentTextExtractor: DocumentTextExtractor;
-  private storageBasePath: string;
   private jobQueue: ScrapingJob[] = [];
   private isProcessingQueue = false;
   private queueProcessorInterval?: NodeJS.Timeout;
   private maxConcurrentJobs = 3;
 
-  constructor() {
+  constructor(
+    private documentStorage: IDocumentStorage,
+    private fileStorage: IFileStorage,
+    private contentProcessor: IContentProcessor,
+    private metadataExtractor: IMetadataExtractor
+  ) {
     super();
     this.registry = SourceRegistry.getInstance();
     this.queueManager = new QueueManager(this);
-    this.documentTextExtractor = new DocumentTextExtractor();
-    this.storageBasePath = path.join(process.cwd(), 'storage', 'documents');
     this.setupRegistryListeners();
   }
 
@@ -115,15 +124,21 @@ export class ScrapingOrchestrator extends EventEmitter {
         throw new Error(`Scraper no encontrado: ${sourceId}`);
       }
 
-      logger.info(`🚀 Ejecutando trabajo directo: ${jobId} - Fuente: ${sourceId}`);
-      
-      // 🔍 DEBUG: Log de parámetros que llegan al orquestador
-      logger.info('🛠️ DEBUG - Parámetros que llegan al orquestador:', {
-        jobId,
+      // ✅ Crear job y agregarlo a activeJobs para que los eventos SSE funcionen
+      const job: ScrapingJob = {
+        id: jobId,
         sourceId,
-        parameters
-      });
-      
+        userId,
+        parameters,
+        status: JobStatus.RUNNING,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      this.activeJobs.set(jobId, job);
+
+      logger.info(`🚀 Ejecutando trabajo directo: ${jobId} - Fuente: ${sourceId}`);
+
       const result = await scraper.executeExtraction(jobId, parameters);
       
       // Guardar documentos en la base de datos
@@ -133,38 +148,45 @@ export class ScrapingOrchestrator extends EventEmitter {
       result.documents = savedDocuments;
 
       // Actualizar registro en base de datos
-      await this.updateJobInDatabase({ 
-        id: jobId, 
-        sourceId, 
-        userId, 
-        parameters, 
+      await this.updateJobInDatabase({
+        id: jobId,
+        sourceId,
+        ...(userId && { userId }),
+        parameters,
         status: JobStatus.COMPLETED,
         createdAt: new Date(),
         updatedAt: new Date(),
         completedAt: new Date(),
-        result 
+        result
       }, result);
 
       logger.info(`✅ Trabajo completado: ${jobId} - ${result.documents.length} documentos`);
-      
+
+      // ✅ Remover job de activeJobs
+      this.activeJobs.delete(jobId);
+
       return { jobId, result };
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      
-      await this.updateJobInDatabase({ 
-        id: jobId, 
-        sourceId, 
-        userId, 
-        parameters, 
+
+      await this.updateJobInDatabase({
+        id: jobId,
+        sourceId,
+        ...(userId && { userId }),
+        parameters,
         status: JobStatus.FAILED,
         createdAt: new Date(),
         updatedAt: new Date(),
         completedAt: new Date(),
-        error: errorMessage 
+        error: errorMessage
       });
-      
+
       logger.error(`❌ Trabajo falló: ${jobId} -`, error);
+
+      // ✅ Remover job de activeJobs también en caso de error
+      this.activeJobs.delete(jobId);
+
       throw error;
     }
   }
@@ -238,20 +260,21 @@ export class ScrapingOrchestrator extends EventEmitter {
 
   /**
    * Guardar documentos extraídos en la base de datos
+   *
+   * REFACTORIZACIÓN BLACK BOX:
+   * - Usa IDocumentStorage en lugar de Prisma directo
+   * - Lógica de duplicados delegada al adapter
+   * - Reducido de ~130 líneas a ~60 líneas
    */
   private async saveDocumentsToDatabase(documents: any[], userId?: string): Promise<any[]> {
     const savedDocuments: any[] = [];
 
     for (const doc of documents) {
       try {
-        // Verificar si ya existe
-        const existing = await prisma.document.findFirst({
-          where: {
-            OR: [
-              { externalId: doc.documentId },
-              { url: doc.url }
-            ]
-          }
+        // BLACK BOX: Verificar duplicados usando adapter
+        const existing = await this.documentStorage.findDuplicate({
+          externalId: doc.documentId,
+          url: doc.url
         });
 
         if (existing) {
@@ -303,15 +326,30 @@ export class ScrapingOrchestrator extends EventEmitter {
         if (!webOfficialDate && (doc as any).fechaPublicacion) {
           try {
             webOfficialDate = this.parseWebOfficialDate((doc as any).fechaPublicacion);
-            logger.info(`📅 Fecha web oficial extraída (fallback) para ${doc.documentId}: ${(doc as any).fechaPublicacion} -> ${webOfficialDate?.toISOString().split('T')[0] || 'N/A'}`);
+            logger.info(`📅 Fecha web oficial extraída (fallback directo) para ${doc.documentId}: ${(doc as any).fechaPublicacion} -> ${webOfficialDate?.toISOString().split('T')[0] || 'N/A'}`);
           } catch (error) {
             logger.warn(`⚠️ Error parseando fecha web oficial fallback "${(doc as any).fechaPublicacion}" para ${doc.documentId}:`, error);
           }
         }
 
-        // 3. Log final para debugging
+        // 3. Si aún no hay fecha, intentar desde extractedMetadata.fechaPublicacion (extraída del RTF)
+        if (!webOfficialDate && extractedMetadata?.fechaPublicacion) {
+          try {
+            // extractedMetadata.fechaPublicacion puede ser Date o string
+            if (extractedMetadata.fechaPublicacion instanceof Date) {
+              webOfficialDate = extractedMetadata.fechaPublicacion;
+            } else {
+              webOfficialDate = this.parseWebOfficialDate(String(extractedMetadata.fechaPublicacion));
+            }
+            logger.info(`📅 Fecha web oficial extraída (fallback RTF) para ${doc.documentId}: ${extractedMetadata.fechaPublicacion} -> ${webOfficialDate?.toISOString().split('T')[0] || 'N/A'}`);
+          } catch (error) {
+            logger.warn(`⚠️ Error parseando fecha desde RTF "${extractedMetadata.fechaPublicacion}" para ${doc.documentId}:`, error);
+          }
+        }
+
+        // 4. Log final para debugging
         if (!webOfficialDate) {
-          logger.debug(`📅 No se pudo extraer fecha web oficial para ${doc.documentId} - structuredData: ${structuredData ? 'EXISTS' : 'NULL'}, fechaPublicacion directa: ${(doc as any).fechaPublicacion || 'N/A'}`);
+          logger.warn(`⚠️ No se pudo extraer fecha web oficial para ${doc.documentId} - structuredData: ${structuredData?.fechaPublicacion || 'NULL'}, fechaPublicacion directa: ${(doc as any).fechaPublicacion || 'N/A'}, extractedMetadata: ${extractedMetadata?.fechaPublicacion || 'N/A'}`);
         }
         
         // ✅ IMPLEMENTACIÓN HÍBRIDA - Procesar contenido
@@ -328,38 +366,43 @@ export class ScrapingOrchestrator extends EventEmitter {
           logger.info(`📋 Resumen generado: ${intelligentSummary.length} caracteres (optimizado para IA)`);
         }
 
-        // Si el documento tiene buffer, guardar archivo original
+        // BLACK BOX: Guardar archivo original usando IFileStorage
         if (doc.documentBuffer && doc.documentBuffer.length > 0) {
           logger.info(`💾 Guardando archivo original para ${doc.documentId} (${doc.documentBuffer.length} bytes)`);
-          documentPath = await this.saveDocumentFile(doc.documentId, doc.documentBuffer, 'docx');
+          const filename = `${doc.documentId}.docx`;
+          documentPath = await this.fileStorage.save(filename, doc.documentBuffer, {
+            contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            size: doc.documentBuffer.length,
+            originalFilename: filename
+          });
         }
 
-        // Crear nuevo documento con solución híbrida
-        const savedDocument = await prisma.document.create({
-          data: {
-            title: doc.title,
-            content: intelligentSummary,                    // ✅ Resumen inteligente para IA
-            fullTextContent: fullTextContent,               // ✅ Texto completo para referencia
-            documentPath: documentPath,                     // ✅ Ruta al archivo original
-            summary: doc.summary || `Documento ${doc.documentId} extraído de ${doc.source}`,
-            source: doc.source,
-            url: doc.url,
-            externalId: doc.documentId,
-            metadata: JSON.stringify(doc.metadata),
-            status: 'PENDING',
-            extractedAt: doc.extractionDate,
-            userId: userId || null,
-            legalArea: doc.legalArea || 'GENERAL',
-            documentType: doc.documentType || 'DOCUMENT',
-            publicationDate: doc.publicationDate,
-            webOfficialDate: webOfficialDate,               // ✅ Nueva fecha web oficial
-            // Mapear metadatos extraídos a campos específicos
-            magistradoPonente: magistradoPonente,
-            expediente: expediente,
-            salaRevision: salaRevision,
-            numeroSentencia: numeroSentencia
-          }
-        });
+        // BLACK BOX: Guardar documento usando IDocumentStorage
+        const documentInput: DocumentInput = {
+          documentId: doc.documentId,
+          externalId: doc.documentId,
+          title: doc.title,
+          content: intelligentSummary,                    // ✅ Resumen inteligente para IA
+          ...(fullTextContent && { fullTextContent }),    // ✅ Texto completo para referencia
+          ...(documentPath && { documentPath }),          // ✅ Ruta al archivo original
+          summary: doc.summary || `Documento ${doc.documentId} extraído de ${doc.source}`,
+          source: doc.source,
+          url: doc.url,
+          legalArea: (doc.legalArea || 'GENERAL') as LegalArea,
+          documentType: (doc.documentType || 'DOCUMENT') as DocumentType,
+          ...(numeroSentencia && { numeroSentencia }),        // Convertir null a undefined
+          ...(magistradoPonente && { magistradoPonente }),    // Convertir null a undefined
+          ...(expediente && { expediente }),                  // Convertir null a undefined
+          ...(salaRevision && { salaRevision }),              // Convertir null a undefined
+          publicationDate: doc.publicationDate,
+          ...(webOfficialDate && { webOfficialDate }),        // Convertir null a undefined
+          extractedAt: doc.extractionDate,
+          status: DocumentStatus.PENDING,
+          ...(userId && { userId }),
+          metadata: doc.metadata || {}
+        };
+
+        const savedDocument = await this.documentStorage.save(documentInput);
 
         savedDocuments.push(savedDocument);
         logger.info(`✅ Documento guardado: ${doc.documentId} -> ID: ${savedDocument.id}`);
@@ -384,16 +427,18 @@ export class ScrapingOrchestrator extends EventEmitter {
           documentsFound: result?.totalFound || 0,
           documentsProcessed: result?.documents.length || 0,
           executionTime: result?.extractionTime || 0,
-          completedAt: job.completedAt,
-          error: job.error || null,
-          results: result ? JSON.stringify({
-            success: result.success,
-            documents: result.documents.slice(0, 5).map(d => ({
-              id: d.documentId || d.id,
-              title: d.title,
-              url: d.url
-            }))
-          }) : null
+          ...(job.completedAt && { completedAt: job.completedAt }),
+          ...(job.error && { error: job.error }),
+          ...(result && {
+            results: JSON.stringify({
+              success: result.success,
+              documents: result.documents.slice(0, 5).map((d: any) => ({
+                id: d.id || d.documentId,
+                title: d.title,
+                url: d.url
+              }))
+            })
+          })
         }
       });
     } catch (error) {
@@ -410,11 +455,11 @@ export class ScrapingOrchestrator extends EventEmitter {
     const progress: ScrapingProgress = {
       jobId: job.id,
       status: job.status,
-      progress: job.status === JobStatus.COMPLETED ? 100 : 
+      progress: job.status === JobStatus.COMPLETED ? 100 :
                job.status === JobStatus.RUNNING ? 50 : 0,
       message,
-      documentsFound: job.result?.totalFound,
-      documentsProcessed: job.result?.documents.length
+      ...(job.result?.totalFound !== undefined && { documentsFound: job.result.totalFound }),
+      ...(job.result?.documents.length !== undefined && { documentsProcessed: job.result.documents.length })
     };
 
     sseController.sendEvent(job.userId, 'scraping_progress', progress);
@@ -483,14 +528,14 @@ export class ScrapingOrchestrator extends EventEmitter {
       return {
         id: extraction.id,
         sourceId: extraction.source,
-        userId: extraction.userId || undefined,
+        ...(extraction.userId && { userId: extraction.userId }),
         parameters: JSON.parse(extraction.parameters || '{}'),
         status: extraction.status.toUpperCase() as JobStatus,
         createdAt: extraction.startedAt,
         updatedAt: extraction.completedAt || extraction.startedAt,
         startedAt: extraction.startedAt,
-        completedAt: extraction.completedAt || undefined,
-        error: extraction.error || undefined
+        ...(extraction.completedAt && { completedAt: extraction.completedAt }),
+        ...(extraction.error && { error: extraction.error })
       };
     } catch (error) {
       logger.error('Error obteniendo estado del trabajo:', error);
@@ -552,9 +597,41 @@ export class ScrapingOrchestrator extends EventEmitter {
   /**
    * Configurar listeners del registro
    */
+  /**
+   * Normalizar status del backend (uppercase) al formato esperado por frontend (lowercase)
+   */
+  private normalizeStatusForFrontend(status: JobStatus): string {
+    const statusMap: Record<JobStatus, string> = {
+      [JobStatus.PENDING]: 'pending',
+      [JobStatus.RUNNING]: 'processing',
+      [JobStatus.COMPLETED]: 'completed',
+      [JobStatus.FAILED]: 'error',
+      [JobStatus.CANCELLED]: 'error',
+      [JobStatus.RETRYING]: 'processing'
+    };
+    
+    return statusMap[status] || 'processing';
+  }
+
   private setupRegistryListeners(): void {
-    this.registry.on('scraping_progress', (progress) => {
+    // Escuchar eventos de progreso del scraper y reenviarlos via SSE
+    this.registry.on('scraping_progress', (progress: ScrapingProgress) => {
       this.emit('scraping_progress', progress);
+
+      // Buscar el job activo para obtener el userId
+      const job = this.activeJobs.get(progress.jobId) ||
+                  Array.from(this.jobQueue).find(j => j.id === progress.jobId);
+
+      if (job?.userId) {
+        // Normalizar status para frontend (uppercase -> lowercase)
+        const normalizedProgress = {
+          ...progress,
+          status: this.normalizeStatusForFrontend(progress.status)
+        };
+
+        // Enviar evento de progreso via SSE al usuario
+        sseController.sendEvent(job.userId, 'scraping_progress', normalizedProgress);
+      }
     });
 
     this.registry.on('job_completed', (data) => {
@@ -580,15 +657,16 @@ export class ScrapingOrchestrator extends EventEmitter {
   /**
    * Generar resumen inteligente usando DocumentTextExtractor
    */
+  /**
+   * BLACK BOX: Generar resumen inteligente usando IContentProcessor
+   */
   private async generateIntelligentSummary(fullText: string): Promise<string> {
     try {
-      const structured = this.documentTextExtractor.extractStructuredSections(fullText);
-      
-      // Crear resumen inteligente limitado para análisis IA
-      const summary = `${structured.introduccion}\n\n=== CONSIDERACIONES CLAVE ===\n${structured.considerandos.substring(0, 2000)}\n\n=== RESOLUCIÓN ===\n${structured.resuelve}`;
-      
-      // Limitar a 10K caracteres para optimización IA
-      return summary.substring(0, 10000);
+      // Delegar generación de resumen al adapter
+      const summary = await this.contentProcessor.generateSummary(fullText, 10000);
+
+      logger.info(`📝 Resumen generado: ${summary.length} caracteres`);
+      return summary;
     } catch (error) {
       logger.warn('⚠️ Error generando resumen inteligente, usando fallback', error);
       // Fallback: usar primeros 8K caracteres
@@ -597,27 +675,12 @@ export class ScrapingOrchestrator extends EventEmitter {
   }
 
   /**
-   * Guardar archivo RTF/DOCX original en storage
+   * ❌ DEPRECATED: Método eliminado - ahora usa this.fileStorage.save()
+   *
+   * REFACTORIZACIÓN BLACK BOX:
+   * - Lógica de archivos delegada completamente a IFileStorage
+   * - No más dependencia de fs/promises directa
    */
-  private async saveDocumentFile(documentId: string, buffer: Buffer, extension: string = 'docx'): Promise<string | null> {
-    try {
-      // Asegurar que el directorio existe
-      await fs.mkdir(this.storageBasePath, { recursive: true });
-      
-      // Generar nombre de archivo único
-      const filename = `${documentId}.${extension}`;
-      const filePath = path.join(this.storageBasePath, filename);
-      
-      // Guardar archivo
-      await fs.writeFile(filePath, buffer);
-      
-      logger.info(`💾 Archivo guardado: ${filename} (${buffer.length} bytes)`);
-      return filePath;
-    } catch (error) {
-      logger.error(`❌ Error guardando archivo ${documentId}:`, error);
-      return null;
-    }
-  }
 
   /**
    * Parsear fecha web oficial desde string a Date
@@ -628,24 +691,28 @@ export class ScrapingOrchestrator extends EventEmitter {
         return null;
       }
 
-      const fecha = fechaString.trim();
+      // ✅ FIX: Limpiar caracteres invisibles y espacios extra
+      const fecha = fechaString.trim().replace(/\s+/g, ' ').replace(/[^\x20-\x7E\d\-\/áéíóúñÁÉÍÓÚÑ]/g, '');
 
-      // Formato ISO YYYY-MM-DD (más común en las tablas web)
-      const isoMatch = fecha.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      // ✅ Formato ISO YYYY-MM-DD (de la tabla web de la Corte: 2025-12-19)
+      // Regex flexible: permite 1 o 2 dígitos para mes/día, sin requerir ^ y $
+      const isoMatch = fecha.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
       if (isoMatch && isoMatch[1] && isoMatch[2] && isoMatch[3]) {
         const [, year, month, day] = isoMatch;
-        return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        const parsedDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        logger.info(`✅ Fecha ISO parseada: "${fecha}" -> ${year}-${month}-${day}`);
+        return parsedDate;
       }
 
-      // Formato DD/MM/YYYY
-      const ddmmyyyyMatch = fecha.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      // Formato DD/MM/YYYY (flexible)
+      const ddmmyyyyMatch = fecha.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
       if (ddmmyyyyMatch && ddmmyyyyMatch[1] && ddmmyyyyMatch[2] && ddmmyyyyMatch[3]) {
         const [, day, month, year] = ddmmyyyyMatch;
         return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
       }
 
-      // Formato DD-MM-YYYY
-      const ddmmyyyyDashMatch = fecha.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+      // Formato DD-MM-YYYY (con año de 4 dígitos al final - diferente de ISO)
+      const ddmmyyyyDashMatch = fecha.match(/(\d{1,2})-(\d{1,2})-(\d{4})$/);
       if (ddmmyyyyDashMatch && ddmmyyyyDashMatch[1] && ddmmyyyyDashMatch[2] && ddmmyyyyDashMatch[3]) {
         const [, day, month, year] = ddmmyyyyDashMatch;
         return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
@@ -657,22 +724,29 @@ export class ScrapingOrchestrator extends EventEmitter {
         'julio': 6, 'agosto': 7, 'septiembre': 8, 'octubre': 9, 'noviembre': 10, 'diciembre': 11
       };
 
-      const spanishMatch = fecha.match(/^(\d{1,2})\s+de\s+(\w+)\s+de\s+(\d{4})$/i);
+      // ✅ FIX: Usar trim() y regex más flexible (sin ^ y $) para tolerar espacios extra
+      const cleanFecha = fecha.trim();
+      const spanishMatch = cleanFecha.match(/(\d{1,2})\s+de\s+(\w+)\s+de\s+(\d{4})/i);
       if (spanishMatch && spanishMatch[1] && spanishMatch[2] && spanishMatch[3]) {
         const [, day, monthName, year] = spanishMatch;
         const month = monthsSpanish[monthName.toLowerCase()];
         if (month !== undefined) {
+          logger.info(`✅ Fecha parseada correctamente: "${cleanFecha}" -> ${year}-${month + 1}-${day}`);
           return new Date(parseInt(year), month, parseInt(day));
         }
       }
 
-      // Fallback: intentar Date.parse directamente
-      const parsedDate = new Date(fecha);
-      if (!isNaN(parsedDate.getTime())) {
-        return parsedDate;
+      // ✅ FIX: Solo usar Date.parse para formato ISO seguro (YYYY-MM-DD)
+      // ELIMINADO el fallback peligroso que malinterpreta fechas en español
+      const isoFormatCheck = /^\d{4}-\d{2}-\d{2}/.test(cleanFecha);
+      if (isoFormatCheck) {
+        const parsedDate = new Date(cleanFecha);
+        if (!isNaN(parsedDate.getTime())) {
+          return parsedDate;
+        }
       }
 
-      logger.warn(`⚠️ No se pudo parsear fecha web oficial: "${fecha}"`);
+      logger.warn(`⚠️ No se pudo parsear fecha web oficial: "${fecha}" (limpia: "${cleanFecha}")`);
       return null;
 
     } catch (error) {
@@ -690,7 +764,7 @@ export class ScrapingOrchestrator extends EventEmitter {
     // Detener procesador de cola
     if (this.queueProcessorInterval) {
       clearInterval(this.queueProcessorInterval);
-      this.queueProcessorInterval = undefined;
+      this.queueProcessorInterval = undefined as any;
     }
 
     // Cancelar trabajos activos

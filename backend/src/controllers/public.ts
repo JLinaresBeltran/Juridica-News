@@ -12,7 +12,7 @@ const publicFiltersSchema = z.object({
   page: z.coerce.number().min(1).default(1),
   limit: z.coerce.number().min(1).max(50).default(20),
   section: z.enum(['ACTUALIZACIONES_NORMATIVAS', 'JURISPRUDENCIA', 'ANALISIS_PRACTICO', 'DOCTRINA', 'MAS_RECIENTES']).optional(),
-  legalArea: z.enum(['CIVIL', 'PENAL', 'MERCANTIL', 'LABORAL', 'ADMINISTRATIVO', 'FISCAL', 'CONSTITUCIONAL']).optional(),
+  legalArea: z.enum(['CIVIL', 'PENAL', 'MERCANTIL', 'LABORAL', 'ADMINISTRATIVO', 'FISCAL', 'CONSTITUCIONAL', 'REGULATORIO', 'SOCIETARIO']).optional(),
   entidad: z.enum([
     'CORTE_CONSTITUCIONAL',
     'CORTE_SUPREMA',
@@ -153,6 +153,7 @@ router.get('/articles/:slug', async (req: Request, res: Response) => {
         readingTime: true,
         views: true,
         publishedAt: true,
+        imageUrl: true, // ✅ FIX: Incluir imageUrl para mostrar imagen correcta
         author: {
           select: {
             firstName: true,
@@ -166,6 +167,7 @@ router.get('/articles/:slug', async (req: Request, res: Response) => {
             source: true,
             url: true,
             publicationDate: true,
+            documentPath: true,
           }
         },
         generatedImages: {
@@ -198,18 +200,8 @@ router.get('/articles/:slug', async (req: Request, res: Response) => {
       }
     });
 
-    // Post-process images to ensure correct URLs
-    const processedArticle = {
-      ...article,
-      generatedImages: article.generatedImages.map(img => ({
-        ...img,
-        url: `/api/storage/images/${img.filename}`,
-        // Provide fallback URL if filename is not available
-        fallbackUrl: img.originalUrl || '/images/placeholder-article.jpg'
-      }))
-    };
-
-    res.json({ data: processedArticle });
+    // imageUrl ya está disponible en el artículo
+    res.json({ data: article });
 
   } catch (error) {
     res.status(500).json({
@@ -546,38 +538,20 @@ router.get('/portal-sections', async (req: Request, res: Response) => {
       return acc;
     }, {} as Record<string, typeof entidades>);
 
-    // Post-process function to add correct image URLs
-    const processImages = (articles: any[]) => {
-      return articles.map(article => ({
-        ...article,
-        generatedImages: article.generatedImages?.map((img: any) => ({
-          ...img,
-          url: `/api/storage/images/${img.filename}`,
-          fallbackUrl: img.originalUrl || '/images/placeholder-article.jpg'
-        })) || [],
-        // ✅ Priorizar imageUrl del modelo sobre generatedImages[0]
-        imageUrl: article.imageUrl ||
-          (article.generatedImages?.[0]
-            ? `/api/storage/images/${article.generatedImages[0].filename}`
-            : '/images/placeholder-article.jpg')
-      }));
-    };
-
     // ✅ ACTUALIZADO: Dividir General en 3 bloques visuales (mantiene sistema de empuje 1-6)
     // Bloque 1 (pos 1-2): Superior del portal
     // Bloque 2 (pos 3-4): Debajo de Últimas Noticias
     // Bloque 3 (pos 5-6): Debajo de Instituciones
+    // imageUrl ya está disponible en cada artículo, no necesitamos post-procesamiento
 
     res.json({
       data: {
-        generalTop: processImages(generalAll.slice(0, 2)),      // Posiciones 1-2
-        generalMiddle: processImages(generalAll.slice(2, 4)),   // Posiciones 3-4
-        generalBottom: processImages(generalAll.slice(4, 6)),   // Posiciones 5-6
-        ultimasNoticias: processImages(ultimasNoticias),
-        entidades: Object.fromEntries(
-          Object.entries(entidadesGrouped).map(([key, articles]) => [key, processImages(articles)])
-        ),
-        destacados: processImages(destacados)
+        generalTop: generalAll.slice(0, 2),      // Posiciones 1-2
+        generalMiddle: generalAll.slice(2, 4),   // Posiciones 3-4
+        generalBottom: generalAll.slice(4, 6),   // Posiciones 5-6
+        ultimasNoticias: ultimasNoticias,
+        entidades: entidadesGrouped,
+        destacados: destacados
       }
     });
 
@@ -649,23 +623,9 @@ router.get('/articles/by-legal-area/:legalArea', async (req: Request, res: Respo
 
     const totalPages = Math.ceil(total / limit);
 
-    // Post-process images for consistency
-    const processedArticles = articles.map(article => ({
-      ...article,
-      generatedImages: article.generatedImages?.map((img: any) => ({
-        ...img,
-        url: `/api/storage/images/${img.filename}`,
-        fallbackUrl: img.originalUrl || '/images/placeholder-article.jpg'
-      })) || [],
-      // ✅ Priorizar imageUrl del modelo sobre generatedImages[0]
-      imageUrl: article.imageUrl ||
-        (article.generatedImages?.[0]
-          ? `/api/storage/images/${article.generatedImages[0].filename}`
-          : '/images/placeholder-article.jpg')
-    }));
-
+    // imageUrl ya está disponible en cada artículo
     res.json({
-      data: processedArticles,
+      data: articles,
       pagination: {
         page,
         limit,

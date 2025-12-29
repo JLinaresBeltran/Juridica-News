@@ -1,14 +1,16 @@
 /**
  * Servicio de Análisis de IA para Sentencias Judiciales
- * Integra OpenAI GPT-4 Mini y Google Gemini para análisis automático
+ * Refactorizado con Black Box Architecture usando IAIProvider adapters
  */
 
 import { logger } from '@/utils/logger';
-import { documentTextExtractor, DocumentTextExtractor } from '@/services/DocumentTextExtractor';
+import { AIProviderFactory, aiProviderFactory } from '@/adapters/ai/AIProviderFactory';
+import { AnalysisResult, DocumentFragments } from '@/adapters/ai/IAIProvider';
+import { IContentProcessor } from '@/adapters/content/IContentProcessor';
 import * as fs from 'fs';
 import * as path from 'path';
 
-// Interfaces para el análisis
+// Mantener interfaz DocumentAnalysis para compatibilidad con código existente
 interface DocumentAnalysis {
   temaPrincipal: string;
   resumenIA: string;
@@ -22,58 +24,45 @@ interface DocumentAnalysis {
   confidencia: number;
 }
 
-interface FragmentSelection {
-  introduccion: string;
-  considerandos: string;
-  resuelve: string;
-  otros: string[];
-}
+// Usar DocumentFragments de IAIProvider
+interface FragmentSelection extends DocumentFragments {}
 
 export class AiAnalysisService {
-  private openAiApiKey?: string;
-  private geminiApiKey?: string;
-  private defaultModel: 'openai' | 'gemini' = 'openai';
-  private openAiClient?: any; // Instancia singleton del cliente OpenAI
+  private aiProviderFactory: AIProviderFactory;
+  private contentProcessor: IContentProcessor;
   private analysisQueue: Array<() => Promise<void>> = []; // Cola de análisis pendientes
   private isProcessingQueue: boolean = false; // Flag para evitar procesamiento concurrente
 
-  constructor() {
-    this.openAiApiKey = process.env.OPENAI_API_KEY;
-    this.geminiApiKey = process.env.GEMINI_API_KEY;
+  constructor(
+    aiProviderFactory?: AIProviderFactory,
+    contentProcessor?: IContentProcessor
+  ) {
+    // Inyección de dependencias - Black Box Architecture
+    this.aiProviderFactory = aiProviderFactory || new AIProviderFactory();
 
-    if (!this.openAiApiKey && !this.geminiApiKey) {
-      logger.warn('⚠️  No se encontraron API keys para servicios de IA');
+    // Lazy loading del content processor si no se inyecta
+    if (contentProcessor) {
+      this.contentProcessor = contentProcessor;
+    } else {
+      // Default: usar MammothContentProcessor
+      const { MammothContentProcessor } = require('@/adapters/content/MammothContentProcessor');
+      this.contentProcessor = new MammothContentProcessor();
     }
 
-    // Determinar modelo por defecto - PRIORIZAR GEMINI debido a cuota de OpenAI
-    if (this.geminiApiKey) {
-      this.defaultModel = 'gemini';
-    } else if (this.openAiApiKey) {
-      this.defaultModel = 'openai';
-    }
+    const availableProviders = this.aiProviderFactory.getAvailableProviders();
 
-    logger.info(`🤖 AiAnalysisService iniciado - Modelo por defecto: ${this.defaultModel}`);
+    if (availableProviders.length === 0) {
+      logger.warn('⚠️  No se encontraron proveedores de IA disponibles');
+    } else {
+      logger.info(`🤖 AiAnalysisService iniciado con proveedores: ${availableProviders.join(', ')}`);
+    }
   }
 
   /**
-   * Obtener instancia singleton del cliente OpenAI
+   * Obtener modelos disponibles
    */
-  private async getOpenAIClient() {
-    if (!this.openAiClient && this.openAiApiKey) {
-      try {
-        const OpenAI = (await import('openai')).default;
-        this.openAiClient = new OpenAI({
-          apiKey: this.openAiApiKey,
-          timeout: 120000, // 2 minutos de timeout
-          maxRetries: 2, // Máximo 2 reintentos
-        });
-        logger.info('✅ Cliente OpenAI singleton creado exitosamente');
-      } catch (error) {
-        logger.error('❌ Error creando cliente OpenAI:', error);
-        throw error;
-      }
-    }
-    return this.openAiClient;
+  public getAvailableModels(): string[] {
+    return this.aiProviderFactory.getAvailableProviders();
   }
 
   /**
@@ -211,30 +200,35 @@ export class AiAnalysisService {
       logger.info(`🔍 DEBUG 4: Fragmentos seleccionados exitosamente`);
       logger.info(`📋 Fragmentos finales - Intro: ${fragments.introduccion.length}ch, Considerandos: ${fragments.considerandos.length}ch, Resuelve: ${fragments.resuelve.length}ch`);
 
-      // 2. Realizar análisis con el modelo seleccionado
-      logger.info(`🔍 DEBUG 5: Iniciando análisis con modelo: ${modelToUse}`);
+      // 2. Realizar análisis con el modelo seleccionado usando Black Box Architecture
+      logger.info(`🔍 DEBUG 5: Iniciando análisis con modelo: ${modelToUse || 'auto'}`);
       let analysis: DocumentAnalysis | null = null;
-      
-      if (modelToUse === 'openai' && this.openAiApiKey) {
-        logger.info(`🔍 DEBUG 6: Llamando analyzeWithOpenAI...`);
-        analysis = await this.analyzeWithOpenAI(fragments, documentTitle);
-        logger.info(`🔍 DEBUG 7: analyzeWithOpenAI completado`);
-      } else if (modelToUse === 'gemini' && this.geminiApiKey) {
-        logger.info(`🔍 DEBUG 6: Llamando analyzeWithGemini...`);
-        analysis = await this.analyzeWithGemini(fragments, documentTitle);
-        logger.info(`🔍 DEBUG 7: analyzeWithGemini completado`);
-      }
 
-      if (!analysis) {
-        // Intentar con el otro modelo como fallback
-        const fallbackModel = modelToUse === 'openai' ? 'gemini' : 'openai';
-        logger.info(`🔄 Intentando con modelo de respaldo: ${fallbackModel}`);
-        
-        if (fallbackModel === 'openai' && this.openAiApiKey) {
-          analysis = await this.analyzeWithOpenAI(fragments, documentTitle);
-        } else if (fallbackModel === 'gemini' && this.geminiApiKey) {
-          analysis = await this.analyzeWithGemini(fragments, documentTitle);
-        }
+      try {
+        // Usar analyzeWithFallback para intentar con múltiples proveedores automáticamente
+        const result: AnalysisResult = await this.aiProviderFactory.analyzeWithFallback(
+          fragments,
+          modelToUse
+        );
+
+        // Convertir AnalysisResult a DocumentAnalysis (compatibilidad)
+        analysis = {
+          temaPrincipal: result.temaPrincipal,
+          resumenIA: result.resumenIA,
+          decision: result.decision,
+          ...(result.numeroSentencia && { numeroSentencia: result.numeroSentencia }),
+          ...(result.magistradoPonente && { magistradoPonente: result.magistradoPonente }),
+          ...(result.salaRevision && { salaRevision: result.salaRevision }),
+          ...(result.expediente && { expediente: result.expediente }),
+          fragmentosAnalizados: result.fragmentosAnalizados,
+          modeloUsado: result.modeloUsado,
+          confidencia: result.confidencia
+        };
+
+        logger.info(`🔍 DEBUG 7: Análisis completado con ${result.modeloUsado}`);
+      } catch (error) {
+        logger.error(`❌ Error en análisis con providers: ${error}`);
+        analysis = null;
       }
 
       if (analysis) {
@@ -395,296 +389,6 @@ export class AiAnalysisService {
     }
   }
 
-  /**
-   * Análisis con OpenAI GPT-4 Mini usando cola para evitar concurrencia
-   */
-  private async analyzeWithOpenAI(
-    fragments: FragmentSelection,
-    documentTitle: string
-  ): Promise<DocumentAnalysis | null> {
-    logger.info(`🔄 Encolando análisis para: ${documentTitle}`);
-    
-    return new Promise((resolve, reject) => {
-      // Encolar el análisis para procesamiento secuencial
-      this.enqueueAnalysis(async () => {
-        try {
-          logger.info(`🔍 Ejecutando análisis desde cola para: ${documentTitle}`);
-          const result = await this.executeOpenAIAnalysis(fragments, documentTitle);
-          resolve(result);
-        } catch (error) {
-          logger.error(`❌ Error en análisis desde cola para ${documentTitle}:`, error);
-          reject(error);
-        }
-      });
-    });
-  }
-
-  /**
-   * Ejecutar análisis con OpenAI GPT-4 Mini (método interno)
-   */
-  private async executeOpenAIAnalysis(
-    fragments: FragmentSelection,
-    documentTitle: string
-  ): Promise<DocumentAnalysis | null> {
-    try {
-      const openai = await this.getOpenAIClient();
-      
-      if (!openai) {
-        logger.error('❌ No se pudo obtener cliente OpenAI');
-        return null;
-      }
-
-      const prompt = this.buildAnalysisPrompt(fragments, documentTitle);
-
-      // Log del prompt completo para debugging
-      logger.info('🔍 Enviando análisis a OpenAI GPT-4 Mini...');
-      logger.info('📝 PROMPT COMPLETO ENVIADO A OPENAI:');
-      logger.info('=' .repeat(80));
-      logger.info(prompt);
-      logger.info('=' .repeat(80));
-
-      const response = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: `Eres un asistente de IA experto en el análisis y la síntesis de sentencias de la Corte Constitucional de Colombia. Tu tarea es procesar el documento legal que te proporcionaré y extraer sus componentes más importantes de manera clara y estructurada. No agregues opiniones ni información que no esté explícitamente en el texto.
-
-El rol del asistente es ser un analista legal de documentos y un sintetizador de información.
-
-El objetivo es identificar los componentes clave de una sentencia judicial de la Corte Constitucional, independientemente de su tipo (T, SU, C, etc.). Se debe extraer la siguiente información de forma precisa y estructurada: los hechos, el problema jurídico, las consideraciones principales de la corte (la ratio decidendi) y, finalmente, la decisión o las órdenes finales. El objetivo es que esta información sea comprensible para cualquier persona, sin necesidad de ser un experto en derecho.`
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        max_tokens: 1500,
-        temperature: 0.3, // Baja temperatura para respuestas más consistentes
-        response_format: { type: "json_object" }
-      });
-
-      const result = response.choices[0]?.message?.content;
-      
-      if (!result) {
-        logger.error('❌ OpenAI no devolvió respuesta');
-        return null;
-      }
-
-      // Log de la respuesta completa para debugging
-      logger.info('🤖 RESPUESTA COMPLETA DE OPENAI:');
-      logger.info('=' .repeat(80));
-      logger.info(result);
-      logger.info('=' .repeat(80));
-
-      const parsedResult = JSON.parse(result);
-
-      return {
-        temaPrincipal: parsedResult.tema_principal || 'No identificado',
-        resumenIA: parsedResult.resumen || 'No disponible',
-        decision: parsedResult.decision || 'No identificada',
-        numeroSentencia: null, // Los metadatos se extraen por código separado
-        magistradoPonente: null, // Los metadatos se extraen por código separado
-        salaRevision: null, // Los metadatos se extraen por código separado
-        expediente: null, // Los metadatos se extraen por código separado
-        fragmentosAnalizados: [
-          fragments.introduccion.substring(0, 200),
-          fragments.considerandos.substring(0, 300),
-          fragments.resuelve.substring(0, 200)
-        ],
-        modeloUsado: 'gpt-4o-mini',
-        confidencia: 0.9 // Alta confianza para análisis conceptual enfocado
-      };
-
-    } catch (error) {
-      logger.error(`❌ Error con OpenAI: ${error}`);
-      return null;
-    }
-  }
-
-  /**
-   * Análisis con Google Gemini
-   */
-  private async analyzeWithGemini(
-    fragments: FragmentSelection,
-    documentTitle: string
-  ): Promise<DocumentAnalysis | null> {
-    try {
-      const { GoogleGenerativeAI } = await import('@google/generative-ai');
-      const genAI = new GoogleGenerativeAI(this.geminiApiKey!);
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-
-      const prompt = this.buildAnalysisPrompt(fragments, documentTitle);
-
-      logger.info('🔍 Enviando análisis a Google Gemini...');
-
-      const result = await model.generateContent([prompt]);
-      const response = await result.response;
-      const text = response.text();
-
-      if (!text) {
-        logger.error('❌ Gemini no devolvió respuesta');
-        return null;
-      }
-
-      // Intentar parsear como JSON
-      let parsedResult;
-      try {
-        // Limpiar la respuesta por si tiene caracteres extra
-        const cleanedText = text.replace(/```json\s*|\s*```/g, '').trim();
-        parsedResult = JSON.parse(cleanedText);
-      } catch (parseError) {
-        logger.warn('⚠️  Respuesta de Gemini no es JSON válido, parseando manualmente');
-        
-        // Fallback parsing manual simplificado
-        parsedResult = {
-          tema_principal: this.extractFromText(text, /tema principal:?\s*([^\n]+)/i),
-          resumen: this.extractFromText(text, /resumen:?\s*([^\n]+)/i),
-          decision: this.extractDecisionFromText(text)
-        };
-      }
-
-      return {
-        temaPrincipal: parsedResult.tema_principal || 'No identificado',
-        resumenIA: parsedResult.resumen || 'No disponible',
-        decision: parsedResult.decision || 'No identificada',
-        numeroSentencia: null, // Los metadatos se extraen por código separado
-        magistradoPonente: null, // Los metadatos se extraen por código separado
-        salaRevision: null, // Los metadatos se extraen por código separado
-        expediente: null, // Los metadatos se extraen por código separado
-        fragmentosAnalizados: [
-          fragments.introduccion.substring(0, 200),
-          fragments.considerandos.substring(0, 300),
-          fragments.resuelve.substring(0, 200)
-        ],
-        modeloUsado: 'gemini-2.5-flash',
-        confidencia: 0.9 // Alta confianza para análisis conceptual enfocado
-      };
-
-    } catch (error) {
-      logger.error(`❌ Error con Gemini: ${error}`);
-      return null;
-    }
-  }
-
-  /**
-   * Construir prompt de análisis optimizado
-   */
-  private buildAnalysisPrompt(fragments: FragmentSelection, documentTitle: string): string {
-    return `
-**Título del documento**: ${documentTitle}
-
-**Fragmentos clave de la sentencia**:
-
-**INTRODUCCIÓN Y DATOS BÁSICOS**:
-${fragments.introduccion}
-
-**CONSIDERACIONES Y FUNDAMENTOS**:
-${fragments.considerandos}
-
-**PARTE RESOLUTIVA**:
-${fragments.resuelve}
-
----
-
-**Instrucciones para el análisis:**
-
-1. **Análisis del tema principal:** Identifica el tema central y la naturaleza del caso. El tema debe ser una descripción de no más de 20 palabras.
-   * **Ejemplo de respuesta:** "Protección del derecho a la salud de un niño indígena en estado de abandono."
-
-2. **Resumen concreto:** Crea un resumen narrativo y conciso de los hechos, las partes involucradas y las consideraciones de la corte. El resumen debe tener un máximo de 150 palabras.
-   * **Puntos clave a incluir:**
-     * Identidad de las partes (demandante y demandado).
-     * Hechos relevantes que llevaron a la disputa.
-     * Diagnóstico o situación de la persona afectada.
-     * Razones de la corte para tomar su decisión.
-
-3. **Resumen de la decisión y parte resolutiva:** Elabora un resumen concreto y detallado de la parte resolutiva de la sentencia. Debe incluir:
-   * La decisión principal adoptada por la Corte (conceder, negar, declarar exequible, etc.)
-   * Las órdenes específicas emitidas por la Corte a las entidades involucradas
-   * Los plazos establecidos para el cumplimiento (si aplica)
-   * Las medidas de seguimiento ordenadas (si aplica)
-   * El alcance y limitaciones de la decisión
-   
-   **Formato requerido:** Resumen narrativo de máximo 120 palabras que explique QUÉ decidió la Corte y QUÉ órdenes específicas emitió. No uses solo palabras como "CONCEDE" o "NIEGA", sino explica detalladamente las resoluciones adoptadas.
-
-**FORMATO DE RESPUESTA** (Solo JSON, sin comentarios):
-{
-  "tema_principal": "Tema central del caso en máximo 20 palabras",
-  "resumen": "Resumen narrativo de máximo 150 palabras incluyendo hechos, partes y consideraciones de la corte",
-  "decision": "Resumen detallado de la parte resolutiva en máximo 120 palabras explicando qué decidió la Corte y qué órdenes específicas emitió"
-}
-
-**IMPORTANTE**: 
-- Responde ÚNICAMENTE el JSON, sin texto adicional
-- No agregues campos que no se soliciten
-- Mantén los límites de palabras especificados
-`;
-  }
-
-  /**
-   * Extraer texto usando regex (fallback para respuestas no JSON)
-   */
-  private extractFromText(text: string, regex: RegExp): string {
-    const match = text.match(regex);
-    return match ? match[1].trim() : 'No identificado';
-  }
-
-  /**
-   * Extraer decisión con patrones específicos para Corte Constitucional
-   */
-  private extractDecisionFromText(text: string): string {
-    const lowerText = text.toLowerCase();
-    
-    // Patrones para decisiones INHIBIDAS (más común en C-sentencias)
-    if (lowerText.includes('inhibida') || lowerText.includes('se inhibe') || 
-        lowerText.includes('declarar inhibida') || lowerText.includes('inhibirse')) {
-      return 'INHIBIDA';
-    }
-    
-    // Patrones para otras decisiones comunes
-    if (lowerText.includes('exequible condicionado') || lowerText.includes('condicionalmente exequible')) {
-      return 'EXEQUIBLE CONDICIONADO';
-    }
-    
-    if (lowerText.includes('inexequible') || lowerText.includes('inconstitucional')) {
-      return 'INEXEQUIBLE';
-    }
-    
-    if (lowerText.includes('exequible')) {
-      return 'EXEQUIBLE';
-    }
-    
-    if (lowerText.includes('concede') && lowerText.includes('tutela')) {
-      return 'CONCEDE LA TUTELA';
-    }
-    
-    if (lowerText.includes('niega') && lowerText.includes('tutela')) {
-      return 'NIEGA LA TUTELA';
-    }
-    
-    if (lowerText.includes('inadmite')) {
-      return 'INADMITE';
-    }
-    
-    if (lowerText.includes('unifica')) {
-      return 'UNIFICA JURISPRUDENCIA';
-    }
-    
-    // Fallback con regex general
-    const match = text.match(/decisión:?\s*([^\n]+)/i);
-    return match ? match[1].trim() : 'No identificada';
-  }
-
-  /**
-   * Verificar disponibilidad de servicios de IA
-   */
-  public getAvailableModels(): string[] {
-    const models = [];
-    if (this.openAiApiKey) models.push('openai');
-    if (this.geminiApiKey) models.push('gemini');
-    return models;
-  }
 
   /**
    * Analizar múltiples documentos en lote (con límite de rate)
@@ -731,21 +435,33 @@ ${fragments.resuelve}
   }
 
   /**
-   * Extraer texto de contenido DOCX binario
+   * Extraer texto de contenido DOCX binario usando IContentProcessor
    */
   private async extractTextFromDocxContent(content: string, filename: string) {
     try {
       // Convertir string a buffer (asumiendo que es contenido binario)
       const buffer = Buffer.from(content, 'binary');
-      
-      // Verificar que sea realmente un archivo DOCX
-      if (!DocumentTextExtractor.isDocxBuffer(buffer)) {
+
+      // Verificar formato DOCX (ZIP signature)
+      const isDocx = buffer.length > 4 && buffer.subarray(0, 4).equals(Buffer.from([0x50, 0x4B, 0x03, 0x04]));
+      if (!isDocx) {
         logger.warn(`⚠️  Contenido de ${filename} no parece ser DOCX válido`);
         return null;
       }
 
-      // Extraer texto usando el DocumentTextExtractor
-      return await documentTextExtractor.extractFromBuffer(buffer, filename);
+      // Extraer texto usando el content processor
+      const extracted = await this.contentProcessor.extractText(buffer, filename);
+
+      // Convertir ExtractedContent a formato compatible con el código existente
+      return {
+        fullText: extracted.fullText,
+        structuredContent: extracted.structuredContent,
+        metadata: {
+          wordCount: extracted.wordCount,
+          extractionMethod: extracted.extractionMethod,
+          hasStructure: extracted.metadata.hasStructure
+        }
+      };
     } catch (error) {
       logger.error(`❌ Error extrayendo texto de ${filename}:`, error);
       return null;
@@ -754,29 +470,39 @@ ${fragments.resuelve}
 
   /**
    * Construir texto unificado a partir del contenido extraído
+   * INCLUYE el encabezado inicial para capturar expediente y metadatos
    */
   private buildTextFromExtractedContent(extractedContent: any): string {
-    const { structuredContent } = extractedContent;
-    
-    // Construir texto combinando las secciones estructuradas
+    const { structuredContent, fullText } = extractedContent;
+
+    // Extraer el encabezado (primeras 500 caracteres del texto completo)
+    // que contiene: expediente, magistrado, sentencia, fecha, etc.
+    const header = fullText ? fullText.substring(0, 500) : '';
+
+    // Construir texto combinando encabezado + secciones estructuradas
     const sections = [];
-    
+
+    // Agregar encabezado primero (contiene expediente)
+    if (header) {
+      sections.push('=== ENCABEZADO ===\n' + header);
+    }
+
     if (structuredContent.introduccion) {
       sections.push('=== INTRODUCCIÓN ===\n' + structuredContent.introduccion);
     }
-    
+
     if (structuredContent.considerandos) {
       sections.push('=== CONSIDERANDOS ===\n' + structuredContent.considerandos);
     }
-    
+
     if (structuredContent.resuelve) {
       sections.push('=== RESUELVE ===\n' + structuredContent.resuelve);
     }
-    
+
     if (structuredContent.otros && structuredContent.otros.length > 0) {
       sections.push('=== OTROS ELEMENTOS RELEVANTES ===\n' + structuredContent.otros.join('\n\n'));
     }
-    
+
     return sections.join('\n\n');
   }
 
@@ -856,33 +582,40 @@ ${fragments.resuelve}
 
     // 2. Expediente - Patrones mejorados
     const expedientePatterns = [
-      // Patrones más específicos para expedientes válidos
-      /expediente[:\s]*\n?\s*([A-Z]-\d{1,2}[.,]?\d{3,4})\s*\.?(?:\s|$|,|\n)/im,
-      /exp\.[\s:]*([A-Z]-\d{1,2}[.,]?\d{3,4})\s*\.?(?:\s|$|,|\n)/im,
-      /radicaci[oó]n[:\s]*([A-Z]-\d{1,2}[.,]?\d{3,4})\s*\.?(?:\s|$|,|\n)/im,
-      // Patrón para expedientes con formato T-########
-      /expediente[:\s]*\n?\s*([T]-\d{6,8})\s*\.?(?:\s|$|,|\n)/im,
-      // Patrón de respaldo más general
-      /expediente[:\s]*\n?\s*([A-Z]-[\d.]{3,10})\s*\.?(?:\s|$|,|\n)/im
+      // Patrón MUY flexible que captura expedientes incluso sin espacios
+      // Funciona con: "expediente T-10.123.456", "expedienteT-10.123", "Referencia: expediente T-10.938.839"
+      /expediente[\s:]*([A-Z]-[\d.,]+)/im,
+      // Variantes comunes
+      /exp\.[\s:]*([A-Z]-[\d.,]+)/im,
+      /radicaci[oó]n[\s:]*([A-Z]-[\d.,]+)/im,
+      // Referencia: expediente (común en encabezados)
+      /referencia[\s:]*expediente[\s:]*([A-Z]-[\d.,]+)/im
     ];
-    
+
     for (const pattern of expedientePatterns) {
       const match = content.match(pattern);
       if (match) {
-        let expediente = match[1].trim().replace(/\.$/, ''); // Eliminar punto final
-        // Normalizar separadores de miles (punto a coma si es necesario)
-        if (expediente.includes('.') && expediente.match(/\d\.\d{3}/)) {
-          // Solo si parece ser separador de miles, no punto decimal
-          // Ejemplo: D-15.479 -> mantener; D-15.4 -> mantener
+        let expediente = match[1].trim();
+
+        // Limpiar el expediente: eliminar puntos/comas/espacios finales
+        expediente = expediente.replace(/[.,\s]+$/, '');
+
+        // Extraer solo la parte válida (letra-números con puntos/comas)
+        // Detener en el primer carácter no válido
+        const validMatch = expediente.match(/^([A-Z]-[\d.,]+)/);
+        if (validMatch) {
+          expediente = validMatch[1].replace(/[.,]+$/, ''); // Eliminar separadores finales
         }
-        
-        // Validar formato de expediente (letra-números con posibles puntos/comas)
-        if (/^[A-Z]-[\d.,]{1,10}$/.test(expediente) && expediente.length <= 15) {
+
+        // Validar formato de expediente más flexible
+        // Acepta: Letra + guion + números con puntos/comas opcionales
+        // Longitud máxima de 20 caracteres para ser razonable
+        if (/^[A-Z]-[\d.,]+$/.test(expediente) && expediente.length >= 4 && expediente.length <= 20) {
           metadata.expediente = expediente;
           logger.info(`🔧 Regex extrajo expediente: "${metadata.expediente}"`);
           break;
         } else {
-          logger.warn(`⚠️ Regex descartó expediente inválido: "${expediente}"`);
+          logger.warn(`⚠️ Regex descartó expediente inválido: "${expediente}" (longitud: ${expediente.length})`);
         }
       }
     }
@@ -1032,7 +765,7 @@ ${fragments.resuelve}
   }
 
   /**
-   * Analizar documento desde archivo físico DOCX
+   * Analizar documento desde archivo físico DOCX usando IContentProcessor
    */
   async analyzeDocumentFromFile(
     filePath: string,
@@ -1043,21 +776,35 @@ ${fragments.resuelve}
       logger.info(`📁 Analizando documento desde archivo: ${filePath}`);
 
       // Verificar si es archivo DOCX
-      if (!DocumentTextExtractor.isDocxFile(filePath)) {
+      const buffer = fs.readFileSync(filePath);
+      const isDocx = buffer.length > 4 && buffer.subarray(0, 4).equals(Buffer.from([0x50, 0x4B, 0x03, 0x04]));
+
+      if (!isDocx) {
         logger.warn(`⚠️  ${filePath} no parece ser un archivo DOCX válido`);
-        
+
         // Intentar leer como texto plano
         const textContent = fs.readFileSync(filePath, 'utf8');
         return await this.analyzeDocument(textContent, documentTitle, model);
       }
 
-      // Extraer texto del archivo DOCX
-      const extractedContent = await documentTextExtractor.extractFromDocxFile(filePath);
+      // Extraer texto del archivo DOCX usando content processor
+      const extracted = await this.contentProcessor.extractText(buffer, path.basename(filePath));
 
-      if (!extractedContent) {
+      if (!extracted) {
         logger.error(`❌ No se pudo extraer contenido de ${filePath}`);
         return null;
       }
+
+      // Convertir a formato compatible
+      const extractedContent = {
+        fullText: extracted.fullText,
+        structuredContent: extracted.structuredContent,
+        metadata: {
+          wordCount: extracted.wordCount,
+          extractionMethod: extracted.extractionMethod,
+          hasStructure: extracted.metadata.hasStructure
+        }
+      };
 
       logger.info(`🔍 DEBUG: Secciones extraídas directamente - Intro: ${extractedContent.structuredContent.introduccion.length}ch, Considerandos: ${extractedContent.structuredContent.considerandos.length}ch, Resuelve: ${extractedContent.structuredContent.resuelve.length}ch`);
 
@@ -1076,20 +823,31 @@ ${fragments.resuelve}
       const textContent = this.buildTextFromExtractedContent(extractedContent);
       const regexMetadata = this.extractMetadataWithRegex(textContent, documentTitle);
 
-      // Realizar análisis directo con las secciones sin doble extracción
+      // Realizar análisis directo con las secciones usando Black Box Architecture
       let analysis: DocumentAnalysis | null = null;
 
-      if (model === 'openai' && this.openAiApiKey) {
-        analysis = await this.analyzeWithOpenAI(fragments, documentTitle);
-      } else if (model === 'gemini' && this.geminiApiKey) {
-        analysis = await this.analyzeWithGemini(fragments, documentTitle);
-      } else {
-        // Usar modelo por defecto
-        if (this.defaultModel === 'openai' && this.openAiApiKey) {
-          analysis = await this.analyzeWithOpenAI(fragments, documentTitle);
-        } else if (this.defaultModel === 'gemini' && this.geminiApiKey) {
-          analysis = await this.analyzeWithGemini(fragments, documentTitle);
-        }
+      try {
+        const result: AnalysisResult = await this.aiProviderFactory.analyzeWithFallback(
+          fragments,
+          model
+        );
+
+        // Convertir AnalysisResult a DocumentAnalysis
+        analysis = {
+          temaPrincipal: result.temaPrincipal,
+          resumenIA: result.resumenIA,
+          decision: result.decision,
+          ...(result.numeroSentencia && { numeroSentencia: result.numeroSentencia }),
+          ...(result.magistradoPonente && { magistradoPonente: result.magistradoPonente }),
+          ...(result.salaRevision && { salaRevision: result.salaRevision }),
+          ...(result.expediente && { expediente: result.expediente }),
+          fragmentosAnalizados: result.fragmentosAnalizados,
+          modeloUsado: result.modeloUsado,
+          confidencia: result.confidencia
+        };
+      } catch (error) {
+        logger.error(`❌ Error en análisis con providers: ${error}`);
+        analysis = null;
       }
 
       if (analysis) {
@@ -1129,53 +887,20 @@ ${fragments.resuelve}
         return { summary: 'Contenido no disponible para resumir', wordCount: 5 };
       }
 
-      // Determinar prompt según el estilo
-      const stylePrompts = {
-        professional: 'Genera un resumen profesional y formal',
-        academic: 'Genera un resumen académico y técnico',
-        casual: 'Genera un resumen claro y fácil de entender'
-      };
-
-      const prompt = `${stylePrompts[style]} del siguiente texto jurídico en máximo ${maxWords} palabras.
-Mantén la precisión legal y los términos técnicos importantes:
-
-${content.substring(0, 3000)}`; // Limitar contenido para evitar tokens excesivos
-
       let summary: string = '';
 
-      // Intentar con OpenAI primero si está disponible
-      if (this.openAiApiKey) {
-        try {
-          const OpenAI = require('openai');
-          if (!this.openAiClient) {
-            this.openAiClient = new OpenAI({ apiKey: this.openAiApiKey });
-          }
+      try {
+        // Usar provider factory para generar resumen
+        const provider = this.aiProviderFactory.getProvider();
+        summary = await provider.generateSummary(content, {
+          maxWords,
+          style,
+          focusOn: [] // Opcional: aspectos a enfatizar
+        });
+      } catch (error) {
+        logger.warn('Error con provider para generateSummary, usando fallback:', error);
 
-          const response = await this.openAiClient.chat.completions.create({
-            model: 'gpt-4o-mini',
-            messages: [{ role: 'user', content: prompt }],
-            max_tokens: Math.min(maxWords * 2, 500), // Buffer para tokens
-            temperature: 0.3
-          });
-
-          summary = response.choices[0]?.message?.content?.trim() || '';
-        } catch (error) {
-          logger.warn('Error con OpenAI para generateSummary, intentando fallback:', error);
-        }
-      }
-
-      // Fallback si OpenAI falla o no está disponible
-      if (!summary && this.geminiApiKey) {
-        try {
-          // Implementar llamada a Gemini aquí si es necesario
-          logger.info('Usando fallback para generateSummary (Gemini no implementado)');
-        } catch (error) {
-          logger.warn('Error con Gemini para generateSummary:', error);
-        }
-      }
-
-      // Fallback final - resumen básico
-      if (!summary) {
+        // Fallback final - resumen básico
         const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 20);
         const firstSentences = sentences.slice(0, 3).join('. ').substring(0, maxWords * 7); // Aprox 7 chars por palabra
         summary = firstSentences + (firstSentences.length < content.length ? '...' : '');
@@ -1200,5 +925,5 @@ ${content.substring(0, 3000)}`; // Limitar contenido para evitar tokens excesivo
   }
 }
 
-// Instancia singleton del servicio
-export const aiAnalysisService = new AiAnalysisService();
+// Instancia singleton del servicio con factory inyectado
+export const aiAnalysisService = new AiAnalysisService(aiProviderFactory);
